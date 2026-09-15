@@ -30,7 +30,15 @@ class YtDlpOutputParser {
 }
 
 class YtDlpRunner(private val binary: File, private val parser: YtDlpOutputParser = YtDlpOutputParser()) {
-    suspend fun fetch(url: String, timeoutSeconds: Long = 30): Result<Pair<Source, List<VideoItem>>> = withContext(Dispatchers.IO) { run(listOf("--flat-playlist", "--playlist-end", "50", "--dump-json", "--no-warnings", url), timeoutSeconds).map { parser.parseFlatPlaylist(it.lineSequence(), url) } }
+    suspend fun fetch(url: String, timeoutSeconds: Long = 30): Result<Pair<Source, List<VideoItem>>> = withContext(Dispatchers.IO) {
+        run(listOf("--flat-playlist", "--playlist-end", "50", "--dump-json", "--no-warnings", url), timeoutSeconds).map { output ->
+            val (source, videos) = parser.parseFlatPlaylist(output.lineSequence(), url)
+            source to videos.map { video ->
+                val subtitles = run(listOf("--list-subs", "--skip-download", "--no-warnings", "https://www.youtube.com/watch?v=${video.videoId}"), timeoutSeconds).map(parser::parseAvailableSubs).getOrDefault(emptyList())
+                video.copy(availableSubs = subtitles)
+            }
+        }
+    }
     suspend fun listSubs(videoUrl: String, timeoutSeconds: Long = 30): Result<List<SubtitleLanguage>> = withContext(Dispatchers.IO) { run(listOf("--list-subs", "--skip-download", "--no-warnings", videoUrl), timeoutSeconds).map(parser::parseAvailableSubs) }
     suspend fun downloadSubs(video: VideoItem, languages: List<String>, formats: Set<OutputFormat>, outputDir: File, timeoutSeconds: Long = 60): Result<List<File>> = withContext(Dispatchers.IO) {
         val formatArg = if (formats.contains(OutputFormat.SRT)) "srt/best" else "vtt/best"

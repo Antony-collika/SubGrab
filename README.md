@@ -13,13 +13,13 @@ Mở bằng Android Studio (Koala hoặc mới hơn), sync Gradle và chạy `ap
 ## Core implementation status
 
 - `YtDlpOutputParser` parses flat-playlist JSON lines and subtitle availability.
-- `YtDlpRunner` supports metadata fetch, subtitle listing and subtitle download with timeouts.
+- `YtDlpRunner` supports metadata fetch, per-video subtitle listing and subtitle download with timeouts.
 - `DownloadOrchestrator` processes selected videos sequentially and exposes pause/resume/cancel state.
 - `FileStorage` writes to `Download/Subtitles/{folder}` and converts generated SRT files to TXT.
 - `DownloadService` registers a foreground service with notification pause/cancel actions.
 - Unit tests cover URL validation, filename sanitization, SRT conversion and yt-dlp parser behavior.
 
-The production wiring of an ABI-specific yt-dlp binary, Settings/DataStore screen, download-start action and full integration/UI tests remain follow-up work.
+The bundled release is yt-dlp `2026.08.19`: `yt-dlp-arm64-v8a` and `yt-dlp-armeabi-v7a`. Because both native assets are bundled in one universal APK, the debug APK is approximately 97 MB, above the SRS target of 40 MB. A production build should use ABI splits or Android App Bundles to avoid shipping both binaries to every device.
 
 ## CI
 

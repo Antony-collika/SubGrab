@@ -6,6 +6,7 @@ data class SubtitleLanguage(val code: String, val isAuto: Boolean = false, val n
 data class VideoItem(val index: Int, val videoId: String, val title: String, val durationSec: Int, val availableSubs: List<SubtitleLanguage>, val isSelected: Boolean = false) { val hasSub get() = availableSubs.isNotEmpty() }
 data class Source(val id: String, val url: String, val title: String, val originalTotalVideos: Int)
 data class DownloadConfig(val languages: List<String> = listOf("vi", "en"), val formats: Set<OutputFormat> = setOf(OutputFormat.TXT), val preferManual: Boolean = true, val skipNoSub: Boolean = true)
+data class AppSettings(val languages: List<String> = listOf("vi", "en"), val formats: Set<OutputFormat> = setOf(OutputFormat.TXT), val outputDir: String = "Download/Subtitles", val preferManualSub: Boolean = true, val skipNoSub: Boolean = true)
 object UrlValidator {
     private val youtube = Regex("^https?://(www\\.)?(youtube\\.com|youtu\\.be)/.*", RegexOption.IGNORE_CASE)
     fun isValid(url: String): Boolean = url.trim().let { it.isNotEmpty() && youtube.matches(it) && (it.contains("watch?v=") || it.contains("youtu.be/") || it.contains("/playlist?") || it.contains("/channel/") || it.contains("/c/") || it.contains("/@")) }
