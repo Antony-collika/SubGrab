@@ -1,14 +1,25 @@
 # SubGrab
 
-Ứng dụng Android Kotlin + Jetpack Compose để phân tích link YouTube và chuẩn bị tải phụ đề tiếng Việt/English.
+Ứng dụng Android Kotlin + Jetpack Compose để phân tích link YouTube và tải phụ đề tiếng Việt/English.
 
 ## Bản nháp first-Draft
 
-Bản đầu tiên cung cấp project Android chạy được, package `com.subgrab.app`, màn hình Home tiếng Việt, xác thực link YouTube, domain models và unit tests cho URL/sanitize/SRT. Kiến trúc được tổ chức để mở rộng yt-dlp wrapper, foreground service, DataStore và các màn hình chọn video/cài đặt theo SRS.
+Bản hiện tại cung cấp package `com.subgrab.app`, màn hình Home tiếng Việt, clipboard paste, validate link YouTube, parser/runner yt-dlp với timeout, giới hạn 50 video, màn hình chọn video, cấu hình folder, FileStorage Downloads, chuyển SRT sang TXT, download orchestrator tuần tự có pause/resume/cancel và foreground service notification. yt-dlp executable vẫn cần được đóng gói vào `app/src/main/assets` theo ABI trước khi chạy tải thật trên thiết bị.
 
 ## Chạy local
 
 Mở bằng Android Studio (Koala hoặc mới hơn), sync Gradle và chạy `app`. Có thể chạy kiểm thử bằng `./gradlew test` và build APK bằng `./gradlew assembleDebug`.
+
+## Core implementation status
+
+- `YtDlpOutputParser` parses flat-playlist JSON lines and subtitle availability.
+- `YtDlpRunner` supports metadata fetch, subtitle listing and subtitle download with timeouts.
+- `DownloadOrchestrator` processes selected videos sequentially and exposes pause/resume/cancel state.
+- `FileStorage` writes to `Download/Subtitles/{folder}` and converts generated SRT files to TXT.
+- `DownloadService` registers a foreground service with notification pause/cancel actions.
+- Unit tests cover URL validation, filename sanitization, SRT conversion and yt-dlp parser behavior.
+
+The production wiring of an ABI-specific yt-dlp binary, Settings/DataStore screen, download-start action and full integration/UI tests remain follow-up work.
 
 ## CI
 
