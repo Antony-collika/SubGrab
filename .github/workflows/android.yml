@@ -3,11 +3,13 @@ name: Android CI
 on:
   push:
     branches: ["**"]
+    tags: ["v*"]
   pull_request:
     branches: ["**"]
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   actions: write
 
 jobs:
@@ -58,3 +60,28 @@ jobs:
           path: app/build/outputs/apk/armv7/debug/app-armv7-debug.apk
           if-no-files-found: error
           retention-days: 14
+      - name: Build release APKs
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          ./gradlew assembleArm64Release assembleArmv7Release
+          mkdir -p release-assets
+          cp app/build/outputs/apk/arm64/release/app-arm64-release-unsigned.apk "release-assets/SubGrab-${GITHUB_REF_NAME}-arm64-unsigned.apk"
+          cp app/build/outputs/apk/armv7/release/app-armv7-release-unsigned.apk "release-assets/SubGrab-${GITHUB_REF_NAME}-armv7-unsigned.apk"
+          ls -lh release-assets
+      - name: Upload release APK artifacts
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: SubGrab-${{ github.ref_name }}-release-apks
+          path: release-assets/*.apk
+          if-no-files-found: error
+          retention-days: 30
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release-assets/*.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "SubGrab $GITHUB_REF_NAME" \
+            --generate-notes
