@@ -21,7 +21,9 @@ Mở bằng Android Studio (Koala hoặc mới hơn), sync Gradle và chạy `ap
 
 The app uses `dev.ffmpegkit-maintained:yt-dlp-android:2.0.2`, which embeds Python 3.13 and yt-dlp in-process through Chaquopy. This fixes Android `error=13 Permission denied`: Android 10+ may mount app data with `noexec`, and the previous yt-dlp assets were Linux glibc executables rather than Android/Bionic binaries. The library supports `arm64-v8a` and `x86_64`; this project intentionally builds the supported `arm64` flavor only. The app requests notification permission on Android 13+ and legacy storage permission on Android 9 and below.
 
-For YouTube subtitle extraction, the runner is subtitle-only (`--skip-download`) and retries a 403 at most across the supported yt-dlp clients `web_embedded`, `android_vr`, and `tv`. This is a bounded fallback, not a guarantee against YouTube changes, PO-token enforcement, consent, age, or geo restrictions. The project does not currently embed NewPipeExtractor because it is GPL-3.0-or-later; licensing must be resolved before using it in a non-GPL distribution.
+For YouTube subtitle extraction, the runner is subtitle-only (`--skip-download`) and retries a 403 at most across the supported yt-dlp clients `web_embedded`, `android_vr`, and `tv`. This is a bounded fallback, not a guarantee against YouTube changes, PO-token enforcement, consent, age, or geo restrictions. NewPipeExtractor is also included as the primary per-video subtitle provider; its GPL-3.0-or-later obligations are documented in `THIRD_PARTY_NOTICES.md`.
+
+The current implementation now tries NewPipeExtractor `v0.26.5` first for per-video subtitle discovery and direct caption-track download, then falls back to the embedded yt-dlp runtime if extraction or caption download fails. NewPipeExtractor uses YouTube InnerTube and caption tracks rather than the media-download path which commonly returns HTTP 403. It is GPL-3.0-or-later; this project must retain the dependency's license and source-notice obligations when distributed.
 
 ## CI
 

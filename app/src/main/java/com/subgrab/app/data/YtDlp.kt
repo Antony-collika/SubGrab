@@ -36,6 +36,7 @@ class YtDlpOutputParser {
 
 class YtDlpRunner(context: Context, private val parser: YtDlpOutputParser = YtDlpOutputParser()) {
     private val youtubeClients = listOf("web_embedded", "android_vr", "tv")
+    private val newPipe = runCatching { NewPipeSubtitleProvider(context) }.getOrNull()
     init { runCatching { YtDlp.init(context.applicationContext) }.getOrElse { throw IllegalStateException("Không thể khởi tạo yt-dlp Android runtime", it) } }
 
     suspend fun fetch(url: String, timeoutSeconds: Long = 30): Result<Pair<Source, List<VideoItem>>> = withContext(Dispatchers.IO) {
@@ -49,12 +50,14 @@ class YtDlpRunner(context: Context, private val parser: YtDlpOutputParser = YtDl
     }
 
     suspend fun listSubs(videoUrl: String, timeoutSeconds: Long = 30): Result<List<SubtitleLanguage>> = withContext(Dispatchers.IO) {
-        executeLogsWithFallback(timeoutSeconds) { client -> YtDlpRequest(videoUrl).addOption("--list-subs").addOption("--skip-download").addOption("--no-warnings").youtubeClient(client) }.map(parser::parseAvailableSubs)
+        newPipe?.list(videoUrl)?.takeIf { it.isSuccess } ?: executeLogsWithFallback(timeoutSeconds) { client -> YtDlpRequest(videoUrl).addOption("--list-subs").addOption("--skip-download").addOption("--no-warnings").youtubeClient(client) }.map(parser::parseAvailableSubs)
     }
 
     suspend fun downloadSubs(video: VideoItem, languages: List<String>, formats: Set<OutputFormat>, outputDir: File, timeoutSeconds: Long = 60): Result<List<File>> = withContext(Dispatchers.IO) {
         val before = outputDir.listFiles()?.map { it.name }?.toSet().orEmpty()
         val formatArg = if (formats.contains(OutputFormat.SRT)) "vtt/srt/best" else "vtt/best"
+        val newPipeResult = newPipe?.download(video, languages, formats, outputDir)
+        if (newPipeResult?.isSuccess == true) return@withContext newPipeResult
         executeWithFallback(timeoutSeconds) { client ->
             YtDlpRequest("https://www.youtube.com/watch?v=${video.videoId}")
                 .setOutputTemplate(File(outputDir, "%(playlist_index)03d - %(title)s.%(ext)s").absolutePath)
