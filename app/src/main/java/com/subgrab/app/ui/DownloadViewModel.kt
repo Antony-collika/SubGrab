@@ -27,4 +27,4 @@ class DownloadViewModel(private val runner: YtDlpRunner?, private val orchestrat
     fun resumeDownload() = orchestrator?.resume()
     fun cancelDownload() = orchestrator?.cancel()
 }
-private fun AppSettings.toDownloadConfig() = com.subgrab.app.domain.DownloadConfig(languages, formats, preferManualSub, skipNoSub)
+private fun AppSettings.toDownloadConfig() = com.subgrab.app.domain.DownloadConfig(languages, formats, preferManualSub, skipNoSub, outputDir)

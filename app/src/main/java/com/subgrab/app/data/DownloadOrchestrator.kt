@@ -14,7 +14,7 @@ class DownloadOrchestrator(private val runner: YtDlpRunner, private val storage:
     private val _state = MutableStateFlow<DownloadState>(DownloadState.Idle); val state: StateFlow<DownloadState> = _state.asStateFlow()
     @Volatile private var paused = false; @Volatile private var cancelled = false
     suspend fun start(source: Source, videos: List<VideoItem>, folderName: String, config: DownloadConfig) {
-        paused = false; cancelled = false; val selected = videos.filter { it.isSelected }.take(50); val dir = storage.createTaskDirectory(folderName); var saved = 0; var skipped = 0; val logs = mutableListOf<String>()
+        paused = false; cancelled = false; val selected = videos.filter { it.isSelected }.take(50); val dir = storage.createTaskDirectory(folderName, config.outputDir); var saved = 0; var skipped = 0; val logs = mutableListOf<String>()
         selected.forEachIndexed { index, video ->
             while (paused && !cancelled) { _state.value = DownloadState.Paused(index, selected.size, logs.toList()); delay(250) }
             if (cancelled) { _state.value = DownloadState.Cancelled(saved, logs); return }
@@ -22,7 +22,12 @@ class DownloadOrchestrator(private val runner: YtDlpRunner, private val storage:
             _state.value = DownloadState.Running(index + 1, selected.size, video.title, saved, skipped, logs.toList())
             runner.downloadSubs(video, config.languages, config.formats, dir).onSuccess { files -> saved += files.size; logs += "✅ ${video.title}: ${files.size} file" }.onFailure { logs += "❌ ${video.title}: ${it.message}" }
         }
-        storage.convertSrtToTxt(dir); _state.value = DownloadState.Done(saved, skipped, logs)
+        storage.convertSrtToTxt(dir)
+        val basePath = config.outputDir.removePrefix("Download/").removePrefix("Download\\").ifBlank { "Subtitles" }
+        val relativePath = "$basePath/${dir.name}"
+        val published = storage.publishToDownloads(dir, relativePath)
+        logs += "📁 Đã xuất ${published.size} file vào Download/$relativePath"
+        _state.value = DownloadState.Done(saved, skipped, logs)
     }
     fun pause() { paused = true }
     fun resume() { paused = false }

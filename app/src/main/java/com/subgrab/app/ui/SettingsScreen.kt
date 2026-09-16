@@ -12,20 +12,50 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(repository: SettingsRepository, onBack: () -> Unit) {
-    val scope = rememberCoroutineScope(); val stored by repository.settings.collectAsState(initial = AppSettings()); var value by remember(stored) { mutableStateOf(stored) }
+    val scope = rememberCoroutineScope()
+    val stored by repository.settings.collectAsState(initial = AppSettings())
+    var value by remember(stored) { mutableStateOf(stored) }
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Cài đặt", style = MaterialTheme.typography.headlineSmall); TextButton(onClick = onBack) { Text("Xong") } }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Cài đặt", style = MaterialTheme.typography.headlineSmall)
+            TextButton(onClick = onBack) { Text("Xong") }
+        }
         Text("Ngôn ngữ phụ đề", style = MaterialTheme.typography.titleMedium)
-        LanguageToggle("Tiếng Việt", "vi", value.languages) { value = value.copy(languages = it); scope.launch { repository.update(value) } }
-        LanguageToggle("English", "en", value.languages) { value = value.copy(languages = it); scope.launch { repository.update(value) } }
+        LanguageToggle("Tiếng Việt", "vi", value.languages) { next -> value = value.copy(languages = next); scope.launch { repository.update(value) } }
+        LanguageToggle("English", "en", value.languages) { next -> value = value.copy(languages = next); scope.launch { repository.update(value) } }
         Text("Định dạng file", style = MaterialTheme.typography.titleMedium)
-        FormatToggle("TXT", OutputFormat.TXT, value.formats) { value = value.copy(formats = it); scope.launch { repository.update(value) } }
-        FormatToggle("SRT", OutputFormat.SRT, value.formats) { value = value.copy(formats = it); scope.launch { repository.update(value) } }
+        FormatToggle("TXT", OutputFormat.TXT, value.formats) { next -> value = value.copy(formats = next); scope.launch { repository.update(value) } }
+        FormatToggle("SRT", OutputFormat.SRT, value.formats) { next -> value = value.copy(formats = next); scope.launch { repository.update(value) } }
         HorizontalDivider()
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Ưu tiên phụ đề chính thức"); Switch(checked = value.preferManualSub, onCheckedChange = { value = value.copy(preferManualSub = it); scope.launch { repository.update(value) } }) }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Bỏ qua video không có sub"); Switch(checked = value.skipNoSub, onCheckedChange = { value = value.copy(skipNoSub = it); scope.launch { repository.update(value) } }) }
-        Text("Thư mục mặc định: ${value.outputDir}", style = MaterialTheme.typography.bodySmall)
+        OutlinedTextField(
+            value = value.outputDir,
+            onValueChange = { next -> value = value.copy(outputDir = next); scope.launch { repository.update(value) } },
+            label = { Text("Thư mục trong Downloads") },
+            supportingText = { Text("Ví dụ: Download/Subtitles hoặc SubGrab/Exports") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Ưu tiên phụ đề chính thức")
+            Switch(checked = value.preferManualSub, onCheckedChange = { next -> value = value.copy(preferManualSub = next); scope.launch { repository.update(value) } })
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Bỏ qua video không có sub")
+            Switch(checked = value.skipNoSub, onCheckedChange = { next -> value = value.copy(skipNoSub = next); scope.launch { repository.update(value) } })
+        }
     }
 }
-@Composable private fun LanguageToggle(label: String, code: String, selected: List<String>, onChange: (List<String>) -> Unit) { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(label); Checkbox(checked = code in selected, onCheckedChange = { val next = if (it) (selected + code).distinct() else selected - code; if (next.isNotEmpty()) onChange(next) }) } }
-@Composable private fun FormatToggle(label: String, format: OutputFormat, selected: Set<OutputFormat>, onChange: (Set<OutputFormat>) -> Unit) { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(".$label"); Checkbox(checked = format in selected, onCheckedChange = { val next = if (it) selected + format else selected - format; if (next.isNotEmpty()) onChange(next) }) } }
+
+@Composable private fun LanguageToggle(label: String, code: String, selected: List<String>, onChange: (List<String>) -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label)
+        Checkbox(checked = code in selected, onCheckedChange = { checked -> val next = if (checked) (selected + code).distinct() else selected - code; if (next.isNotEmpty()) onChange(next) })
+    }
+}
+
+@Composable private fun FormatToggle(label: String, format: OutputFormat, selected: Set<OutputFormat>, onChange: (Set<OutputFormat>) -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(".$label")
+        Checkbox(checked = format in selected, onCheckedChange = { checked -> val next = if (checked) selected + format else selected - format; if (next.isNotEmpty()) onChange(next) })
+    }
+}
