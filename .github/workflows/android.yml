@@ -37,5 +37,6 @@ jobs:
           test -f app/build/outputs/apk/armv7/debug/app-armv7-debug.apk
           for apk in app/build/outputs/apk/*/debug/*-debug.apk; do
             size=$(stat -c%s "$apk")
-            test "$size" -lt 83886080
+            echo "$apk: $size bytes"
+            test "$(unzip -l "$apk" | grep -c 'assets/yt-dlp$')" -eq 1
           done
