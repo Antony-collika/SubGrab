@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: ["**"]
 
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -40,3 +44,17 @@ jobs:
             echo "$apk: $size bytes"
             test "$(unzip -l "$apk" | grep -c 'assets/yt-dlp$')" -eq 1
           done
+      - name: Upload arm64 APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SubGrab-arm64-debug
+          path: app/build/outputs/apk/arm64/debug/app-arm64-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload armv7 APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SubGrab-armv7-debug
+          path: app/build/outputs/apk/armv7/debug/app-armv7-debug.apk
+          if-no-files-found: error
+          retention-days: 14
