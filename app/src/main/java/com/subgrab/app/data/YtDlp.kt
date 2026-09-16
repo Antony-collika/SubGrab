@@ -5,6 +5,7 @@ import com.subgrab.app.domain.Source
 import com.subgrab.app.domain.SubtitleLanguage
 import com.subgrab.app.domain.VideoItem
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -46,10 +47,22 @@ class YtDlpRunner(private val binary: File, private val parser: YtDlpOutputParse
         val before = outputDir.listFiles()?.map { it.name }?.toSet().orEmpty()
         run(args, timeoutSeconds).map { outputDir.listFiles()?.filter { it.name !in before }.orEmpty() }
     }
-    private suspend fun run(args: List<String>, timeoutSeconds: Long): Result<String> = withContext(Dispatchers.IO) { runCatching {
+    private suspend fun run(args: List<String>, timeoutSeconds: Long): Result<String> = withContext(Dispatchers.IO) {
+        var last: Result<String> = Result.failure(IllegalStateException("yt-dlp chưa chạy"))
+        repeat(2) { attempt ->
+            last = runOnce(args, timeoutSeconds)
+            if (last.isSuccess || attempt == 1 || !isRetryable(last.exceptionOrNull()?.message.orEmpty())) return@withContext last
+            delay(1_000L)
+        }
+        last
+    }
+
+    private fun runOnce(args: List<String>, timeoutSeconds: Long): Result<String> = runCatching {
         require(binary.exists() && binary.canExecute()) { "Không tìm thấy yt-dlp executable" }
         val process = ProcessBuilder(listOf(binary.absolutePath) + args).redirectErrorStream(true).start()
         if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) { process.destroyForcibly(); error("Quá thời gian xử lý") }
         val output = process.inputStream.bufferedReader().readText(); check(process.exitValue() == 0) { output.ifBlank { "yt-dlp thất bại" } }; output
-    } }
+    }
+
+    private fun isRetryable(message: String): Boolean = listOf("429", "500", "502", "503", "504", "timed out", "timeout", "network", "connection").any { it in message.lowercase() }
 }

@@ -29,3 +29,13 @@ jobs:
         run: ./gradlew test
       - name: Assemble debug APK
         run: ./gradlew assembleDebug
+      - name: Verify ABI APK outputs
+        run: |
+          set -e
+          ls -lh app/build/outputs/apk/debug/*-debug.apk
+          test -f app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
+          test -f app/build/outputs/apk/debug/app-armeabi-v7a-debug.apk
+          for apk in app/build/outputs/apk/debug/*-debug.apk; do
+            size=$(stat -c%s "$apk")
+            test "$size" -lt 31457280
+          done
