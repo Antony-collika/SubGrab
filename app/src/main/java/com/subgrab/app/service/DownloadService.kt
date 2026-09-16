@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 object DownloadServiceRegistry {
@@ -28,6 +30,7 @@ object DownloadServiceRegistry {
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DownloadService : LifecycleService() {
+    private var terminalHandled = false
     companion object {
         const val ACTION_PAUSE = "com.subgrab.app.PAUSE"
         const val ACTION_RESUME = "com.subgrab.app.RESUME"
@@ -65,6 +68,14 @@ class DownloadService : LifecycleService() {
             is DownloadState.Cancelled -> NotificationInfo("Đã hủy · ${state.saved} file đã lưu", null, false, false)
         }
         getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, buildNotification(text, progress, paused, ongoing))
+        if (!ongoing && !terminalHandled) {
+            terminalHandled = true
+            lifecycleScope.launch {
+                delay(1500)
+                stopForegroundCompat()
+                stopSelf()
+            }
+        }
     }
 
     private fun createChannel() {
@@ -92,7 +103,20 @@ class DownloadService : LifecycleService() {
             .setOnlyAlertOnce(true)
         progress?.let { (current, total) -> builder.setProgress(total, current.coerceAtMost(total), false) }
         if (ongoing) builder.addAction(if (paused) action("Tiếp tục", ACTION_RESUME) else action("Tạm dừng", ACTION_PAUSE)).addAction(action("Hủy", ACTION_CANCEL))
+        else builder.addAction(openDownloadsAction())
+        builder.setAutoCancel(!ongoing)
         return builder.build()
+    }
+
+    private fun openDownloadsAction(): NotificationCompat.Action {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("content://downloads/my_downloads")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val pending = PendingIntent.getActivity(this, 90, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        return NotificationCompat.Action.Builder(0, "Mở Downloads", pending).build()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun stopForegroundCompat() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) stopForeground(STOP_FOREGROUND_DETACH) else stopForeground(false)
     }
 
     private data class NotificationInfo(val text: String, val progress: Pair<Int, Int>?, val paused: Boolean, val ongoing: Boolean)

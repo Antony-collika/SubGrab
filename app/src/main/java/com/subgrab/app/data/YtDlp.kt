@@ -43,7 +43,8 @@ class YtDlpRunner(private val binary: File, private val parser: YtDlpOutputParse
     suspend fun downloadSubs(video: VideoItem, languages: List<String>, formats: Set<OutputFormat>, outputDir: File, timeoutSeconds: Long = 60): Result<List<File>> = withContext(Dispatchers.IO) {
         val formatArg = if (formats.contains(OutputFormat.SRT)) "srt/best" else "vtt/best"
         val args = mutableListOf("--skip-download", "--write-subs", "--write-auto-subs", "--sub-langs", languages.joinToString(","), "--convert-subs", "srt", "--sub-format", formatArg, "--sleep-requests", "1", "--output", File(outputDir, "% (playlist_index)03d - %(title)s.%(ext)s".replace("% ", "%")).absolutePath, "https://www.youtube.com/watch?v=${video.videoId}")
-        run(args, timeoutSeconds).map { outputDir.listFiles()?.toList().orEmpty() }
+        val before = outputDir.listFiles()?.map { it.name }?.toSet().orEmpty()
+        run(args, timeoutSeconds).map { outputDir.listFiles()?.filter { it.name !in before }.orEmpty() }
     }
     private suspend fun run(args: List<String>, timeoutSeconds: Long): Result<String> = withContext(Dispatchers.IO) { runCatching {
         require(binary.exists() && binary.canExecute()) { "Không tìm thấy yt-dlp executable" }
