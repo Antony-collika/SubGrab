@@ -11,10 +11,9 @@ import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 
 class NewPipeSubtitleProvider(context: Context) {
+    private val downloader = NewPipeDownloader()
     init {
         synchronized(NewPipeSubtitleProvider::class.java) {
             if (!initialized) {
@@ -43,7 +42,7 @@ class NewPipeSubtitleProvider(context: Context) {
                 .filter { track -> languages.any { wanted -> track.getLanguageTag().equals(wanted, true) || track.getLanguageTag().startsWith("$wanted-") } }
             require(tracks.isNotEmpty()) { "NewPipeExtractor không tìm thấy subtitle phù hợp" }
             tracks.map { track ->
-                val text = downloadText(track.content)
+                val text = downloader.fetchText(track.content, url)
                 val srt = vttToSrt(text)
                 val extension = if (formats.contains(OutputFormat.SRT)) "srt" else "txt"
                 val content = if (extension == "txt") com.subgrab.app.domain.SrtToTxtConverter.convert(srt) else srt
@@ -53,15 +52,6 @@ class NewPipeSubtitleProvider(context: Context) {
                 }
             }
         }
-    }
-
-    private fun downloadText(url: String): String {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        connection.connectTimeout = 15_000
-        connection.readTimeout = 30_000
-        connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36")
-        check(connection.responseCode in 200..299) { "Subtitle HTTP ${connection.responseCode}" }
-        return connection.inputStream.bufferedReader().use { it.readText() }
     }
 
     private fun vttToSrt(input: String): String {
