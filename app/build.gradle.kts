@@ -12,7 +12,6 @@ android { namespace = "com.subgrab.app"; compileSdk = 35
     flavorDimensions += "abi"
     productFlavors {
         create("arm64") { dimension = "abi"; ndk { abiFilters += "arm64-v8a" } }
-        create("armv7") { dimension = "abi"; ndk { abiFilters += "armeabi-v7a" } }
     }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
@@ -29,5 +28,6 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("dev.ffmpegkit-maintained:yt-dlp-android:2.0.2")
     testImplementation("junit:junit:4.13.2")
 }

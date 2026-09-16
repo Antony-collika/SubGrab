@@ -1,11 +1,16 @@
 package com.subgrab.app.data
 
+import android.content.Context
 import com.subgrab.app.domain.OutputFormat
 import com.subgrab.app.domain.Source
 import com.subgrab.app.domain.SubtitleLanguage
 import com.subgrab.app.domain.VideoItem
+import dev.ffmpegkit_maintained.ytdlp.DownloadProgressCallback
+import dev.ffmpegkit_maintained.ytdlp.LogCallback
+import dev.ffmpegkit_maintained.ytdlp.YtDlp
+import dev.ffmpegkit_maintained.ytdlp.YtDlpException
+import dev.ffmpegkit_maintained.ytdlp.YtDlpRequest
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -30,39 +35,52 @@ class YtDlpOutputParser {
     private fun jsonValue(line: String, key: String): String? = Regex("\\\"$key\\\"\\s*:\\s*(?:\\\"([^\\\"]*)\\\"|([^,}]+))").find(line)?.let { it.groupValues[1].ifEmpty { it.groupValues[2] }?.trim('"') }
 }
 
-class YtDlpRunner(private val binary: File, private val parser: YtDlpOutputParser = YtDlpOutputParser()) {
+class YtDlpRunner(context: Context, private val parser: YtDlpOutputParser = YtDlpOutputParser()) {
+    init { runCatching { YtDlp.init(context.applicationContext) }.getOrElse { throw IllegalStateException("Không thể khởi tạo yt-dlp Android runtime", it) } }
+
     suspend fun fetch(url: String, timeoutSeconds: Long = 30): Result<Pair<Source, List<VideoItem>>> = withContext(Dispatchers.IO) {
-        run(listOf("--flat-playlist", "--playlist-end", "50", "--dump-json", "--no-warnings", url), timeoutSeconds).map { output ->
+        executeLogs(YtDlpRequest(url).addOption("--flat-playlist").addOption("--playlist-end", "50").addOption("--dump-json").addOption("--no-warnings"), timeoutSeconds).map { output ->
             val (source, videos) = parser.parseFlatPlaylist(output.lineSequence(), url)
             source to videos.map { video ->
-                val subtitles = run(listOf("--list-subs", "--skip-download", "--no-warnings", "https://www.youtube.com/watch?v=${video.videoId}"), timeoutSeconds).map(parser::parseAvailableSubs).getOrDefault(emptyList())
+                val subtitles = listSubs("https://www.youtube.com/watch?v=${video.videoId}", timeoutSeconds).getOrDefault(emptyList())
                 video.copy(availableSubs = subtitles)
             }
         }
     }
-    suspend fun listSubs(videoUrl: String, timeoutSeconds: Long = 30): Result<List<SubtitleLanguage>> = withContext(Dispatchers.IO) { run(listOf("--list-subs", "--skip-download", "--no-warnings", videoUrl), timeoutSeconds).map(parser::parseAvailableSubs) }
+
+    suspend fun listSubs(videoUrl: String, timeoutSeconds: Long = 30): Result<List<SubtitleLanguage>> = withContext(Dispatchers.IO) {
+        executeLogs(YtDlpRequest(videoUrl).addOption("--list-subs").addOption("--skip-download").addOption("--no-warnings"), timeoutSeconds).map(parser::parseAvailableSubs)
+    }
+
     suspend fun downloadSubs(video: VideoItem, languages: List<String>, formats: Set<OutputFormat>, outputDir: File, timeoutSeconds: Long = 60): Result<List<File>> = withContext(Dispatchers.IO) {
-        val formatArg = if (formats.contains(OutputFormat.SRT)) "srt/best" else "vtt/best"
-        val args = mutableListOf("--skip-download", "--write-subs", "--write-auto-subs", "--sub-langs", languages.joinToString(","), "--convert-subs", "srt", "--sub-format", formatArg, "--sleep-requests", "1", "--output", File(outputDir, "% (playlist_index)03d - %(title)s.%(ext)s".replace("% ", "%")).absolutePath, "https://www.youtube.com/watch?v=${video.videoId}")
         val before = outputDir.listFiles()?.map { it.name }?.toSet().orEmpty()
-        run(args, timeoutSeconds).map { outputDir.listFiles()?.filter { it.name !in before }.orEmpty() }
+        val formatArg = if (formats.contains(OutputFormat.SRT)) "srt/best" else "vtt/best"
+        val request = YtDlpRequest("https://www.youtube.com/watch?v=${video.videoId}")
+            .setOutputTemplate(File(outputDir, "%(playlist_index)03d - %(title)s.%(ext)s").absolutePath)
+            .addOption("--skip-download")
+            .addOption("--write-subs")
+            .addOption("--write-auto-subs")
+            .addOption("--sub-langs", languages.joinToString(","))
+            .addOption("--convert-subs", "srt")
+            .addOption("--sub-format", formatArg)
+        execute(request, timeoutSeconds).map { outputDir.listFiles()?.filter { it.name !in before }.orEmpty() }
     }
-    private suspend fun run(args: List<String>, timeoutSeconds: Long): Result<String> = withContext(Dispatchers.IO) {
-        var last: Result<String> = Result.failure(IllegalStateException("yt-dlp chưa chạy"))
-        repeat(2) { attempt ->
-            last = runOnce(args, timeoutSeconds)
-            if (last.isSuccess || attempt == 1 || !isRetryable(last.exceptionOrNull()?.message.orEmpty())) return@withContext last
-            delay(1_000L)
+
+    private suspend fun executeLogs(request: YtDlpRequest, timeoutSeconds: Long): Result<String> {
+        val logs = StringBuilder()
+        return runCatching {
+            val callback = object : LogCallback { override fun onLog(level: String?, message: String?) { if (!message.isNullOrBlank()) logs.appendLine(message) } }
+            val response = YtDlp.executeDebug(request, callback, DownloadProgressCallback { _, _, _ -> }).get(timeoutSeconds, TimeUnit.SECONDS)
+            check(response.isSuccess) { response.errorOutput.ifBlank { "yt-dlp thất bại: ${response.exitCode}" } }
+            logs.toString()
         }
-        last
     }
 
-    private fun runOnce(args: List<String>, timeoutSeconds: Long): Result<String> = runCatching {
-        require(binary.exists() && binary.canExecute()) { "Không tìm thấy yt-dlp executable" }
-        val process = ProcessBuilder(listOf(binary.absolutePath) + args).redirectErrorStream(true).start()
-        if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) { process.destroyForcibly(); error("Quá thời gian xử lý") }
-        val output = process.inputStream.bufferedReader().readText(); check(process.exitValue() == 0) { output.ifBlank { "yt-dlp thất bại" } }; output
+    private suspend fun execute(request: YtDlpRequest, timeoutSeconds: Long): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = YtDlp.executeAsync(request, DownloadProgressCallback { _, _, _ -> }).get(timeoutSeconds, TimeUnit.SECONDS)
+            check(response.isSuccess) { response.errorOutput.ifBlank { "yt-dlp thất bại: ${response.exitCode}" } }
+            response.output
+        }
     }
-
-    private fun isRetryable(message: String): Boolean = listOf("429", "500", "502", "503", "504", "timed out", "timeout", "network", "connection").any { it in message.lowercase() }
 }

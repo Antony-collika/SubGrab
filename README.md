@@ -4,7 +4,7 @@
 
 ## Bản nháp first-Draft
 
-Bản hiện tại cung cấp package `com.subgrab.app`, màn hình Home tiếng Việt, clipboard paste, validate link YouTube, parser/runner yt-dlp với timeout, giới hạn 50 video, màn hình chọn video, cấu hình folder, FileStorage Downloads, chuyển SRT sang TXT, download orchestrator tuần tự có pause/resume/cancel và foreground service notification. yt-dlp executable vẫn cần được đóng gói vào `app/src/main/assets` theo ABI trước khi chạy tải thật trên thiết bị.
+Bản hiện tại cung cấp package `com.subgrab.app`, màn hình Home tiếng Việt, clipboard paste, validate link YouTube, parser/runner yt-dlp với timeout, giới hạn 50 video, màn hình chọn video, cấu hình folder, FileStorage Downloads, chuyển SRT sang TXT, download orchestrator tuần tự có pause/resume/cancel và foreground service notification. yt-dlp chạy in-process qua thư viện `yt-dlp-android`/Chaquopy, không dùng `ProcessBuilder` để execute ELF Linux từ `filesDir`.
 
 ## Chạy local
 
@@ -19,7 +19,7 @@ Mở bằng Android Studio (Koala hoặc mới hơn), sync Gradle và chạy `ap
 - `DownloadService` registers a foreground service with notification pause/cancel actions.
 - Unit tests cover URL validation, filename sanitization, SRT conversion and yt-dlp parser behavior.
 
-The bundled release is yt-dlp `2026.08.19`, separated into ABI-specific product flavors for `arm64-v8a` and `armeabi-v7a`. Each APK contains only one native binary; local debug builds are approximately 56–57 MB because the executable is not meaningfully compressed inside the APK, but no APK ships both binaries. The app requests notification permission on Android 13+ and legacy storage permission on Android 9 and below.
+The app uses `dev.ffmpegkit-maintained:yt-dlp-android:2.0.2`, which embeds Python 3.13 and yt-dlp in-process through Chaquopy. This fixes Android `error=13 Permission denied`: Android 10+ may mount app data with `noexec`, and the previous yt-dlp assets were Linux glibc executables rather than Android/Bionic binaries. The library supports `arm64-v8a` and `x86_64`; this project intentionally builds the supported `arm64` flavor only. The app requests notification permission on Android 13+ and legacy storage permission on Android 9 and below.
 
 ## CI
 
