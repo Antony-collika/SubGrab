@@ -32,10 +32,10 @@ jobs:
       - name: Verify ABI APK outputs
         run: |
           set -e
-          ls -lh app/build/outputs/apk/debug/*-debug.apk
-          test -f app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
-          test -f app/build/outputs/apk/debug/app-armeabi-v7a-debug.apk
-          for apk in app/build/outputs/apk/debug/*-debug.apk; do
+          ls -lh app/build/outputs/apk/*/debug/*-debug.apk
+          test -f app/build/outputs/apk/arm64/debug/app-arm64-debug.apk
+          test -f app/build/outputs/apk/armv7/debug/app-armv7-debug.apk
+          for apk in app/build/outputs/apk/*/debug/*-debug.apk; do
             size=$(stat -c%s "$apk")
-            test "$size" -lt 31457280
+            test "$size" -lt 83886080
           done

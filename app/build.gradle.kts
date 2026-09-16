@@ -9,13 +9,10 @@ android { namespace = "com.subgrab.app"; compileSdk = 35
     compileOptions { sourceCompatibility = JavaVersion.VERSION_1_8; targetCompatibility = JavaVersion.VERSION_1_8 }
     kotlinOptions { jvmTarget = "1.8" }
     buildFeatures { compose = true }
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("arm64-v8a", "armeabi-v7a")
-            isUniversalApk = false
-        }
+    flavorDimensions += "abi"
+    productFlavors {
+        create("arm64") { dimension = "abi"; ndk { abiFilters += "arm64-v8a" } }
+        create("armv7") { dimension = "abi"; ndk { abiFilters += "armeabi-v7a" } }
     }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }

@@ -19,7 +19,7 @@ Mở bằng Android Studio (Koala hoặc mới hơn), sync Gradle và chạy `ap
 - `DownloadService` registers a foreground service with notification pause/cancel actions.
 - Unit tests cover URL validation, filename sanitization, SRT conversion and yt-dlp parser behavior.
 
-The bundled release is yt-dlp `2026.08.19`, separated into ABI-specific assets for `arm64-v8a` and `armeabi-v7a`. Gradle ABI splits produce separate debug APKs of approximately 16.6 MB each, avoiding the previous approximately 97 MB universal APK. The app requests notification permission on Android 13+ and legacy storage permission on Android 9 and below.
+The bundled release is yt-dlp `2026.08.19`, separated into ABI-specific product flavors for `arm64-v8a` and `armeabi-v7a`. Each APK contains only one native binary; local debug builds are approximately 56–57 MB because the executable is not meaningfully compressed inside the APK, but no APK ships both binaries. The app requests notification permission on Android 13+ and legacy storage permission on Android 9 and below.
 
 ## CI
 
