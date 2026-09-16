@@ -10,14 +10,17 @@ import org.schabi.newpipe.extractor.MediaFormat
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
+import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor
 import java.io.File
 
 class NewPipeSubtitleProvider(context: Context) {
     private val downloader = NewPipeDownloader()
+    private val poTokenProvider = NewPipePoTokenProvider(context.applicationContext, downloader)
     init {
         synchronized(NewPipeSubtitleProvider::class.java) {
             if (!initialized) {
                 NewPipe.init(NewPipeDownloader(), Localization("en", "US"), ContentCountry("US"))
+                YoutubeStreamExtractor.setPoTokenProvider(poTokenProvider)
                 initialized = true
             }
         }

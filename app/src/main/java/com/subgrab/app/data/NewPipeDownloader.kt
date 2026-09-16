@@ -8,6 +8,23 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class NewPipeDownloader : Downloader() {
+    fun postJson(url: String, body: String): String {
+        val request = Request.newBuilder()
+            .httpMethod("POST")
+            .url(url)
+            .headers(mapOf(
+                "Accept" to listOf("application/json"),
+                "Content-Type" to listOf("application/json+protobuf"),
+                "x-goog-api-key" to listOf("AIzaSyDyT5W0Jh49F30Pqqtyfdf7pDLFKLJoAnw"),
+                "x-user-agent" to listOf("grpc-web-javascript/0.1")
+            ))
+            .dataToSend(body.toByteArray())
+            .build()
+        val response = execute(request)
+        check(response.responseCode() == 200) { "BotGuard HTTP ${response.responseCode()}" }
+        return response.responseBody()
+    }
+
     fun fetchText(url: String, referer: String = "https://www.youtube.com/"): String {
         val request = Request.newBuilder()
             .httpMethod("GET")
