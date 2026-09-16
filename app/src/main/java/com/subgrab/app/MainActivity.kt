@@ -2,6 +2,8 @@ package com.subgrab.app
 
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.pm.PackageManager
+import android.Manifest
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -29,7 +31,20 @@ import com.subgrab.app.ui.DownloadViewModel
 import com.subgrab.app.ui.DownloadViewModelFactory
 import com.subgrab.app.ui.SettingsScreen
 
-class MainActivity : ComponentActivity() { override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); setContent { SubGrabTheme { SubGrabApp() } } } }
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent { SubGrabTheme { SubGrabApp() } }
+        requestRequiredPermissions()
+    }
+    private fun requestRequiredPermissions() {
+        val permissions = buildList {
+            if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) add(Manifest.permission.POST_NOTIFICATIONS)
+            if (android.os.Build.VERSION.SDK_INT <= 28 && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+        if (permissions.isNotEmpty()) requestPermissions(permissions.toTypedArray(), 100)
+    }
+}
 @Composable fun SubGrabTheme(content: @Composable () -> Unit) { MaterialTheme(colorScheme = lightColorScheme(primary = Color(0xFF006C4C))) { content() } }
 
 @OptIn(ExperimentalMaterial3Api::class)

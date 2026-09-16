@@ -7,8 +7,7 @@ import java.io.File
 class YtDlpBinaryProvider(private val context: Context) {
     fun executable(): File {
         val asset = when (Build.SUPPORTED_ABIS.firstOrNull()) {
-            "arm64-v8a" -> "yt-dlp-arm64-v8a"
-            "armeabi-v7a" -> "yt-dlp-armeabi-v7a"
+            "arm64-v8a", "armeabi-v7a" -> "yt-dlp"
             else -> error("Thiết bị không hỗ trợ ARM64 hoặc ARMv7")
         }
         return File(context.filesDir, "yt-dlp").also { target ->
