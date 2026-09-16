@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -45,7 +46,11 @@ class MainActivity : ComponentActivity() {
         if (permissions.isNotEmpty()) requestPermissions(permissions.toTypedArray(), 100)
     }
 }
-@Composable fun SubGrabTheme(content: @Composable () -> Unit) { MaterialTheme(colorScheme = lightColorScheme(primary = Color(0xFF006C4C))) { content() } }
+@Composable fun SubGrabTheme(content: @Composable () -> Unit) {
+    val dark = isSystemInDarkTheme()
+    val colors = if (dark) darkColorScheme(primary = Color(0xFF63DBA8)) else lightColorScheme(primary = Color(0xFF006C4C))
+    MaterialTheme(colorScheme = colors) { content() }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun SubGrabApp() {
