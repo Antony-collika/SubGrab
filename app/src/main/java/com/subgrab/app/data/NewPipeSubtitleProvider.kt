@@ -65,16 +65,16 @@ class NewPipeSubtitleProvider(context: Context) {
             if (isList) {
                 val extractor = service.getPlaylistExtractor(url)
                 extractor.fetchPage()
-                val streams = extractor.streams.take(50)
+                val streams = extractor.getInitialPage().items.take(50)
                 val videos = streams.mapIndexed { index, item ->
-                    VideoItem(index + 1, item.id, item.name, item.duration.toInt(), emptyList())
+                    VideoItem(index + 1, item.getId(), item.getName(), item.getDuration().toInt(), emptyList())
                 }
-                Source(url, url, extractor.name, videos.size) to videos
+                Source(url, url, extractor.getName(), videos.size) to videos
             } else {
                 val extractor = service.getStreamExtractor(url)
                 extractor.fetchPage()
-                val video = VideoItem(1, extractor.id, extractor.name, extractor.duration.toInt(), emptyList())
-                Source(url, url, extractor.name, 1) to listOf(video)
+                val video = VideoItem(1, extractor.getId(), extractor.getName(), extractor.getDuration().toInt(), emptyList())
+                Source(url, url, extractor.getName(), 1) to listOf(video)
             }
         }
     }
