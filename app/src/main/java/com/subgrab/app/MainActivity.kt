@@ -66,12 +66,12 @@ class MainActivity : ComponentActivity() {
         if (showSettings) SettingsScreen(settingsRepo) { showSettings = false }
         else when (val current = state) {
             is AnalysisState.Ready -> SelectVideoScreen(current.videos, current.folder, vm, settings, downloadState, Modifier.padding(pad))
-            else -> HomeScreen(state, vm, settings, downloadState, Modifier.padding(pad))
+            else -> HomeScreen(state, vm, downloadState, Modifier.padding(pad))
         }
     }
 }
 
-@Composable private fun HomeScreen(state: AnalysisState, vm: DownloadViewModel, settings: AppSettings, downloadState: DownloadState, modifier: Modifier) {
+@Composable private fun HomeScreen(state: AnalysisState, vm: DownloadViewModel, downloadState: DownloadState, modifier: Modifier) {
     val context = LocalContext.current
     var mode by remember { mutableStateOf(false) }
     var url by remember { mutableStateOf("") }
@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
     LazyColumn(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
             Text("Tải phụ đề YouTube hàng loạt", style = MaterialTheme.typography.headlineSmall)
-            Text("Nhập link như trước, hoặc thử tìm video bằng từ khóa.")
+            Text("Nhập link như trước, hoặc tìm video bằng từ khóa.")
         }
         item {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -95,11 +95,11 @@ class MainActivity : ComponentActivity() {
                 OutlinedTextField(value = keyword, onValueChange = { keyword = it }, label = { Text("Từ khóa YouTube") }, placeholder = { Text("Ví dụ: AI agents") }, modifier = Modifier.fillMaxWidth(), singleLine = true, isError = state is AnalysisState.Error, supportingText = { if (state is AnalysisState.Error) Text((state as AnalysisState.Error).message) })
             }
             item {
-                Button(onClick = { vm.searchKeyword(keyword, settings) }, modifier = Modifier.fillMaxWidth(), enabled = state !is AnalysisState.Loading && keyword.isNotBlank()) { Text(if (state is AnalysisState.Loading) "ĐANG TÌM..." else "TÌM VIDEO") }
+                Button(onClick = { vm.searchKeyword(keyword) }, modifier = Modifier.fillMaxWidth(), enabled = state !is AnalysisState.Loading && keyword.isNotBlank()) { Text(if (state is AnalysisState.Loading) "ĐANG TÌM..." else "TÌM VIDEO") }
             }
         }
         if (downloadState !is DownloadState.Idle) item { DownloadProgressCard(downloadState, vm) }
-        item { Text(if (mode) "YouTube trả về tối đa 20 video phù hợp nhất theo mức độ liên quan. Sau đó bạn tự chọn video để tải." else "yt-dlp/NewPipe sẽ phân tích tối đa 50 video và lấy subtitle vi/en nếu có.") }
+        item { Text(if (mode) "NewPipe tìm trực tiếp trên YouTube, sau đó trả về danh sách video để bạn chọn." else "yt-dlp/NewPipe sẽ phân tích tối đa 50 video và lấy subtitle vi/en nếu có.") }
     }
 }
 
