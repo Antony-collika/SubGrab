@@ -11,7 +11,7 @@ class YouTubeSearchClient {
     suspend fun search(query: String, maxResults: Int = 20): Result<Pair<Source, List<VideoItem>>> = withContext(Dispatchers.IO) {
         runCatching {
             require(query.isNotBlank()) { "Vui lòng nhập từ khóa" }
-            val service = NewPipe.getServiceByName("YouTube")
+            val service = NewPipe.getServiceByUrl("https://www.youtube.com")
             val searchHandler = service.searchQHFactory.fromQuery(query.trim())
             val extractor = service.getSearchExtractor(searchHandler)
             extractor.fetchPage()
