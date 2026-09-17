@@ -80,7 +80,7 @@ class NewPipeSubtitleProvider(context: Context) {
             } else {
                 val extractor = service.getStreamExtractor(url)
                 extractor.fetchPage()
-                val video = VideoItem(1, extractor.getId(), extractor.getName(), extractor.getDuration().toInt(), emptyList())
+                val video = VideoItem(1, extractor.getId(), extractor.getName(), extractor.getLength().toInt(), emptyList())
                 Source(url, url, extractor.getName(), 1) to listOf(video)
             }
         }
