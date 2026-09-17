@@ -27,14 +27,7 @@ fun SettingsScreen(repository: SettingsRepository, onBack: () -> Unit) {
         FormatToggle("TXT", OutputFormat.TXT, value.formats) { next -> value = value.copy(formats = next); scope.launch { repository.update(value) } }
         FormatToggle("SRT", OutputFormat.SRT, value.formats) { next -> value = value.copy(formats = next); scope.launch { repository.update(value) } }
         HorizontalDivider()
-        OutlinedTextField(
-            value = value.youtubeApiKey,
-            onValueChange = { next -> value = value.copy(youtubeApiKey = next); scope.launch { repository.update(value) } },
-            label = { Text("YouTube Data API key") },
-            supportingText = { Text("Dùng cho tìm kiếm bằng từ khóa. Tạo key trong Google Cloud và giới hạn theo app.") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Text("Tìm kiếm từ khóa sử dụng NewPipeExtractor, không cần API key.", style = MaterialTheme.typography.bodyMedium)
         OutlinedTextField(
             value = value.outputDir,
             onValueChange = { next -> value = value.copy(outputDir = next); scope.launch { repository.update(value) } },
