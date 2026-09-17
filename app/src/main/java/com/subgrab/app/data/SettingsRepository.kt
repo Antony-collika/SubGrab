@@ -2,7 +2,7 @@ package com.subgrab.app.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.subgrab.app.domain.AppSettings
@@ -18,7 +18,6 @@ class SettingsRepository(private val context: Context) {
         val outputDir = stringPreferencesKey("output_dir")
         val preferManual = booleanPreferencesKey("prefer_manual")
         val skipNoSub = booleanPreferencesKey("skip_no_sub")
-        val youtubeApiKey = stringPreferencesKey("youtube_api_key")
     }
     val settings: Flow<AppSettings> = context.settingsStore.data.map { p ->
         AppSettings(
@@ -26,8 +25,7 @@ class SettingsRepository(private val context: Context) {
             p[Keys.formats]?.split(",")?.mapNotNull { value -> OutputFormat.entries.find { it.name == value } }?.toSet() ?: setOf(OutputFormat.TXT),
             p[Keys.outputDir] ?: "Download/Subtitles",
             p[Keys.preferManual] ?: true,
-            p[Keys.skipNoSub] ?: true,
-            p[Keys.youtubeApiKey] ?: ""
+            p[Keys.skipNoSub] ?: true
         )
     }
     suspend fun update(value: AppSettings) { context.settingsStore.edit { p ->
@@ -36,6 +34,5 @@ class SettingsRepository(private val context: Context) {
         p[Keys.outputDir] = value.outputDir
         p[Keys.preferManual] = value.preferManualSub
         p[Keys.skipNoSub] = value.skipNoSub
-        p[Keys.youtubeApiKey] = value.youtubeApiKey
     } }
 }
