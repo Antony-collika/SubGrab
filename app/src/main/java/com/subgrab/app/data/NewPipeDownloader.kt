@@ -13,15 +13,17 @@ class NewPipeDownloader : Downloader() {
             .httpMethod("POST")
             .url(url)
             .headers(mapOf(
+                "User-Agent" to listOf(USER_AGENT),
                 "Accept" to listOf("application/json"),
                 "Content-Type" to listOf("application/json+protobuf"),
                 "x-goog-api-key" to listOf("AIzaSyDyT5W0Jh49F30Pqqtyfdf7pDLFKLJoAnw"),
-                "x-user-agent" to listOf("grpc-web-javascript/0.1")
+                "x-user-agent" to listOf("grpc-web-javascript/0.1"),
+                "Cookie" to listOf("SOCS=CAE=")
             ))
             .dataToSend(body.toByteArray())
             .build()
         val response = execute(request)
-        check(response.responseCode() == 200) { "BotGuard HTTP ${response.responseCode()}" }
+        check(response.responseCode() == 200) { "BotGuard HTTP " + response.responseCode() }
         return response.responseBody()
     }
 
@@ -30,13 +32,14 @@ class NewPipeDownloader : Downloader() {
             .httpMethod("GET")
             .url(url)
             .headers(mapOf(
+                "User-Agent" to listOf(USER_AGENT),
                 "Referer" to listOf(referer),
                 "Origin" to listOf("https://www.youtube.com"),
                 "Cookie" to listOf("SOCS=CAE=")
             ))
             .build()
         val response = execute(request)
-        check(response.responseCode() in 200..299) { "Subtitle HTTP ${response.responseCode()} ${response.responseMessage()}" }
+        check(response.responseCode() in 200..299) { "Subtitle HTTP " + response.responseCode() + " " + response.responseMessage() }
         return response.responseBody()
     }
 
@@ -46,7 +49,6 @@ class NewPipeDownloader : Downloader() {
             connectTimeout = 15_000
             readTimeout = 30_000
             instanceFollowRedirects = true
-            setRequestProperty("User-Agent", USER_AGENT)
             setRequestProperty("Accept", "*/*")
             setRequestProperty("Accept-Language", "en-US,en;q=0.9")
             request.headers().forEach { (key, values) -> values.firstOrNull()?.let { setRequestProperty(key, it) } }

@@ -7,7 +7,6 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Toast
 import org.json.JSONArray
 import org.json.JSONObject
 import org.schabi.newpipe.extractor.NewPipe
@@ -20,7 +19,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-/** A compact Android implementation of NewPipe's Web BotGuard flow. */
 class NewPipePoTokenProvider(private val context: Context, private val downloader: NewPipeDownloader) : PoTokenProvider {
     private val main = Handler(Looper.getMainLooper())
     private val lock = Any()
@@ -43,9 +41,7 @@ class NewPipePoTokenProvider(private val context: Context, private val downloade
     }
 
     override fun getWebEmbedClientPoToken(videoId: String): PoTokenResult? = getWebClientPoToken(videoId)
-
     override fun getAndroidClientPoToken(videoId: String): PoTokenResult? = null
-
     override fun getIosClientPoToken(videoId: String): PoTokenResult? = null
 
     private fun ensureInitialized() {
@@ -63,7 +59,8 @@ class NewPipePoTokenProvider(private val context: Context, private val downloade
                 view.addJavascriptInterface(this, BRIDGE)
                 webView = view
                 val html = context.assets.open("po_token.html").bufferedReader().use { it.readText() }
-                view.loadDataWithBaseURL("https://www.youtube.com", html.replaceFirst("</script>", "\n$BRIDGE.startBotguard()</script>"), "text/html", "utf-8", null)
+                view.loadDataWithBaseURL("https://www.youtube.com", html.replaceFirst("</script>", "
+" + BRIDGE + ".startBotguard()</script>"), "text/html", "utf-8", null)
             }
             check(initialization!!.await(45, TimeUnit.SECONDS)) { "BotGuard WebView initialization timeout" }
             check(streamingToken != null) { "BotGuard did not return streaming token" }
@@ -86,20 +83,20 @@ class NewPipePoTokenProvider(private val context: Context, private val downloade
 
     @JavascriptInterface
     fun startBotguard() {
-        postBotguard(CREATE_URL, "[\"$REQUEST_KEY\"]") { raw ->
+        postBotguard(CREATE_URL, "[\"" + REQUEST_KEY + "\"]") { raw ->
             val challenge = parseChallenge(raw)
-            evaluate("try { data=$challenge; runBotGuard(data).then(function(r){ $BRIDGE.onBotguard(r.botguardResponse); }, function(e){ $BRIDGE.onError(String(e)); }); } catch(e) { $BRIDGE.onError(String(e)); }")
+            evaluate("try { data=" + challenge + "; runBotGuard(data).then(function(r){ " + BRIDGE + ".onBotguard(r.botguardResponse); }, function(e){ " + BRIDGE + ".onError(String(e)); }); } catch(e) { " + BRIDGE + ".onError(String(e)); }")
         }
     }
 
     @JavascriptInterface
     fun onBotguard(response: String) {
-        postBotguard(GENERATE_URL, "[\"$REQUEST_KEY\",${JSONObject.quote(response)}]") { raw ->
+        postBotguard(GENERATE_URL, "[\"" + REQUEST_KEY + "\"," + JSONObject.quote(response) + "]") { raw ->
             val result = JSONArray(raw)
             val integrity = base64Array(result.getString(0))
             val lifetime = result.getLong(1)
             expiresAt = System.currentTimeMillis() + (lifetime - 600).coerceAtLeast(60) * 1000
-            evaluate("this.integrityToken=$integrity")
+            evaluate("this.integrityToken=" + integrity)
             Thread {
                 try {
                     streamingToken = generate(visitorData!!)
@@ -121,7 +118,7 @@ class NewPipePoTokenProvider(private val context: Context, private val downloade
         synchronized(tokenResults) { tokenResults[identifier] = wait }
         main.post {
             val jsIdentifier = JSONObject.quote(identifier)
-            evaluate("try { identifier=$jsIdentifier; u8Identifier=${byteArrayJs(identifier.toByteArray())}; poTokenU8=obtainPoToken(webPoSignalOutput,integrityToken,u8Identifier); $BRIDGE.onToken(identifier,poTokenU8.toString()); } catch(e) { $BRIDGE.onError(String(e)); }")
+            evaluate("try { identifier=" + jsIdentifier + "; u8Identifier=" + byteArrayJs(identifier.toByteArray()) + "; poTokenU8=obtainPoToken(webPoSignalOutput,integrityToken,u8Identifier); " + BRIDGE + ".onToken(identifier,poTokenU8.toString()); } catch(e) { " + BRIDGE + ".onError(String(e)); }")
         }
         check(wait.latch.await(30, TimeUnit.SECONDS)) { "BotGuard token generation timeout" }
         synchronized(tokenResults) { tokenResults.remove(identifier) }
@@ -147,11 +144,13 @@ class NewPipePoTokenProvider(private val context: Context, private val downloade
     private fun parseChallenge(raw: String): String {
         val outer = JSONArray(raw)
         val challenge = if (outer.length() > 1 && outer.opt(1) is String) JSONArray(descramble(outer.getString(1))) else outer.getJSONArray(0)
+        val safeScript = challenge.optJSONArray(1)?.findString()
+        val trustedUrl = challenge.optJSONArray(2)?.findString()
         return JSONObject().apply {
             put("messageId", challenge.getString(0))
             put("interpreterJavascript", JSONObject().apply {
-                put("privateDoNotAccessOrElseSafeScriptWrappedValue", challenge.optJSONArray(1)?.firstString())
-                put("privateDoNotAccessOrElseTrustedResourceUrlWrappedValue", challenge.optJSONArray(2)?.firstString())
+                put("privateDoNotAccessOrElseSafeScriptWrappedValue", safeScript)
+                put("privateDoNotAccessOrElseTrustedResourceUrlWrappedValue", trustedUrl)
             })
             put("interpreterHash", challenge.getString(3))
             put("program", challenge.getString(4))
@@ -165,7 +164,7 @@ class NewPipePoTokenProvider(private val context: Context, private val downloade
     private fun byteArrayJs(value: ByteArray): String = "new Uint8Array([" + value.joinToString(",") { it.toUByte().toString() } + "])"
     private fun bytesToBase64(value: String): String = value.split(',').filter { it.isNotBlank() }.map { it.toInt().toByte() }.toByteArray().let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
     private fun String.padBase64(): String = this + "=".repeat((4 - length % 4) % 4)
-    private fun JSONArray.firstString(): String? = (0 until length()).map { opt(it) }.filterIsInstance<String>().firstOrNull()
+    private fun JSONArray.findString(): String? = (0 until length()).map { opt(it) }.filterIsInstance<String>().firstOrNull()
 
     companion object {
         private const val BRIDGE = "SubGrabPoToken"
