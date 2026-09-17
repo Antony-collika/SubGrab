@@ -40,6 +40,17 @@ class YtDlpRunner(context: Context, private val parser: YtDlpOutputParser = YtDl
     init { runCatching { YtDlp.init(context.applicationContext) }.getOrElse { throw IllegalStateException("Không thể khởi tạo yt-dlp Android runtime", it) } }
 
     suspend fun fetch(url: String, timeoutSeconds: Long = 30): Result<Pair<Source, List<VideoItem>>> = withContext(Dispatchers.IO) {
+        // THỬ NEWPIPE EXTRACTOR TRƯỚC
+        val newPipeResult = newPipe?.fetchSource(url)
+        if (newPipeResult?.isSuccess == true) {
+            val (source, videos) = newPipeResult.getOrThrow()
+            val videosWithSubs = videos.map { video ->
+                val subtitles = listSubs("https://www.youtube.com/watch?v=${video.videoId}", timeoutSeconds).getOrDefault(emptyList())
+                video.copy(availableSubs = subtitles)
+            }
+            return@withContext Result.success(source to videosWithSubs)
+        }
+        // NEWPIPE FAIL → FALLBACK SANG YT-DLP
         executeLogsWithFallback(timeoutSeconds) { client -> YtDlpRequest(url).addOption("--flat-playlist").addOption("--playlist-end", "50").addOption("--dump-json").addOption("--no-warnings").youtubeClient(client) }.map { output ->
             val (source, videos) = parser.parseFlatPlaylist(output.lineSequence(), url)
             source to videos.map { video ->

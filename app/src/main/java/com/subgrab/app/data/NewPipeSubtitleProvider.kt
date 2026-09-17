@@ -2,6 +2,7 @@ package com.subgrab.app.data
 
 import android.content.Context
 import com.subgrab.app.domain.OutputFormat
+import com.subgrab.app.domain.Source
 import com.subgrab.app.domain.SubtitleLanguage
 import com.subgrab.app.domain.VideoItem
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +20,7 @@ class NewPipeSubtitleProvider(context: Context) {
     init {
         synchronized(NewPipeSubtitleProvider::class.java) {
             if (!initialized) {
-                NewPipe.init(NewPipeDownloader(), Localization("en", "US"), ContentCountry("US"))
+                NewPipe.init(downloader, Localization("en", "US"), ContentCountry("US"))
                 YoutubeStreamExtractor.setPoTokenProvider(poTokenProvider)
                 initialized = true
             }
@@ -53,6 +54,27 @@ class NewPipeSubtitleProvider(context: Context) {
                     parentFile?.mkdirs()
                     writeText(content)
                 }
+            }
+        }
+    }
+
+    suspend fun fetchSource(url: String): Result<Pair<Source, List<VideoItem>>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val service = NewPipe.getServiceByUrl(url)
+            val isList = url.contains("playlist") || url.contains("channel") || url.contains("/c/") || url.contains("/@") || url.contains("list=")
+            if (isList) {
+                val extractor = service.getPlaylistExtractor(url)
+                extractor.fetchPage()
+                val streams = extractor.streams.take(50)
+                val videos = streams.mapIndexed { index, item ->
+                    VideoItem(index + 1, item.id, item.name, item.duration.toInt(), emptyList())
+                }
+                Source(url, url, extractor.name, videos.size) to videos
+            } else {
+                val extractor = service.getStreamExtractor(url)
+                extractor.fetchPage()
+                val video = VideoItem(1, extractor.id, extractor.name, extractor.duration.toInt(), emptyList())
+                Source(url, url, extractor.name, 1) to listOf(video)
             }
         }
     }

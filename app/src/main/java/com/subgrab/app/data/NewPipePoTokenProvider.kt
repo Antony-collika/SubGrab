@@ -37,8 +37,23 @@ class NewPipePoTokenProvider(private val context: Context, private val downloade
             ensureInitialized()
             val playerToken = generate(videoId)
             PoTokenResult(visitorData!!, playerToken, streamingToken)
-        } catch (_: Throwable) {
-            null
+        } catch (firstError: Throwable) {
+            android.util.Log.e("SubGrabPoToken", "PO Token failed for videoId=$videoId: ${firstError.message}", firstError)
+            try {
+                synchronized(lock) {
+                    webView?.destroy()
+                    webView = null
+                    streamingToken = null
+                    visitorData = null
+                    expiresAt = 0L
+                }
+                ensureInitialized()
+                val playerToken = generate(videoId)
+                PoTokenResult(visitorData!!, playerToken, streamingToken)
+            } catch (retryError: Throwable) {
+                android.util.Log.e("SubGrabPoToken", "PO Token retry failed for videoId=$videoId: ${retryError.message}", retryError)
+                null
+            }
         }
     }
 
