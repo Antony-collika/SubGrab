@@ -72,17 +72,20 @@ class YouTubeSearchClient {
 
     private fun getJson(url: String): JSONObject {
         val connection = URL(url).openConnection() as HttpURLConnection
-        connection.requestMethod = "GET"
-        connection.connectTimeout = 10_000
-        connection.readTimeout = 20_000
-        connection.setRequestProperty("Accept", "application/json")
-        return connection.use { c ->
-            val body = (if (c.responseCode in 200..299) c.inputStream else c.errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
-            if (c.responseCode !in 200..299) {
+        try {
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 10_000
+            connection.readTimeout = 20_000
+            connection.setRequestProperty("Accept", "application/json")
+            val code = connection.responseCode
+            val body = (if (code in 200..299) connection.inputStream else connection.errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
+            if (code !in 200..299) {
                 val reason = runCatching { JSONObject(body).optJSONObject("error")?.optString("message") }.getOrNull()
-                error(reason?.takeIf { it.isNotBlank() } ?: "YouTube API lỗi HTTP ${c.responseCode}")
+                error(reason?.takeIf { it.isNotBlank() } ?: "YouTube API lỗi HTTP $code")
             }
-            JSONObject(body)
+            return JSONObject(body)
+        } finally {
+            connection.disconnect()
         }
     }
 
