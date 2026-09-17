@@ -6,18 +6,22 @@ plugins {
 
 android { namespace = "com.subgrab.app"; compileSdk = 35
     defaultConfig { applicationId = "com.subgrab.app"; minSdk = 26; targetSdk = 35; versionCode = 1; versionName = "1.0.0"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
-    compileOptions { 
-       sourceCompatibility = JavaVersion.VERSION_17
-       targetCompatibility = JavaVersion.VERSION_17
-       isCoreLibraryDesugaringEnabled = true 
-   }
-   kotlinOptions { 
-       jvmTarget = "17" 
-   }
+    compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17; isCoreLibraryDesugaringEnabled = true }
+    kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
     flavorDimensions += "abi"
     productFlavors {
         create("arm64") { dimension = "abi"; ndk { abiFilters += "arm64-v8a" } }
+    }
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
     }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
@@ -35,7 +39,7 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("dev.ffmpegkit-maintained:yt-dlp-android:2.0.2")
-    implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.26.5")
+    implementation("com.github.TeamNewPipe:NewPipeExtractor:13a655fe53e0c3065f88725fc1fb594c3ede0169")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     testImplementation("junit:junit:4.13.2")
 }
