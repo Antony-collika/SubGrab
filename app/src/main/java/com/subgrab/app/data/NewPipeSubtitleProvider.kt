@@ -12,6 +12,7 @@ import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor
+import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import java.io.File
 
 class NewPipeSubtitleProvider(context: Context) {
@@ -65,9 +66,15 @@ class NewPipeSubtitleProvider(context: Context) {
             if (isList) {
                 val extractor = service.getPlaylistExtractor(url)
                 extractor.fetchPage()
-                val streams = extractor.getInitialPage().items.take(50)
+                val streams = extractor.getInitialPage().items.filterIsInstance<StreamInfoItem>().take(50)
                 val videos = streams.mapIndexed { index, item ->
-                    VideoItem(index + 1, item.getId(), item.getName(), item.getDuration().toInt(), emptyList())
+                    VideoItem(
+                        index + 1,
+                        youtubeVideoId(item.getUrl()),
+                        item.getName(),
+                        item.getDuration().toInt(),
+                        emptyList()
+                    )
                 }
                 Source(url, url, extractor.getName(), videos.size) to videos
             } else {
@@ -77,6 +84,13 @@ class NewPipeSubtitleProvider(context: Context) {
                 Source(url, url, extractor.getName(), 1) to listOf(video)
             }
         }
+    }
+
+    private fun youtubeVideoId(url: String): String {
+        val uri = android.net.Uri.parse(url)
+        return uri.getQueryParameter("v")
+            ?: uri.pathSegments.lastOrNull()?.takeIf { it.isNotBlank() }
+            ?: url
     }
 
     private fun vttToSrt(input: String): String {
