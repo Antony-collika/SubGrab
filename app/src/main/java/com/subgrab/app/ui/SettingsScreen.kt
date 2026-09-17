@@ -28,6 +28,14 @@ fun SettingsScreen(repository: SettingsRepository, onBack: () -> Unit) {
         FormatToggle("SRT", OutputFormat.SRT, value.formats) { next -> value = value.copy(formats = next); scope.launch { repository.update(value) } }
         HorizontalDivider()
         OutlinedTextField(
+            value = value.youtubeApiKey,
+            onValueChange = { next -> value = value.copy(youtubeApiKey = next); scope.launch { repository.update(value) } },
+            label = { Text("YouTube Data API key") },
+            supportingText = { Text("Dùng cho tìm kiếm bằng từ khóa. Tạo key trong Google Cloud và giới hạn theo app.") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
             value = value.outputDir,
             onValueChange = { next -> value = value.copy(outputDir = next); scope.launch { repository.update(value) } },
             label = { Text("Thư mục trong Downloads") },
