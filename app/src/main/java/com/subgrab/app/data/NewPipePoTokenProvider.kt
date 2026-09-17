@@ -7,7 +7,6 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Toast
 import org.json.JSONArray
 import org.json.JSONObject
 import org.schabi.newpipe.extractor.NewPipe
@@ -56,12 +55,6 @@ class NewPipePoTokenProvider(private val context: Context, private val downloade
             }
         }
     }
-
-    override fun getWebEmbedClientPoToken(videoId: String): PoTokenResult? = getWebClientPoToken(videoId)
-
-    override fun getAndroidClientPoToken(videoId: String): PoTokenResult? = null
-
-    override fun getIosClientPoToken(videoId: String): PoTokenResult? = null
 
     private fun ensureInitialized() {
         synchronized(lock) {
