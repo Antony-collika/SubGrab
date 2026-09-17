@@ -26,8 +26,7 @@ data class AppSettings(
     val formats: Set<OutputFormat> = setOf(OutputFormat.TXT),
     val outputDir: String = "Download/Subtitles",
     val preferManualSub: Boolean = true,
-    val skipNoSub: Boolean = true,
-    val youtubeApiKey: String = ""
+    val skipNoSub: Boolean = true
 )
 object UrlValidator {
     private val youtube = Regex("^https?://(www\\.)?(youtube\\.com|youtu\\.be)/.*", RegexOption.IGNORE_CASE)
