@@ -66,19 +66,40 @@ class MainActivity : ComponentActivity() {
         if (showSettings) SettingsScreen(settingsRepo) { showSettings = false }
         else when (val current = state) {
             is AnalysisState.Ready -> SelectVideoScreen(current.videos, current.folder, vm, settings, downloadState, Modifier.padding(pad))
-            else -> HomeScreen(state, vm, downloadState, Modifier.padding(pad))
+            else -> HomeScreen(state, vm, settings, downloadState, Modifier.padding(pad))
         }
     }
 }
 
-@Composable private fun HomeScreen(state: AnalysisState, vm: DownloadViewModel, downloadState: DownloadState, modifier: Modifier) {
-    val context = LocalContext.current; var url by remember { mutableStateOf("") }
+@Composable private fun HomeScreen(state: AnalysisState, vm: DownloadViewModel, settings: AppSettings, downloadState: DownloadState, modifier: Modifier) {
+    val context = LocalContext.current
+    var mode by remember { mutableStateOf(false) }
+    var url by remember { mutableStateOf("") }
+    var keyword by remember { mutableStateOf("") }
     LazyColumn(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        item { Text("Tải phụ đề YouTube hàng loạt", style = MaterialTheme.typography.headlineSmall); Text("Dán link channel, playlist hoặc video. Tối đa 50 video mỗi lần.") }
-        item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) { OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text("Link YouTube") }, modifier = Modifier.weight(1f), isError = state is AnalysisState.Error, supportingText = { if (state is AnalysisState.Error) Text((state as AnalysisState.Error).message) }); IconButton(onClick = { val clip = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager; url = clip.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty() }) { Icon(Icons.Default.ContentPaste, "Dán link") } } }
-        item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) { Button(onClick = { vm.analyze(url) }, modifier = Modifier.weight(1f), enabled = state !is AnalysisState.Loading) { Text(if (state is AnalysisState.Loading) "ĐANG PHÂN TÍCH..." else "PHÂN TÍCH") }; if (state is AnalysisState.Error && (state as AnalysisState.Error).retryUrl != null) OutlinedButton(onClick = vm::retryAnalysis) { Text("Thử lại") } } }
+        item {
+            Text("Tải phụ đề YouTube hàng loạt", style = MaterialTheme.typography.headlineSmall)
+            Text("Nhập link như trước, hoặc thử tìm video bằng từ khóa.")
+        }
+        item {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                SegmentedButton(selected = !mode, onClick = { mode = false }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text("Nhập URL") }
+                SegmentedButton(selected = mode, onClick = { mode = true }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text("Từ khóa") }
+            }
+        }
+        if (!mode) {
+            item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) { OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text("Link YouTube") }, modifier = Modifier.weight(1f), isError = state is AnalysisState.Error, supportingText = { if (state is AnalysisState.Error) Text((state as AnalysisState.Error).message) }); IconButton(onClick = { val clip = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager; url = clip.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty() }) { Icon(Icons.Default.ContentPaste, "Dán link") } } }
+            item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) { Button(onClick = { vm.analyze(url) }, modifier = Modifier.weight(1f), enabled = state !is AnalysisState.Loading) { Text(if (state is AnalysisState.Loading) "ĐANG PHÂN TÍCH..." else "PHÂN TÍCH") }; if (state is AnalysisState.Error && (state as AnalysisState.Error).retryUrl != null) OutlinedButton(onClick = vm::retryAnalysis) { Text("Thử lại") } } }
+        } else {
+            item {
+                OutlinedTextField(value = keyword, onValueChange = { keyword = it }, label = { Text("Từ khóa YouTube") }, placeholder = { Text("Ví dụ: AI agents") }, modifier = Modifier.fillMaxWidth(), singleLine = true, isError = state is AnalysisState.Error, supportingText = { if (state is AnalysisState.Error) Text((state as AnalysisState.Error).message) })
+            }
+            item {
+                Button(onClick = { vm.searchKeyword(keyword, settings) }, modifier = Modifier.fillMaxWidth(), enabled = state !is AnalysisState.Loading && keyword.isNotBlank()) { Text(if (state is AnalysisState.Loading) "ĐANG TÌM..." else "TÌM VIDEO") }
+            }
+        }
         if (downloadState !is DownloadState.Idle) item { DownloadProgressCard(downloadState, vm) }
-        item { Text("yt-dlp sẽ phân tích tối đa 50 video và lấy subtitle vi/en nếu có.") }
+        item { Text(if (mode) "YouTube trả về tối đa 20 video phù hợp nhất theo mức độ liên quan. Sau đó bạn tự chọn video để tải." else "yt-dlp/NewPipe sẽ phân tích tối đa 50 video và lấy subtitle vi/en nếu có.") }
     }
 }
 
@@ -106,4 +127,24 @@ class MainActivity : ComponentActivity() {
     } }
 }
 
-@Composable private fun VideoRow(video: VideoItem, onToggle: () -> Unit) { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) { Checkbox(checked = video.isSelected, onCheckedChange = { onToggle() }, enabled = video.hasSub); Column { Text("%03d · %s".format(video.index, video.title)); Text(if (video.hasSub) "Có phụ đề" else "Không có phụ đề", style = MaterialTheme.typography.bodySmall) } } }
+@Composable private fun VideoRow(video: VideoItem, onToggle: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Checkbox(checked = video.isSelected, onCheckedChange = { onToggle() }, enabled = video.canSelect)
+        Column {
+            Text("%03d · %s".format(video.index, video.title))
+            val metadata = buildList {
+                if (video.channelTitle.isNotBlank()) add(video.channelTitle)
+                video.viewCount?.let { add("${it} lượt xem") }
+            }.joinToString(" · ")
+            if (metadata.isNotBlank()) Text(metadata, style = MaterialTheme.typography.bodySmall)
+            Text(
+                when {
+                    !video.subtitleChecked -> "Chưa kiểm tra phụ đề · sẽ kiểm tra khi tải"
+                    video.hasSub -> "Có phụ đề"
+                    else -> "Không có phụ đề"
+                },
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
