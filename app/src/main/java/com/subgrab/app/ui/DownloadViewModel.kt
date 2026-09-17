@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.subgrab.app.data.DownloadOrchestrator
 import com.subgrab.app.data.DownloadState
-import com.subgrab.app.data.SettingsRepository
 import com.subgrab.app.data.YouTubeSearchClient
 import com.subgrab.app.data.YtDlpRunner
 import com.subgrab.app.domain.AppSettings
@@ -32,17 +31,17 @@ class DownloadViewModel(private val runner: YtDlpRunner?, private val orchestrat
         viewModelScope.launch { actual.fetch(url).onSuccess { (source, videos) -> _state.value = AnalysisState.Ready(source, videos, source.title) }.onFailure { _state.value = AnalysisState.Error(it.message ?: "Không thể phân tích link", lastUrl) } }
     }
 
-    fun searchKeyword(keyword: String, settings: AppSettings) {
+    fun searchKeyword(keyword: String) {
         lastKeyword = keyword
         _state.value = AnalysisState.Loading
         viewModelScope.launch {
-            searchClient.search(keyword, settings.youtubeApiKey).onSuccess { (source, videos) ->
+            searchClient.search(keyword).onSuccess { (source, videos) ->
                 _state.value = AnalysisState.Ready(source, videos, "Search - ${keyword.trim()}")
             }.onFailure { _state.value = AnalysisState.Error(it.message ?: "Không thể tìm video", null) }
         }
     }
 
-    fun retryAnalysis() { lastUrl?.let(::analyze) ?: lastKeyword?.let { _state.value = AnalysisState.Error("Vui lòng tìm lại từ khóa", null) } }
+    fun retryAnalysis() { lastUrl?.let(::analyze) ?: lastKeyword?.let(::searchKeyword) }
     fun toggle(index: Int) { val current = _state.value as? AnalysisState.Ready ?: return; _state.value = current.copy(videos = current.videos.map { if (it.index == index && (it.isSelected || current.videos.count { v -> v.isSelected } < 50) && it.canSelect) it.copy(isSelected = !it.isSelected) else it }) }
     fun selectAll() { val current = _state.value as? AnalysisState.Ready ?: return; _state.value = current.copy(videos = current.videos.map { if (it.canSelect) it.copy(isSelected = true) else it }) }
     fun clearSelection() { val current = _state.value as? AnalysisState.Ready ?: return; _state.value = current.copy(videos = current.videos.map { it.copy(isSelected = false) }) }
