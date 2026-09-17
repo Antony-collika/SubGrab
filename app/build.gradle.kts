@@ -6,8 +6,14 @@ plugins {
 
 android { namespace = "com.subgrab.app"; compileSdk = 35
     defaultConfig { applicationId = "com.subgrab.app"; minSdk = 26; targetSdk = 35; versionCode = 1; versionName = "1.0.0"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
-    compileOptions { sourceCompatibility = JavaVersion.VERSION_1_8; targetCompatibility = JavaVersion.VERSION_1_8; isCoreLibraryDesugaringEnabled = true }
-    kotlinOptions { jvmTarget = "1.8" }
+    compileOptions { 
+       sourceCompatibility = JavaVersion.VERSION_17
+       targetCompatibility = JavaVersion.VERSION_17
+       isCoreLibraryDesugaringEnabled = true 
+   }
+   kotlinOptions { 
+       jvmTarget = "17" 
+   }
     buildFeatures { compose = true }
     flavorDimensions += "abi"
     productFlavors {
