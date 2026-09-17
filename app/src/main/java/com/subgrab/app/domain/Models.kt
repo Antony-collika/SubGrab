@@ -10,7 +10,11 @@ data class VideoItem(
     val durationSec: Int,
     val availableSubs: List<SubtitleLanguage>,
     val isSelected: Boolean = false,
-    val subtitleChecked: Boolean = true
+    val subtitleChecked: Boolean = true,
+    val channelTitle: String = "",
+    val publishedAt: String = "",
+    val viewCount: Long? = null,
+    val thumbnailUrl: String = ""
 ) {
     val hasSub get() = availableSubs.isNotEmpty()
     val canSelect get() = !subtitleChecked || hasSub
