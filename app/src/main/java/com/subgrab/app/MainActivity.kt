@@ -83,13 +83,16 @@ fun SubGrabApp() {
     val downloadState by vm.downloadState.collectAsState()
     val settingsRepo = remember(context) { SettingsRepository(context) }
     val settings by settingsRepo.settings.collectAsState(initial = AppSettings())
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var screen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
     var returnScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
 
     LaunchedEffect(state) {
-        if (state is AnalysisState.Ready && screen == AppScreen.HOME) {
-            screen = AppScreen.RESULTS
+        when (state) {
+            is AnalysisState.Ready -> if (screen == AppScreen.HOME) screen = AppScreen.RESULTS
+            is AnalysisState.Error -> snackbarHostState.showSnackbar(state.message)
+            else -> Unit
         }
     }
 
@@ -113,6 +116,7 @@ fun SubGrabApp() {
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(title) },
@@ -150,7 +154,7 @@ fun SubGrabApp() {
                 vm = vm,
                 settings = settings,
                 downloadState = downloadState,
-                onNewAnalysis = { screen = AppScreen.HOME },
+                onNewAnalysis = { vm.resetAnalysis(); screen = AppScreen.HOME },
                 modifier = Modifier.padding(pad)
             )
             AppScreen.SETTINGS -> SettingsScreen(settingsRepo, goBack)
