@@ -173,20 +173,6 @@ class MainActivity : ComponentActivity() {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Button(
-            onClick = {
-                val clipboard =
-                    context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(
-                    ClipData.newPlainText("SubGrab debug log", DebugLog.text())
-                )
-            },
-            enabled = logs.isNotEmpty(),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Copy log")
-        }
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -208,6 +194,22 @@ class MainActivity : ComponentActivity() {
                 onClick = onClose,
                 modifier = Modifier.weight(1f)
             ) { Text("Đóng") }
+        }
+
+        // Keep copy as a dedicated full-width action. Four equal-width buttons
+        // are too cramped on narrow screens, and a disabled action is easy to
+        // miss when the log is empty.
+        Button(
+            onClick = {
+                val clipboard =
+                    context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(
+                    ClipData.newPlainText("SubGrab debug log", DebugLog.text())
+                )
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Sao chép log")
         }
 
         Text(
