@@ -6,21 +6,29 @@ import com.subgrab.app.domain.VideoItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.ServiceList
+import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
 class YouTubeSearchClient {
     suspend fun search(query: String, maxResults: Int = 20): Result<Pair<Source, List<VideoItem>>> = withContext(Dispatchers.IO) {
         runCatching {
-            require(query.isNotBlank()) { "Vui lòng nhập từ khóa" }
+            val cleanQuery = query.trim()
+            require(cleanQuery.isNotBlank()) { "Vui lòng nhập từ khóa" }
 
-            // Build the YouTube search URL ourselves. NewPipe's fromQuery()
-            // uses URLEncoder.encode(String, Charset), which is only available
-            // on Android API 33+ and can crash on older devices.
-            val encodedQuery = Uri.encode(query.trim())
+            // Do not call SearchQueryHandlerFactory.fromQuery() here.
+            // The pinned NewPipeExtractor calls URLEncoder.encode(String, Charset),
+            // which is unavailable on Android API < 33.
+            val encodedQuery = Uri.encode(cleanQuery)
             val searchUrl = "https://www.youtube.com/results?search_query=" + encodedQuery
+            val searchHandler = SearchQueryHandler(
+                searchUrl,
+                searchUrl,
+                cleanQuery,
+                emptyList(),
+                ""
+            )
 
             val service = ServiceList.YouTube
-            val searchHandler = service.searchQHFactory.fromUrl(searchUrl)
             val extractor = service.getSearchExtractor(searchHandler)
             extractor.fetchPage()
 
@@ -46,9 +54,9 @@ class YouTubeSearchClient {
             }
 
             val source = Source(
-                id = "keyword:" + query.trim(),
-                url = searchHandler.url,
-                title = query.trim(),
+                id = "keyword:" + cleanQuery,
+                url = searchUrl,
+                title = cleanQuery,
                 originalTotalVideos = videos.size
             )
             source to videos
