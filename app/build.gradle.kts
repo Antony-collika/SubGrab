@@ -15,6 +15,7 @@ android { namespace = "com.subgrab.app"; compileSdk = 35
     }
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
