@@ -91,7 +91,7 @@ fun SubGrabApp() {
     val route = backStackEntry?.destination?.route ?: "home"
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(state, route) {
+    LaunchedEffect(state) {
         when (state) {
             is AnalysisState.Ready -> if (route == "home") navController.navigate("results")
             is AnalysisState.Error -> snackbarHostState.showSnackbar(state.message)
