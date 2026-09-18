@@ -16,10 +16,7 @@ fun SettingsScreen(repository: SettingsRepository, onBack: () -> Unit) {
     val stored by repository.settings.collectAsState(initial = AppSettings())
     var value by remember(stored) { mutableStateOf(stored) }
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Cài đặt", style = MaterialTheme.typography.headlineSmall)
-            TextButton(onClick = onBack) { Text("Xong") }
-        }
+        Text("Thiết lập phụ đề và thư mục tải xuống", style = MaterialTheme.typography.bodyMedium)
         Text("Ngôn ngữ phụ đề", style = MaterialTheme.typography.titleMedium)
         LanguageToggle("Tiếng Việt", "vi", value.languages) { next -> value = value.copy(languages = next); scope.launch { repository.update(value) } }
         LanguageToggle("English", "en", value.languages) { next -> value = value.copy(languages = next); scope.launch { repository.update(value) } }
