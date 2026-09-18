@@ -13,6 +13,11 @@ android { namespace = "com.subgrab.app"; compileSdk = 35
     productFlavors {
         create("arm64") { dimension = "abi"; ndk { abiFilters += "arm64-v8a" } }
     }
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 
