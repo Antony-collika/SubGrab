@@ -49,7 +49,6 @@ jobs:
 
       - name: Build release APK
         run: |
-        run: |
           ./gradlew assembleArm64Release
           mkdir -p release-assets
           cp app/build/outputs/apk/arm64/release/app-arm64-release.apk "release-assets/SubGrab-${GITHUB_REF_NAME}-arm64.apk"
