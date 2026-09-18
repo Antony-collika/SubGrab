@@ -42,6 +42,7 @@ class DownloadViewModel(private val runner: YtDlpRunner?, private val orchestrat
     }
 
     fun retryAnalysis() { lastUrl?.let(::analyze) ?: lastKeyword?.let(::searchKeyword) }
+    fun resetAnalysis() { _state.value = AnalysisState.Idle }
     fun toggle(index: Int) { val current = _state.value as? AnalysisState.Ready ?: return; _state.value = current.copy(videos = current.videos.map { if (it.index == index && (it.isSelected || current.videos.count { v -> v.isSelected } < 50) && it.canSelect) it.copy(isSelected = !it.isSelected) else it }) }
     fun selectAll() { val current = _state.value as? AnalysisState.Ready ?: return; _state.value = current.copy(videos = current.videos.map { if (it.canSelect) it.copy(isSelected = true) else it }) }
     fun clearSelection() { val current = _state.value as? AnalysisState.Ready ?: return; _state.value = current.copy(videos = current.videos.map { it.copy(isSelected = false) }) }
