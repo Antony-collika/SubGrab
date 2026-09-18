@@ -68,7 +68,10 @@ class YtDlpRunner(context: Context, private val parser: YtDlpOutputParser = YtDl
         val before = outputDir.listFiles()?.map { it.name }?.toSet().orEmpty()
         val formatArg = if (formats.contains(OutputFormat.SRT)) "vtt/srt/best" else "vtt/best"
         val newPipeResult = newPipe?.download(video, languages, formats, outputDir)
-        if (newPipeResult?.isSuccess == true) return@withContext newPipeResult
+        if (newPipeResult?.isSuccess == true) {
+            val files = outputDir.listFiles()?.filter { it.name !in before }.orEmpty()
+            if (files.isNotEmpty()) return@withContext Result.success(files)
+        }
         executeWithFallback(timeoutSeconds) { client ->
             YtDlpRequest("https://www.youtube.com/watch?v=${video.videoId}")
                 .setOutputTemplate(File(outputDir, "%(playlist_index)03d - %(title)s.%(ext)s").absolutePath)
@@ -79,7 +82,11 @@ class YtDlpRunner(context: Context, private val parser: YtDlpOutputParser = YtDl
                 .addOption("--convert-subs", "srt")
                 .addOption("--sub-format", formatArg)
                 .youtubeClient(client)
-        }.map { outputDir.listFiles()?.filter { it.name !in before }.orEmpty() }
+        }.map {
+            outputDir.listFiles()?.filter { it.name !in before }.orEmpty().also {
+                require(it.isNotEmpty()) { "Không tải được phụ đề: không có file được tạo" }
+            }
+        }
     }
 
     private suspend fun executeLogsWithFallback(timeoutSeconds: Long, requestFactory: (String) -> YtDlpRequest): Result<String> {
