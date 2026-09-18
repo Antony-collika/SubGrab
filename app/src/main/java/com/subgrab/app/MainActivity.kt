@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -158,6 +159,12 @@ class MainActivity : ComponentActivity() {
 @Composable private fun DebugLogScreen(onClose: () -> Unit) {
     val context = LocalContext.current
     var logs by remember { mutableStateOf(DebugLog.snapshot()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            logs = DebugLog.snapshot()
+            delay(300)
+        }
+    }
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { logs = DebugLog.snapshot() }) { Text("Làm mới") }
