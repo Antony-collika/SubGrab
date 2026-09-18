@@ -120,8 +120,8 @@ class MainActivity : ComponentActivity() {
         when (state) {
             is DownloadState.Running -> { Text("Đang tải ${state.current}/${state.total}", style = MaterialTheme.typography.titleMedium); Text(state.title); LinearProgressIndicator(progress = { state.current.toFloat() / state.total.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth()); Text("Đã lưu ${state.saved} file · Bỏ qua ${state.skipped}"); Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { OutlinedButton(onClick = vm::pauseDownload) { Text("Tạm dừng") }; OutlinedButton(onClick = vm::cancelDownload) { Text("Hủy") } } }
             is DownloadState.Paused -> { Text("Đã tạm dừng ${state.current}/${state.total}", style = MaterialTheme.typography.titleMedium); Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Button(onClick = vm::resumeDownload) { Text("Tiếp tục") }; OutlinedButton(onClick = vm::cancelDownload) { Text("Hủy") } } }
-            is DownloadState.Done -> Text("Hoàn tất: ${state.saved} file, bỏ qua ${state.skipped}", color = MaterialTheme.colorScheme.primary)
-            is DownloadState.Cancelled -> Text("Đã hủy: ${state.saved} file đã lưu", color = MaterialTheme.colorScheme.error)
+            is DownloadState.Done -> { Text("Hoàn tất: ${state.saved} file, bỏ qua ${state.skipped}", color = MaterialTheme.colorScheme.primary); state.logs.takeLast(8).forEach { Text(it, style = MaterialTheme.typography.bodySmall) } }
+            is DownloadState.Cancelled -> { Text("Đã hủy: ${state.saved} file đã lưu", color = MaterialTheme.colorScheme.error); state.logs.takeLast(8).forEach { Text(it, style = MaterialTheme.typography.bodySmall) } }
             else -> Text("Đang chuẩn bị tải")
         }
     } }
