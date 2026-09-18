@@ -1,5 +1,6 @@
 package com.subgrab.app.data
 
+import android.net.Uri
 import com.subgrab.app.domain.Source
 import com.subgrab.app.domain.VideoItem
 import kotlinx.coroutines.Dispatchers
@@ -12,10 +13,14 @@ class YouTubeSearchClient {
         runCatching {
             require(query.isNotBlank()) { "Vui lòng nhập từ khóa" }
 
-            // A search query is not a YouTube URL. Use the explicit YouTube
-            // service instead of URL-based service detection.
+            // Build the YouTube search URL ourselves. NewPipe's fromQuery()
+            // uses URLEncoder.encode(String, Charset), which is only available
+            // on Android API 33+ and can crash on older devices.
+            val encodedQuery = Uri.encode(query.trim())
+            val searchUrl = "https://www.youtube.com/results?search_query=" + encodedQuery
+
             val service = ServiceList.YouTube
-            val searchHandler = service.searchQHFactory.fromQuery(query.trim())
+            val searchHandler = service.searchQHFactory.fromUrl(searchUrl)
             val extractor = service.getSearchExtractor(searchHandler)
             extractor.fetchPage()
 
@@ -41,7 +46,7 @@ class YouTubeSearchClient {
             }
 
             val source = Source(
-                id = "keyword:${query.trim()}",
+                id = "keyword:" + query.trim(),
                 url = searchHandler.url,
                 title = query.trim(),
                 originalTotalVideos = videos.size
@@ -51,7 +56,7 @@ class YouTubeSearchClient {
     }
 
     private fun youtubeVideoId(url: String): String {
-        val uri = android.net.Uri.parse(url)
+        val uri = Uri.parse(url)
         return uri.getQueryParameter("v")
             ?: uri.pathSegments.lastOrNull()?.takeIf { it.isNotBlank() }
             ?: url
