@@ -1,6 +1,7 @@
 package com.subgrab.app
 
 import android.content.ClipboardManager
+import android.content.ClipData
 import android.content.Context
 import android.content.pm.PackageManager
 import android.Manifest
@@ -12,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,6 +24,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.subgrab.app.data.DebugLog
 import com.subgrab.app.data.DownloadState
 import com.subgrab.app.data.SettingsRepository
 import com.subgrab.app.domain.AppSettings
@@ -62,8 +65,10 @@ class MainActivity : ComponentActivity() {
     val settingsRepo = remember(context) { SettingsRepository(context) }
     val settings by settingsRepo.settings.collectAsState(initial = AppSettings())
     var showSettings by remember { mutableStateOf(false) }
-    Scaffold(topBar = { TopAppBar(title = { Text("SubGrab") }, actions = { IconButton(onClick = { showSettings = true }) { Icon(Icons.Default.Settings, "Cài đặt") } }) }) { pad ->
+    var showDebug by remember { mutableStateOf(false) }
+    Scaffold(topBar = { TopAppBar(title = { Text("SubGrab") }, actions = { IconButton(onClick = { showDebug = true }) { Icon(Icons.Default.BugReport, "Log debug") }; IconButton(onClick = { showSettings = true }) { Icon(Icons.Default.Settings, "Cài đặt") } }) }) { pad ->
         if (showSettings) SettingsScreen(settingsRepo) { showSettings = false }
+        else if (showDebug) DebugLogScreen { showDebug = false }
         else when (val current = state) {
             is AnalysisState.Ready -> SelectVideoScreen(current.videos, current.folder, vm, settings, downloadState, Modifier.padding(pad))
             else -> HomeScreen(state, vm, downloadState, Modifier.padding(pad))
@@ -145,6 +150,28 @@ class MainActivity : ComponentActivity() {
                 },
                 style = MaterialTheme.typography.bodySmall
             )
+        }
+    }
+}
+
+
+@Composable private fun DebugLogScreen(onClose: () -> Unit) {
+    val context = LocalContext.current
+    var logs by remember { mutableStateOf(DebugLog.snapshot()) }
+    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { logs = DebugLog.snapshot() }) { Text("Làm mới") }
+            Button(onClick = {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("SubGrab debug log", DebugLog.text()))
+            }, enabled = logs.isNotEmpty()) { Text("Copy log") }
+            OutlinedButton(onClick = { DebugLog.clear(); logs = emptyList() }) { Text("Xóa") }
+            OutlinedButton(onClick = onClose) { Text("Đóng") }
+        }
+        Text("Network debug — " + logs.size + " dòng", style = MaterialTheme.typography.titleMedium)
+        Text("Ghi từng request/response của NewPipeDownloader. Query/token được che để tránh lộ thông tin nhạy cảm.", style = MaterialTheme.typography.bodySmall)
+        Card(Modifier.fillMaxSize()) {
+            LazyColumn(Modifier.padding(10.dp)) { items(logs) { line -> Text(line, style = MaterialTheme.typography.bodySmall) } }
         }
     }
 }
