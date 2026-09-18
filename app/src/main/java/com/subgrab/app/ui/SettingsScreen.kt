@@ -27,6 +27,7 @@ fun SettingsScreen(repository: SettingsRepository, onBack: () -> Unit) {
         FormatToggle("TXT", OutputFormat.TXT, value.formats) { next -> value = value.copy(formats = next); scope.launch { repository.update(value) } }
         FormatToggle("SRT", OutputFormat.SRT, value.formats) { next -> value = value.copy(formats = next); scope.launch { repository.update(value) } }
         HorizontalDivider()
+        Text("Tìm kiếm từ khóa sử dụng NewPipeExtractor, không cần API key.", style = MaterialTheme.typography.bodyMedium)
         OutlinedTextField(
             value = value.outputDir,
             onValueChange = { next -> value = value.copy(outputDir = next); scope.launch { repository.update(value) } },
