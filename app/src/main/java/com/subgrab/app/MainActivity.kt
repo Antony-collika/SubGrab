@@ -67,7 +67,20 @@ class MainActivity : ComponentActivity() {
     val settings by settingsRepo.settings.collectAsState(initial = AppSettings())
     var showSettings by remember { mutableStateOf(false) }
     var showDebug by remember { mutableStateOf(false) }
-    Scaffold(topBar = { TopAppBar(title = { Text("SubGrab") }, actions = { IconButton(onClick = { showDebug = true }) { Icon(Icons.Default.BugReport, "Log debug") }; IconButton(onClick = { showSettings = true }) { Icon(Icons.Default.Settings, "Cài đặt") } }) }) { pad ->
+    Scaffold(topBar = {
+        TopAppBar(
+            title = { Text("SubGrab") },
+            actions = {
+                if (showDebug) {
+                    TextButton(onClick = { copyDebugLog(context) }) {
+                        Text("Sao chép")
+                    }
+                }
+                IconButton(onClick = { showDebug = true }) { Icon(Icons.Default.BugReport, "Log debug") }
+                IconButton(onClick = { showSettings = true }) { Icon(Icons.Default.Settings, "Cài đặt") }
+            }
+        )
+    }) { pad ->
         if (showSettings) SettingsScreen(settingsRepo) { showSettings = false }
         else if (showDebug) DebugLogScreen { showDebug = false }
         else when (val current = state) {
@@ -201,11 +214,7 @@ class MainActivity : ComponentActivity() {
         // miss when the log is empty.
         Button(
             onClick = {
-                val clipboard =
-                    context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(
-                    ClipData.newPlainText("SubGrab debug log", DebugLog.text())
-                )
+                copyDebugLog(context)
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -233,4 +242,11 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
+
+private fun copyDebugLog(context: Context) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(
+        ClipData.newPlainText("SubGrab debug log", DebugLog.text())
+    )
 }
