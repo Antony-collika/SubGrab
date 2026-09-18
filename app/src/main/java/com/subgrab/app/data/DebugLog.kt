@@ -1,1 +1,50 @@
-package com.subgrab.app.data\n\nimport android.util.Log\n\nobject DebugLog {\n    private const val TAG = "SubGrabNet"\n    private const val MAX_LINES = 800\n    private val lock = Any()\n    private val lines = ArrayDeque<String>()\n\n    fun clear() = synchronized(lock) { lines.clear() }\n    fun snapshot(): List<String> = synchronized(lock) { lines.toList() }\n    fun text(): String = snapshot().joinToString("\n")\n\n    fun d(message: String) {\n        val line = message\n        synchronized(lock) {\n            lines.addLast(line)\n            while (lines.size > MAX_LINES) lines.removeFirst()\n        }\n        Log.d(TAG, line)\n    }\n\n    fun e(message: String, error: Throwable? = null) {\n        d("ERROR " + message + if (error == null) "" else " | " + error.javaClass.simpleName + ": " + error.message)\n        if (error != null) Log.e(TAG, message, error)\n    }\n}
+package com.subgrab.app.data
+
+import android.util.Log
+
+object DebugLog {
+    private const val TAG = "SubGrabNet"
+    private const val MAX_LINES = 800
+    private val lock = Any()
+    private val lines = ArrayDeque<String>()
+
+    fun clear() {
+        synchronized(lock) {
+            lines.clear()
+        }
+    }
+
+    fun snapshot(): List<String> {
+        return synchronized(lock) {
+            lines.toList()
+        }
+    }
+
+    fun text(): String {
+        return snapshot().joinToString("\n")
+    }
+
+    fun d(message: String) {
+        synchronized(lock) {
+            lines.addLast(message)
+            while (lines.size > MAX_LINES) {
+                lines.removeFirst()
+            }
+        }
+        Log.d(TAG, message)
+    }
+
+    fun e(message: String, error: Throwable? = null) {
+        d(
+            "ERROR $message" +
+                if (error == null) {
+                    ""
+                } else {
+                    " | ${error.javaClass.simpleName}: ${error.message}"
+                }
+        )
+        if (error != null) {
+            Log.e(TAG, message, error)
+        }
+    }
+}
