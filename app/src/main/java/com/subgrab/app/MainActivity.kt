@@ -269,7 +269,7 @@ private fun SelectVideoScreen(
     val selected = videos.count { it.isSelected }
 
     Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Đã chọn $@@{selected}/$@@{videos.size} · Tối đa 50 video/lần")
+        Text("Đã chọn ${selected}/${videos.size} · Tối đa 50 video/lần")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { vm.selectAll() }) { Text("Chọn tất cả") }
             OutlinedButton(onClick = { vm.clearSelection() }) { Text("Bỏ chọn") }
@@ -296,7 +296,7 @@ private fun SelectVideoScreen(
                 },
                 enabled = selected > 0 && folderName.isNotBlank() && downloadState !is DownloadState.Running,
                 modifier = Modifier.weight(1f)
-            ) { Text("TẢI PHỤ ĐỀ ($@@{selected})") }
+            ) { Text("TẢI PHỤ ĐỀ (${selected})") }
         }
     }
 }
@@ -307,31 +307,31 @@ private fun DownloadProgressCard(state: DownloadState, vm: DownloadViewModel) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             when (state) {
                 is DownloadState.Running -> {
-                    Text("Đang tải $@@{state.current}/$@@{state.total}", style = MaterialTheme.typography.titleMedium)
+                    Text("Đang tải ${state.current}/${state.total}", style = MaterialTheme.typography.titleMedium)
                     Text(state.title)
                     LinearProgressIndicator(
                         progress = { state.current.toFloat() / state.total.coerceAtLeast(1) },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Text("Đã lưu $@@{state.saved} file · Bỏ qua $@@{state.skipped}")
+                    Text("Đã lưu ${state.saved} file · Bỏ qua ${state.skipped}")
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = vm::pauseDownload) { Text("Tạm dừng") }
                         OutlinedButton(onClick = vm::cancelDownload) { Text("Hủy") }
                     }
                 }
                 is DownloadState.Paused -> {
-                    Text("Đã tạm dừng $@@{state.current}/$@@{state.total}", style = MaterialTheme.typography.titleMedium)
+                    Text("Đã tạm dừng ${state.current}/${state.total}", style = MaterialTheme.typography.titleMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = vm::resumeDownload) { Text("Tiếp tục") }
                         OutlinedButton(onClick = vm::cancelDownload) { Text("Hủy") }
                     }
                 }
                 is DownloadState.Done -> {
-                    Text("Hoàn tất: $@@{state.saved} file, bỏ qua $@@{state.skipped}", color = MaterialTheme.colorScheme.primary)
+                    Text("Hoàn tất: ${state.saved} file, bỏ qua ${state.skipped}", color = MaterialTheme.colorScheme.primary)
                     state.logs.takeLast(8).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
                 }
                 is DownloadState.Cancelled -> {
-                    Text("Đã hủy: $@@{state.saved} file đã lưu", color = MaterialTheme.colorScheme.error)
+                    Text("Đã hủy: ${state.saved} file đã lưu", color = MaterialTheme.colorScheme.error)
                     state.logs.takeLast(8).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
                 }
                 else -> Text("Đang chuẩn bị tải")
@@ -352,7 +352,7 @@ private fun VideoRow(video: VideoItem, onToggle: () -> Unit) {
             Text("%03d · %s".format(video.index, video.title))
             val metadata = buildList {
                 if (video.channelTitle.isNotBlank()) add(video.channelTitle)
-                video.viewCount?.let { add("$@@{it} lượt xem") }
+                video.viewCount?.let { add("${it} lượt xem") }
             }.joinToString(" · ")
             if (metadata.isNotBlank()) Text(metadata, style = MaterialTheme.typography.bodySmall)
             Text(
@@ -388,7 +388,7 @@ private fun DebugLogScreen(onBack: () -> Unit) {
             OutlinedButton(onClick = { DebugLog.clear(); logs = emptyList() }, modifier = Modifier.weight(1f)) { Text("Xóa") }
         }
         Button(onClick = { copyDebugLog(context) }, modifier = Modifier.fillMaxWidth()) { Text("Sao chép nhật ký") }
-        Text("Network debug — $@@{logs.size} dòng", style = MaterialTheme.typography.titleMedium)
+        Text("Network debug — ${logs.size} dòng", style = MaterialTheme.typography.titleMedium)
         Text(
             "Ghi từng request/response. Query/token được che để tránh lộ thông tin nhạy cảm.",
             style = MaterialTheme.typography.bodySmall
