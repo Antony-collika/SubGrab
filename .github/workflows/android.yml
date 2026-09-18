@@ -71,7 +71,7 @@ jobs:
         run: |
           ./gradlew assembleArm64Release
           mkdir -p release-assets
-          cp app/build/outputs/apk/arm64/release/app-arm64-release-unsigned.apk "release-assets/SubGrab-${GITHUB_REF_NAME}-arm64-unsigned.apk"
+          cp app/build/outputs/apk/arm64/release/app-arm64-release.apk "release-assets/SubGrab-${GITHUB_REF_NAME}-arm64.apk"
           ls -lh release-assets
 
       - name: Upload release APK artifact
