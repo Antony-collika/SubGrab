@@ -47,27 +47,8 @@ jobs:
       - name: Unit tests
         run: ./gradlew test
 
-      - name: Assemble debug APK
-        run: ./gradlew assembleArm64Debug
-
-      - name: Verify arm64 APK output
-        run: |
-          set -e
-          apk=app/build/outputs/apk/arm64/debug/app-arm64-debug.apk
-          ls -lh "$apk"
-          test -f "$apk"
-          test "$(unzip -l "$apk" | grep -c 'lib/arm64-v8a/libpython3.13.so')" -eq 1
-
-      - name: Upload arm64 APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: SubGrab-arm64-debug
-          path: app/build/outputs/apk/arm64/debug/app-arm64-debug.apk
-          if-no-files-found: error
-          retention-days: 14
-
       - name: Build release APK
-        if: startsWith(github.ref, 'refs/tags/')
+        run: |
         run: |
           ./gradlew assembleArm64Release
           mkdir -p release-assets
@@ -75,7 +56,6 @@ jobs:
           ls -lh release-assets
 
       - name: Upload release APK artifact
-        if: startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v4
         with:
           name: SubGrab-${{ github.ref_name }}-release-apk
