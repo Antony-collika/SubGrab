@@ -107,7 +107,7 @@ class NewPipePoTokenProvider(private val context: Context, private val downloade
             val integrity = base64Array(result.getString(0))
             val lifetime = result.getLong(1)
             expiresAt = System.currentTimeMillis() + (lifetime - 600).coerceAtLeast(60) * 1000
-            evaluate("this.integrityToken=$integrity")
+            evaluate("this.webPoSignalOutput = webPoSignalOutput; this.integrityToken=$integrity")
             Thread {
                 try {
                     streamingToken = generate(visitorData!!)
