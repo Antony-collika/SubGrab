@@ -27,6 +27,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.subgrab.app.data.DebugLog
 import com.subgrab.app.data.DownloadState
 import com.subgrab.app.data.SettingsRepository
@@ -83,36 +86,32 @@ fun SubGrabApp() {
     val downloadState by vm.downloadState.collectAsState()
     val settingsRepo = remember(context) { SettingsRepository(context) }
     val settings by settingsRepo.settings.collectAsState(initial = AppSettings())
+    val navController = rememberNavController()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val route = backStackEntry?.destination?.route ?: "home"
     val snackbarHostState = remember { SnackbarHostState() }
 
-    var screen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
-    var returnScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
-
-    LaunchedEffect(state) {
+    LaunchedEffect(state, route) {
         when (state) {
-            is AnalysisState.Ready -> if (screen == AppScreen.HOME) screen = AppScreen.RESULTS
+            is AnalysisState.Ready -> if (route == "home") navController.navigate("results")
             is AnalysisState.Error -> snackbarHostState.showSnackbar(state.message)
             else -> Unit
         }
     }
 
-    val goBack = {
-        screen = when (screen) {
-            AppScreen.SETTINGS, AppScreen.DEBUG -> returnScreen
-            AppScreen.RESULTS -> AppScreen.HOME
-            AppScreen.HOME -> AppScreen.HOME
-        }
+    val goBack: () -> Unit = {
+        if (!navController.popBackStack()) navController.navigate("home")
     }
 
-    BackHandler(enabled = screen != AppScreen.HOME) {
+    BackHandler(enabled = route != "home") {
         goBack()
     }
 
-    val title = when (screen) {
-        AppScreen.HOME -> "SubGrab"
-        AppScreen.RESULTS -> "Chọn video"
-        AppScreen.SETTINGS -> "Cài đặt"
-        AppScreen.DEBUG -> "Nhật ký debug"
+    val title = when (route) {
+        "results" -> "Chọn video"
+        "settings" -> "Cài đặt"
+        "debug" -> "Nhật ký debug"
+        else -> "SubGrab"
     }
 
     Scaffold(
@@ -121,24 +120,18 @@ fun SubGrabApp() {
             TopAppBar(
                 title = { Text(title) },
                 navigationIcon = {
-                    if (screen != AppScreen.HOME) {
+                    if (route != "home") {
                         IconButton(onClick = goBack) {
                             Icon(Icons.Default.ArrowBack, contentDescription = "Quay lại")
                         }
                     }
                 },
                 actions = {
-                    if (screen == AppScreen.HOME) {
-                        IconButton(onClick = {
-                            returnScreen = screen
-                            screen = AppScreen.DEBUG
-                        }) {
+                    if (route == "home") {
+                        IconButton(onClick = { navController.navigate("debug") }) {
                             Icon(Icons.Default.BugReport, contentDescription = "Nhật ký debug")
                         }
-                        IconButton(onClick = {
-                            returnScreen = screen
-                            screen = AppScreen.SETTINGS
-                        }) {
+                        IconButton(onClick = { navController.navigate("settings") }) {
                             Icon(Icons.Default.Settings, contentDescription = "Cài đặt")
                         }
                     }
@@ -146,19 +139,36 @@ fun SubGrabApp() {
             )
         }
     ) { pad ->
-        when (screen) {
-            AppScreen.HOME -> HomeScreen(state, vm, downloadState, Modifier.padding(pad))
-            AppScreen.RESULTS -> SelectVideoScreen(
-                videos = (state as? AnalysisState.Ready)?.videos.orEmpty(),
-                folder = (state as? AnalysisState.Ready)?.folder.orEmpty(),
-                vm = vm,
-                settings = settings,
-                downloadState = downloadState,
-                onNewAnalysis = { vm.resetAnalysis(); screen = AppScreen.HOME },
-                modifier = Modifier.padding(pad)
-            )
-            AppScreen.SETTINGS -> SettingsScreen(settingsRepo, goBack)
-            AppScreen.DEBUG -> DebugLogScreen(goBack)
+        NavHost(
+            navController = navController,
+            startDestination = "home",
+            modifier = Modifier.padding(pad)
+        ) {
+            composable("home") {
+                HomeScreen(state, vm, downloadState, Modifier.fillMaxSize())
+            }
+            composable("results") {
+                SelectVideoScreen(
+                    videos = (state as? AnalysisState.Ready)?.videos.orEmpty(),
+                    folder = (state as? AnalysisState.Ready)?.folder.orEmpty(),
+                    vm = vm,
+                    settings = settings,
+                    downloadState = downloadState,
+                    onNewAnalysis = {
+                        vm.resetAnalysis()
+                        navController.navigate("home") {
+                            popUpTo("home") { inclusive = true }
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            composable("settings") {
+                SettingsScreen(settingsRepo, goBack)
+            }
+            composable("debug") {
+                DebugLogScreen(goBack)
+            }
         }
     }
 }
