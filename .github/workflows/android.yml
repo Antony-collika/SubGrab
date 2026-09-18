@@ -49,15 +49,19 @@ jobs:
 
       - name: Build release APK
         run: |
+          set -e
           ./gradlew assembleArm64Release
           mkdir -p release-assets
-          cp app/build/outputs/apk/arm64/release/app-arm64-release.apk "release-assets/SubGrab-${GITHUB_REF_NAME}-arm64.apk"
+          # Git branch names may contain '/', which must not become a path
+          # separator when the APK is copied into the artifact directory.
+          safe_ref_name="${GITHUB_REF_NAME//\//-}"
+          cp app/build/outputs/apk/arm64/release/app-arm64-release.apk "release-assets/SubGrab-${safe_ref_name}-arm64.apk"
           ls -lh release-assets
 
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SubGrab-${{ github.ref_name }}-release-apk
+          name: SubGrab-release-apk
           path: release-assets/*.apk
           if-no-files-found: error
           retention-days: 30
