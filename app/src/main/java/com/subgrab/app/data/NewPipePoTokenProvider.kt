@@ -181,6 +181,6 @@ class NewPipePoTokenProvider(private val context: Context, private val downloade
         private const val API_KEY = "AIzaSyDyT5W0Jh49F30Pqqtyfdf7pDLFKLJoAnw"
         private const val CREATE_URL = "https://www.youtube.com/api/jnn/v1/Create"
         private const val GENERATE_URL = "https://www.youtube.com/api/jnn/v1/GenerateIT"
-        private const val BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.3"
+        const val BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.3"
     }
 }
