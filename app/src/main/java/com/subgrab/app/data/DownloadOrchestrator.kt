@@ -17,9 +17,29 @@ class DownloadOrchestrator(private val runner: YtDlpRunner, private val storage:
         selected.forEachIndexed { index, video ->
             while (paused && !cancelled) { _state.value = DownloadState.Paused(index, selected.size, logs.toList()); delay(250) }
             if (cancelled) { _state.value = DownloadState.Cancelled(saved, logs); return }
-            if (video.subtitleChecked && !video.hasSub) { skipped++; logs += "⚠️ ${video.title}: không có phụ đề"; return@forEachIndexed }
+            var videoToDownload = video
+            if (!video.subtitleChecked) {
+                runner.listSubs("https://www.youtube.com/watch?v=${video.videoId}").fold(
+                    onSuccess = { subs ->
+                        if (subs.isEmpty()) {
+                            skipped++
+                            logs += "⚠️ ${video.title}: không tìm thấy phụ đề"
+                        } else {
+                            videoToDownload = video.copy(availableSubs = subs, subtitleChecked = true)
+                        }
+                    },
+                    onFailure = { error ->
+                        logs += "⚠️ ${video.title}: kiểm tra phụ đề thất bại: ${error.message}"
+                    }
+                )
+                if (!videoToDownload.hasSub) return@forEachIndexed
+            } else if (!video.hasSub) {
+                skipped++
+                logs += "⚠️ ${video.title}: không có phụ đề"
+                return@forEachIndexed
+            }
             _state.value = DownloadState.Running(index + 1, selected.size, video.title, saved, skipped, logs.toList())
-            runner.downloadSubs(video, config.languages, config.formats, dir).onSuccess { files -> saved += files.size; logs += "✅ ${video.title}: ${files.size} file" }.onFailure { skipped++; logs += "❌ ${video.title}: ${it.message}" }
+            runner.downloadSubs(videoToDownload, config.languages, config.formats, dir).onSuccess { files -> saved += files.size; logs += "✅ ${video.title}: ${files.size} file" }.onFailure { skipped++; logs += "❌ ${video.title}: ${it.message}" }
         }
         storage.convertSrtToTxt(dir)
         val basePath = config.outputDir.removePrefix("Download/").removePrefix("Download\\").ifBlank { "Subtitles" }
