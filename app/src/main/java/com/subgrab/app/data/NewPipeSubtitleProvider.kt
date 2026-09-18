@@ -78,10 +78,13 @@ class NewPipeSubtitleProvider(context: Context) {
                 }
                 Source(url, url, extractor.getName(), videos.size) to videos
             } else {
-                val extractor = service.getStreamExtractor(url)
-                extractor.fetchPage()
-                val video = VideoItem(1, extractor.getId(), extractor.getName(), extractor.getLength().toInt(), emptyList())
-                Source(url, url, extractor.getName(), 1) to listOf(video)
+                // Do not fetch the full StreamInfo here. On older Android/YouTube
+                // combinations that request can fail with a stream-related 403,
+                // even though the subtitle endpoint still works. NewPipe itself
+                // treats those concerns separately.
+                val videoId = youtubeVideoId(url)
+                val video = VideoItem(1, videoId, videoId, 0, emptyList())
+                Source(url, url, videoId, 1) to listOf(video)
             }
         }
     }
