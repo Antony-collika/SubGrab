@@ -13,6 +13,7 @@ class NewPipeDownloader : Downloader() {
             .httpMethod("POST")
             .url(url)
             .headers(mapOf(
+                "User-Agent" to listOf(NewPipePoTokenProvider.BROWSER_UA),
                 "Accept" to listOf("application/json"),
                 "Content-Type" to listOf("application/json+protobuf"),
                 "x-goog-api-key" to listOf("AIzaSyDyT5W0Jh49F30Pqqtyfdf7pDLFKLJoAnw"),
