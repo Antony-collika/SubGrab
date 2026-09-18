@@ -2,7 +2,7 @@ package com.subgrab.app.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.edit
+import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.subgrab.app.domain.AppSettings
@@ -19,20 +19,26 @@ class SettingsRepository(private val context: Context) {
         val preferManual = booleanPreferencesKey("prefer_manual")
         val skipNoSub = booleanPreferencesKey("skip_no_sub")
     }
+
     val settings: Flow<AppSettings> = context.settingsStore.data.map { p ->
         AppSettings(
             p[Keys.languages]?.split(",")?.filter(String::isNotBlank) ?: listOf("vi", "en"),
-            p[Keys.formats]?.split(",")?.mapNotNull { value -> OutputFormat.entries.find { it.name == value } }?.toSet() ?: setOf(OutputFormat.TXT),
+            p[Keys.formats]?.split(",")?.mapNotNull { value ->
+                OutputFormat.entries.find { it.name == value }
+            }?.toSet() ?: setOf(OutputFormat.TXT),
             p[Keys.outputDir] ?: "Download/Subtitles",
             p[Keys.preferManual] ?: true,
             p[Keys.skipNoSub] ?: true
         )
     }
-    suspend fun update(value: AppSettings) { context.settingsStore.edit { p ->
-        p[Keys.languages] = value.languages.joinToString(",")
-        p[Keys.formats] = value.formats.joinToString(",") { it.name }
-        p[Keys.outputDir] = value.outputDir
-        p[Keys.preferManual] = value.preferManualSub
-        p[Keys.skipNoSub] = value.skipNoSub
-    } }
+
+    suspend fun update(value: AppSettings) {
+        context.settingsStore.edit { p ->
+            p[Keys.languages] = value.languages.joinToString(",")
+            p[Keys.formats] = value.formats.joinToString(",") { it.name }
+            p[Keys.outputDir] = value.outputDir
+            p[Keys.preferManual] = value.preferManualSub
+            p[Keys.skipNoSub] = value.skipNoSub
+        }
+    }
 }
