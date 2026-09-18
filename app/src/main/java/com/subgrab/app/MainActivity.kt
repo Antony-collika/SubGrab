@@ -166,14 +166,35 @@ class MainActivity : ComponentActivity() {
         }
     }
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { logs = DebugLog.snapshot() }) { Text("Làm mới") }
-            Button(onClick = {
-                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("SubGrab debug log", DebugLog.text()))
-            }, enabled = logs.isNotEmpty()) { Text("Copy log") }
-            OutlinedButton(onClick = { DebugLog.clear(); logs = emptyList() }) { Text("Xóa") }
-            OutlinedButton(onClick = onClose) { Text("Đóng") }
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("SubGrab debug log", DebugLog.text()))
+                },
+                enabled = logs.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Copy log") }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { logs = DebugLog.snapshot() },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Làm mới") }
+                OutlinedButton(
+                    onClick = { DebugLog.clear(); logs = emptyList() },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Xóa") }
+                OutlinedButton(
+                    onClick = onClose,
+                    modifier = Modifier.weight(1f)
+                ) { Text("Đóng") }
+            }
         }
         Text("Network debug — " + logs.size + " dòng", style = MaterialTheme.typography.titleMedium)
         Text("Ghi từng request/response của NewPipeDownloader. Query/token được che để tránh lộ thông tin nhạy cảm.", style = MaterialTheme.typography.bodySmall)
