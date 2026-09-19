@@ -2,6 +2,7 @@ package com.subgrab.app
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
@@ -17,7 +18,7 @@ class MainActivityUiTest {
     fun homeScreenShowsPrimaryActions() {
         rule.onNodeWithText("Tải phụ đề YouTube hàng loạt").assertIsDisplayed()
         rule.onNodeWithText("PHÂN TÍCH").assertIsDisplayed()
-        rule.onNodeWithText("Nhật ký debug").assertIsDisplayed()
-        rule.onNodeWithText("Cài đặt").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Nhật ký debug").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Cài đặt").assertIsDisplayed()
     }
 }
