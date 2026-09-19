@@ -49,9 +49,9 @@ class DownloadOrchestrator(
         }
 
         selected.forEachIndexed { index, video ->
-            while ((paused || control.isPaused()) && !cancelled && !control.isCancelled()) {
+            if ((paused || control.isPaused()) && !cancelled && !control.isCancelled()) {
                 publish(DownloadState.Paused(index, selected.size, logs.toList()))
-                delay(250)
+                while (!cancelled && !control.isCancelled() && (paused || control.isPaused())) delay(250)
             }
             if (cancelled || control.isCancelled()) {
                 publish(DownloadState.Cancelled(saved, logs.toList()))
