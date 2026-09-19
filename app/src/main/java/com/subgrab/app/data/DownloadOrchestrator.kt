@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.delay
 
 sealed interface DownloadState { data object Idle : DownloadState; data class Running(val current: Int, val total: Int, val title: String, val saved: Int, val skipped: Int, val logs: List<String>) : DownloadState; data class Paused(val current: Int, val total: Int, val logs: List<String>) : DownloadState; data class Done(val saved: Int, val skipped: Int, val logs: List<String>) : DownloadState; data class Cancelled(val saved: Int, val logs: List<String>) : DownloadState }
-class DownloadOrchestrator(private val runner: YtDlpRunner, private val storage: FileStorage) {
+class DownloadOrchestrator(private val runner: YtDlpRunner, private val storage: FileStorage, private val history: HistoryRepository) {
     private val _state = MutableStateFlow<DownloadState>(DownloadState.Idle); val state: StateFlow<DownloadState> = _state.asStateFlow()
     @Volatile private var paused = false; @Volatile private var cancelled = false
     suspend fun start(source: Source, videos: List<VideoItem>, folderName: String, config: DownloadConfig) {
@@ -46,6 +46,7 @@ class DownloadOrchestrator(private val runner: YtDlpRunner, private val storage:
         val relativePath = "$basePath/${dir.name}"
         val published = storage.publishToDownloads(dir, relativePath)
         logs += "📁 Đã xuất ${published.size} file vào Download/$relativePath"
+        history.add(DownloadHistoryEntry(System.currentTimeMillis(), source.title, dir.name, saved, skipped))
         _state.value = DownloadState.Done(saved, skipped, logs)
     }
     fun pause() { paused = true }
