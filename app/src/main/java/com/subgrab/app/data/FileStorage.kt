@@ -6,7 +6,6 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import com.subgrab.app.domain.FileNameSanitizer
-import com.subgrab.app.domain.SrtToTxtConverter
 import java.io.File
 
 class FileStorage(private val context: Context) {
