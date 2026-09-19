@@ -295,7 +295,7 @@ private fun HomeScreen(
         item {
             Text(
                 if (mode) "Tìm kiếm trực tiếp trên YouTube, sau đó trả về danh sách video để bạn chọn."
-                else "Ứng dụng sẽ phân tích tối đa 50 video và lấy phụ đề vi/en nếu có."
+                else "Ứng dụng sử dụng NewPipeExtractor để phân tích tối đa 50 video và lấy phụ đề vi/en nếu có."
             )
         }
     }
