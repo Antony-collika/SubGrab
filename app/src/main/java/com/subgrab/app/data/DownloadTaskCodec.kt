@@ -20,14 +20,28 @@ object DownloadTaskCodec {
         })
         root.put("folder", folder)
         root.put("config", JSONObject().apply {
-            put("languages", JSONArray(config.languages))
-            put("formats", JSONArray(config.formats.map(OutputFormat::name)))
+            val languages = JSONArray()
+            config.languages.forEach(languages::put)
+            val formats = JSONArray()
+            config.formats.forEach { formats.put(it.name) }
+            put("languages", languages)
+            put("formats", formats)
             put("preferManual", config.preferManual)
             put("skipNoSub", config.skipNoSub)
             put("outputDir", config.outputDir)
         })
-        root.put("videos", JSONArray(videos.filter { it.isSelected }.take(50).map { video ->
-            JSONObject().apply {
+
+        val videosJson = JSONArray()
+        videos.filter { it.isSelected }.take(50).forEach { video ->
+            val subs = JSONArray()
+            video.availableSubs.forEach { sub ->
+                subs.put(JSONObject().apply {
+                    put("code", sub.code)
+                    put("auto", sub.isAuto)
+                    put("name", sub.name)
+                })
+            }
+            videosJson.put(JSONObject().apply {
                 put("index", video.index)
                 put("videoId", video.videoId)
                 put("title", video.title)
@@ -38,15 +52,10 @@ object DownloadTaskCodec {
                 put("publishedAt", video.publishedAt)
                 video.viewCount?.let { put("viewCount", it) }
                 put("thumbnailUrl", video.thumbnailUrl)
-                put("subs", JSONArray(video.availableSubs.map { sub ->
-                    JSONObject().apply {
-                        put("code", sub.code)
-                        put("auto", sub.isAuto)
-                        put("name", sub.name)
-                    }
-                }))
-            }
-        })
+                put("subs", subs)
+            })
+        }
+        root.put("videos", videosJson)
         return Base64.encodeToString(root.toString().toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
     }
 
@@ -55,8 +64,10 @@ object DownloadTaskCodec {
         val sourceJson = root.getJSONObject("source")
         val source = Source(sourceJson.getString("id"), sourceJson.getString("url"), sourceJson.getString("title"), sourceJson.getInt("total"))
         val configJson = root.getJSONObject("config")
-        val languages = configJson.getJSONArray("languages").let { array -> List(array.length()) { array.getString(it) } }
-        val formats = configJson.getJSONArray("formats").let { array -> List(array.length()) { OutputFormat.valueOf(array.getString(it)) }.toSet() }
+        val languagesJson = configJson.getJSONArray("languages")
+        val languages = List(languagesJson.length()) { languagesJson.getString(it) }
+        val formatsJson = configJson.getJSONArray("formats")
+        val formats = List(formatsJson.length()) { OutputFormat.valueOf(formatsJson.getString(it)) }.toSet()
         val config = DownloadConfig(
             languages = languages,
             formats = formats,
