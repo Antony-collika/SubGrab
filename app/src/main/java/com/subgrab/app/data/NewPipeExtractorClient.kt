@@ -61,7 +61,7 @@ class NewPipeExtractorClient(context: Context) {
                         index = 1,
                         videoId = id,
                         title = title,
-                        durationSec = runCatching { extractor.getLengthInSeconds().toInt() }.getOrDefault(0),
+                        durationSec = 0,
                         availableSubs = emptyList(),
                         subtitleChecked = false
                     )
