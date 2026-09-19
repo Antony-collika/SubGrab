@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +35,9 @@ import androidx.navigation.compose.rememberNavController
 import com.subgrab.app.data.DebugLog
 import com.subgrab.app.data.DownloadState
 import com.subgrab.app.data.SettingsRepository
+import com.subgrab.app.data.HistoryRepository
+import com.subgrab.app.ui.DownloadProgressScreen
+import com.subgrab.app.ui.HistoryScreen
 import com.subgrab.app.domain.AppSettings
 import com.subgrab.app.domain.VideoItem
 import com.subgrab.app.service.DownloadService
@@ -42,6 +46,7 @@ import com.subgrab.app.ui.DownloadViewModel
 import com.subgrab.app.ui.DownloadViewModelFactory
 import com.subgrab.app.ui.SettingsScreen
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -86,6 +91,7 @@ fun SubGrabApp() {
     val state by vm.state.collectAsState()
     val downloadState by vm.downloadState.collectAsState()
     val settingsRepo = remember(context) { SettingsRepository(context) }
+    val historyRepo = remember(context) { HistoryRepository(context) }
     val settings by settingsRepo.settings.collectAsState(initial = AppSettings())
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -113,6 +119,8 @@ fun SubGrabApp() {
         "results" -> "Chọn video"
         "settings" -> "Cài đặt"
         "debug" -> "Nhật ký debug"
+        "progress" -> "Tiến độ tải"
+        "history" -> "Lịch sử tải"
         else -> "SubGrab"
     }
 
@@ -130,6 +138,9 @@ fun SubGrabApp() {
                 },
                 actions = {
                     if (route == "home") {
+                        IconButton(onClick = { navController.navigate("history") }) {
+                            Icon(Icons.Default.History, contentDescription = "Lịch sử tải")
+                        }
                         IconButton(onClick = { navController.navigate("debug") }) {
                             Icon(Icons.Default.BugReport, contentDescription = "Nhật ký debug")
                         }
@@ -156,6 +167,7 @@ fun SubGrabApp() {
                     vm = vm,
                     settings = settings,
                     downloadState = downloadState,
+                    onDownloadStarted = { navController.navigate("progress") },
                     onNewAnalysis = {
                         vm.resetAnalysis()
                         navController.navigate("home") {
@@ -164,6 +176,13 @@ fun SubGrabApp() {
                     },
                     modifier = Modifier.fillMaxSize()
                 )
+            }
+            composable("progress") {
+                DownloadProgressScreen(downloadState, vm, onDone = { navController.popBackStack("results", false) }, Modifier.fillMaxSize())
+            }
+            composable("history") {
+                val scope = rememberCoroutineScope()
+                HistoryScreen(historyRepo, onClear = { scope.launch { historyRepo.clear() } }, Modifier.fillMaxSize())
             }
             composable("settings") {
                 SettingsScreen(settingsRepo, goBack)
@@ -293,6 +312,7 @@ private fun SelectVideoScreen(
     vm: DownloadViewModel,
     settings: AppSettings,
     downloadState: DownloadState,
+    onDownloadStarted: () -> Unit,
     onNewAnalysis: () -> Unit,
     modifier: Modifier
 ) {
@@ -325,6 +345,7 @@ private fun SelectVideoScreen(
                 onClick = {
                     ContextCompat.startForegroundService(context, android.content.Intent(context, DownloadService::class.java))
                     vm.startDownload(settings)
+                    onDownloadStarted()
                 },
                 enabled = selected > 0 && folderName.isNotBlank() && downloadState !is DownloadState.Running,
                 modifier = Modifier.weight(1f)
