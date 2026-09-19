@@ -39,7 +39,6 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("androidx.work:work-runtime-ktx:2.10.5")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-    implementation("dev.ffmpegkit-maintained:yt-dlp-android:2.0.2")
     implementation("com.github.TeamNewPipe:NewPipeExtractor:13a655fe53e0c3065f88725fc1fb594c3ede0169")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
     testImplementation("junit:junit:4.13.2")
