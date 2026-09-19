@@ -38,6 +38,7 @@ import com.subgrab.app.data.SettingsRepository
 import com.subgrab.app.data.HistoryRepository
 import com.subgrab.app.ui.DownloadProgressScreen
 import com.subgrab.app.ui.HistoryScreen
+import com.subgrab.app.ui.HistoryDetailScreen
 import com.subgrab.app.domain.AppSettings
 import com.subgrab.app.domain.VideoItem
 import com.subgrab.app.ui.AnalysisState
@@ -112,7 +113,7 @@ fun SubGrabApp() {
         "debug" -> "Nhật ký debug"
         "progress" -> "Tiến độ tải"
         "history" -> "Lịch sử tải"
-        else -> "SubGrab"
+        else -> if (route.startsWith("history/")) "Chi tiết tải" else "SubGrab"
     }
 
     Scaffold(
@@ -173,7 +174,11 @@ fun SubGrabApp() {
             }
             composable("history") {
                 val scope = rememberCoroutineScope()
-                HistoryScreen(historyRepo, onClear = { scope.launch { historyRepo.clear() } }, Modifier.fillMaxSize())
+                HistoryScreen(historyRepo, onOpen = { id -> navController.navigate("history/$id") }, onClear = { scope.launch { historyRepo.clear() } }, Modifier.fillMaxSize())
+            }
+            composable("history/{id}") { entry ->
+                val id = entry.arguments?.getString("id").orEmpty()
+                HistoryDetailScreen(historyRepo, id, goBack, Modifier.fillMaxSize())
             }
             composable("settings") {
                 SettingsScreen(settingsRepo, goBack)
