@@ -100,7 +100,7 @@ class DownloadOrchestrator(
         val relativePath = "$basePath/${dir.name}"
         val published = storage.publishToDownloads(dir, relativePath)
         logs += "📁 Đã xuất ${published.size} file vào Download/$relativePath"
-        runCatching { history.add(DownloadHistoryEntry(System.currentTimeMillis(), source.title, dir.name, saved, skipped)) }
+        runCatching { history.add(DownloadHistoryEntry(System.currentTimeMillis(), source.title, dir.name, saved, skipped, sourceUrl = source.url, total = selected.size, status = "DONE", logs = logs.toList())) }
         publish(DownloadState.Done(saved, skipped, logs.toList()))
     }
 
