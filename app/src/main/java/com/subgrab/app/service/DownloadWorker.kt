@@ -87,7 +87,7 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         is DownloadState.Done -> logs
         is DownloadState.Cancelled -> logs
         else -> emptyList()
-    }.takeLast(MAX_WORK_LOGS).map { it.take(MAX_WORK_LOG_CHARS) }.toTypedArray()
+    }.takeLast(MAX_WORK_LOGS).map { it.take(MAX_WORK_LOG_CHARS) as String? }.toTypedArray()
 
     private fun DownloadState.notificationText(): String = when (this) {
         DownloadState.Idle -> "Đang chuẩn bị tải phụ đề"
