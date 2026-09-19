@@ -42,6 +42,7 @@ class DownloadOrchestrator(
         val dir = storage.createTaskDirectory(folderName, config.outputDir)
         var saved = 0
         var skipped = 0
+        var selectedProcessed = 0
         val logs = mutableListOf<String>()
 
         suspend fun publish(state: DownloadState) {
@@ -81,7 +82,8 @@ class DownloadOrchestrator(
                 return@forEachIndexed
             }
 
-            publish(DownloadState.Running(index + 1, selected.size, video.title, saved, skipped, logs.toList()))
+            selectedProcessed = index + 1
+            publish(DownloadState.Running(selectedProcessed, selected.size, video.title, saved, skipped, logs.toList()))
             subtitleDownloader.download(videoToDownload, config, dir).onSuccess { files ->
                 saved += files.size
                 logs += "✅ " + video.title + ": " + files.size + " file"
