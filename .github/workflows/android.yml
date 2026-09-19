@@ -47,6 +47,9 @@ jobs:
       - name: Unit tests
         run: ./gradlew test
 
+      - name: Compile Android UI tests
+        run: ./gradlew compileArm64DebugAndroidTest
+
       - name: Build release APK
         run: |
           set -e
