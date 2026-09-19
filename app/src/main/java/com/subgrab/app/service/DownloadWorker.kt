@@ -25,7 +25,9 @@ import com.subgrab.app.data.DownloadState
 import com.subgrab.app.data.DownloadTaskCodec
 import com.subgrab.app.data.FileStorage
 import com.subgrab.app.data.HistoryRepository
-import com.subgrab.app.data.YtDlpRunner
+import com.subgrab.app.data.NewPipeExtractorClient
+import com.subgrab.app.data.NewPipeDownloader
+import com.subgrab.app.data.SubtitleDownloader
 import java.util.concurrent.TimeUnit
 
 class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {
@@ -35,8 +37,9 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
     override suspend fun doWork(): Result {
         val encoded = inputData.getString(KEY_TASK) ?: return Result.failure()
         val task = runCatching { DownloadTaskCodec.decode(encoded) }.getOrElse { return Result.failure() }
-        val runner = runCatching { YtDlpRunner(applicationContext) }.getOrElse { return Result.failure() }
-        val orchestrator = DownloadOrchestrator(runner, FileStorage(applicationContext), history, control)
+        val extractorClient = runCatching { NewPipeExtractorClient(applicationContext) }.getOrElse { return Result.failure() }
+        val subtitleDownloader = SubtitleDownloader(extractorClient, NewPipeDownloader())
+        val orchestrator = DownloadOrchestrator(extractorClient, subtitleDownloader, FileStorage(applicationContext), history, control)
 
         setForeground(createForegroundInfo("Đang chuẩn bị tải phụ đề", null, false))
         orchestrator.start(task.source, task.videos, task.folder, task.config) { state ->
