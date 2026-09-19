@@ -5,15 +5,22 @@ import android.util.Base64
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.subgrab.app.domain.DownloadConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.util.UUID
 
 data class DownloadHistoryEntry(
     val timestamp: Long,
     val title: String,
     val folder: String,
     val saved: Int,
-    val skipped: Int
+    val skipped: Int,
+    val id: String = UUID.randomUUID().toString(),
+    val sourceUrl: String = "",
+    val total: Int = 0,
+    val status: String = "DONE",
+    val logs: List<String> = emptyList()
 )
 
 private val Context.historyStore by preferencesDataStore("subgrab_history")
@@ -38,16 +45,49 @@ class HistoryRepository(private val context: Context) {
         context.historyStore.edit { it.remove(Keys.entries) }
     }
 
+    suspend fun getById(id: String): DownloadHistoryEntry? = entries.map { list -> list.firstOrNull { it.id == id } }.let { flow ->
+        kotlinx.coroutines.flow.first(flow)
+    }
+
     private fun encode(entry: DownloadHistoryEntry): String = listOf(
-        entry.timestamp.toString(), entry.saved.toString(), entry.skipped.toString(), entry.title, entry.folder
+        entry.id,
+        entry.timestamp.toString(),
+        entry.saved.toString(),
+        entry.skipped.toString(),
+        entry.total.toString(),
+        entry.status,
+        entry.title,
+        entry.folder,
+        entry.sourceUrl,
+        entry.logs.joinToString("\u001e")
     ).joinToString("|") { Base64.encodeToString(it.toByteArray(Charsets.UTF_8), Base64.NO_WRAP) }
 
     private fun decode(raw: String): DownloadHistoryEntry? {
         if (raw.isBlank()) return null
         val parts = raw.split("|")
-        if (parts.size != 5) return null
         return runCatching {
-            DownloadHistoryEntry(parts[0].decodeBase64().toLong(), parts[3].decodeBase64(), parts[4].decodeBase64(), parts[1].decodeBase64().toInt(), parts[2].decodeBase64().toInt())
+            if (parts.size == 5) {
+                DownloadHistoryEntry(
+                    timestamp = parts[0].decodeBase64().toLong(),
+                    title = parts[3].decodeBase64(),
+                    folder = parts[4].decodeBase64(),
+                    saved = parts[1].decodeBase64().toInt(),
+                    skipped = parts[2].decodeBase64().toInt()
+                )
+            } else {
+                DownloadHistoryEntry(
+                    id = parts[0].decodeBase64(),
+                    timestamp = parts[1].decodeBase64().toLong(),
+                    saved = parts[2].decodeBase64().toInt(),
+                    skipped = parts[3].decodeBase64().toInt(),
+                    total = parts[4].decodeBase64().toInt(),
+                    status = parts[5].decodeBase64(),
+                    title = parts[6].decodeBase64(),
+                    folder = parts[7].decodeBase64(),
+                    sourceUrl = parts[8].decodeBase64(),
+                    logs = parts[9].decodeBase64().split("\u001e").filter(String::isNotBlank)
+                )
+            }
         }.getOrNull()
     }
 
