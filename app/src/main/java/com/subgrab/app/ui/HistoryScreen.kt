@@ -1,5 +1,6 @@
 package com.subgrab.app.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,7 +14,12 @@ import java.text.DateFormat
 import java.util.Date
 
 @Composable
-fun HistoryScreen(repository: HistoryRepository, onClear: () -> Unit, modifier: Modifier = Modifier) {
+fun HistoryScreen(
+    repository: HistoryRepository,
+    onOpen: (String) -> Unit,
+    onClear: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val entries by repository.entries.collectAsState(initial = emptyList())
     Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -24,19 +30,20 @@ fun HistoryScreen(repository: HistoryRepository, onClear: () -> Unit, modifier: 
             Text("Chưa có tác vụ tải hoàn tất.")
         } else {
             LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(entries, key = { "${it.timestamp}-${it.title}" }) { entry -> HistoryRow(entry) }
+                items(entries, key = { it.id }) { entry -> HistoryRow(entry) { onOpen(entry.id) } }
             }
         }
     }
 }
 
 @Composable
-private fun HistoryRow(entry: DownloadHistoryEntry) {
-    Card(Modifier.fillMaxWidth()) {
+private fun HistoryRow(entry: DownloadHistoryEntry, onClick: () -> Unit) {
+    Card(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(entry.title, style = MaterialTheme.typography.titleMedium)
             Text("Thư mục: ${entry.folder}", style = MaterialTheme.typography.bodySmall)
             Text("${entry.saved} file · bỏ qua ${entry.skipped} · ${DateFormat.getDateTimeInstance().format(Date(entry.timestamp))}", style = MaterialTheme.typography.bodySmall)
+            Text("Chạm để xem chi tiết", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
         }
     }
 }
