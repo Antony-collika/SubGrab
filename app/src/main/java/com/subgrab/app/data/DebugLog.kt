@@ -1,16 +1,22 @@
 package com.subgrab.app.data
 
 import android.util.Log
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 object DebugLog {
     private const val TAG = "SubGrabNet"
     private const val MAX_LINES = 800
     private val lock = Any()
     private val lines = ArrayDeque<String>()
+    private val _updates = MutableStateFlow(0L)
+    val updates: StateFlow<Long> = _updates.asStateFlow()
 
     fun clear() {
         synchronized(lock) {
             lines.clear()
+            _updates.value++
         }
     }
 
@@ -30,6 +36,7 @@ object DebugLog {
             while (lines.size > MAX_LINES) {
                 lines.removeFirst()
             }
+            _updates.value++
         }
         Log.d(TAG, message)
     }
