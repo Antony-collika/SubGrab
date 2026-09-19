@@ -423,8 +423,8 @@ private fun DebugLogScreen(onBack: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { logs = DebugLog.snapshot() }, modifier = Modifier.weight(1f)) { Text("Làm mới") }
-            OutlinedButton(onClick = { DebugLog.clear(); logs = emptyList() }, modifier = Modifier.weight(1f)) { Text("Xóa") }
+            OutlinedButton(onClick = DebugLog::refresh, modifier = Modifier.weight(1f)) { Text("Làm mới") }
+            OutlinedButton(onClick = DebugLog::clear, modifier = Modifier.weight(1f)) { Text("Xóa") }
         }
         Button(onClick = { copyDebugLog(context) }, modifier = Modifier.fillMaxWidth()) { Text("Sao chép nhật ký") }
         Text("Network debug — ${logs.size} dòng", style = MaterialTheme.typography.titleMedium)
