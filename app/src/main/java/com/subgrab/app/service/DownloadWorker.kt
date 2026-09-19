@@ -23,6 +23,7 @@ import com.subgrab.app.data.DownloadControlStore
 import com.subgrab.app.data.DownloadOrchestrator
 import com.subgrab.app.data.DownloadState
 import com.subgrab.app.data.DownloadTaskCodec
+import com.subgrab.app.data.DownloadTaskStore
 import com.subgrab.app.data.FileStorage
 import com.subgrab.app.data.HistoryRepository
 import com.subgrab.app.data.NewPipeExtractorClient
@@ -33,11 +34,24 @@ import java.util.concurrent.TimeUnit
 class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {
     private val control = DownloadControlStore(appContext)
     private val history = HistoryRepository(appContext)
+    private val taskStore = DownloadTaskStore(appContext)
 
     override suspend fun doWork(): Result {
-        val encoded = inputData.getString(KEY_TASK) ?: return Result.failure()
-        val task = runCatching { DownloadTaskCodec.decode(encoded) }.getOrElse { return Result.failure() }
-        val extractorClient = runCatching { NewPipeExtractorClient(applicationContext) }.getOrElse { return Result.failure() }
+        val taskId = inputData.getString(KEY_TASK_ID)
+        val encoded = taskId?.let(taskStore::load) ?: inputData.getString(KEY_TASK)
+        if (encoded.isNullOrBlank()) {
+            taskId?.let(taskStore::delete)
+            return Result.failure()
+        }
+
+        val task = runCatching { DownloadTaskCodec.decode(encoded) }.getOrElse {
+            taskId?.let(taskStore::delete)
+            return Result.failure()
+        }
+        val extractorClient = runCatching { NewPipeExtractorClient(applicationContext) }.getOrElse {
+            taskId?.let(taskStore::delete)
+            return Result.failure()
+        }
         val subtitleDownloader = SubtitleDownloader(extractorClient, NewPipeDownloader())
         val orchestrator = DownloadOrchestrator(extractorClient, subtitleDownloader, FileStorage(applicationContext), history, control)
 
@@ -49,6 +63,7 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             setProgress(progress)
             setForeground(createForegroundInfo(state.notificationText(), state.progressPair(), state is DownloadState.Paused))
         }
+        taskId?.let(taskStore::delete)
         return Result.success(finalState.toData())
     }
 
@@ -81,13 +96,13 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
      * WorkManager Data is limited to 10 KiB. Keep only a small preview of logs
      * in progress/output data; the full log is still retained by download history.
      */
-    private fun DownloadState.logsForWorkData(): Array<String> = when (this) {
+    private fun DownloadState.logsForWorkData(): Array<String?> = when (this) {
         is DownloadState.Running -> logs
         is DownloadState.Paused -> logs
         is DownloadState.Done -> logs
         is DownloadState.Cancelled -> logs
         else -> emptyList()
-    }.takeLast(MAX_WORK_LOGS).map { it.take(MAX_WORK_LOG_CHARS) as String? }.toTypedArray()
+    }.takeLast(MAX_WORK_LOGS).map { it.take(MAX_WORK_LOG_CHARS) }.toTypedArray()
 
     private fun DownloadState.notificationText(): String = when (this) {
         DownloadState.Idle -> "Đang chuẩn bị tải phụ đề"
@@ -132,6 +147,8 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
 
     companion object {
         const val UNIQUE_WORK = "subgrab-download"
+        const val KEY_TASK_ID = "task_id"
+        /** Legacy key kept so already-enqueued work from older app versions can finish. */
         const val KEY_TASK = "task"
         const val KEY_STATE = "state"
         const val KEY_CURRENT = "current"
@@ -147,7 +164,9 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
 
         suspend fun enqueue(context: Context, source: com.subgrab.app.domain.Source, videos: List<com.subgrab.app.domain.VideoItem>, folder: String, config: com.subgrab.app.domain.DownloadConfig) {
             DownloadControlStore(context).reset()
-            val input = Data.Builder().putString(KEY_TASK, DownloadTaskCodec.encode(source, videos, folder, config)).build()
+            val encodedTask = DownloadTaskCodec.encode(source, videos, folder, config)
+            val taskId = DownloadTaskStore(context).save(encodedTask)
+            val input = Data.Builder().putString(KEY_TASK_ID, taskId).build()
             val request = OneTimeWorkRequest.Builder(DownloadWorker::class.java)
                 .setInputData(input)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
