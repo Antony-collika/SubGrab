@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.subgrab.app.domain.AppSettings
 import com.subgrab.app.domain.OutputFormat
+import com.subgrab.app.domain.SubtitleTimestampMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -18,17 +19,21 @@ class SettingsRepository(private val context: Context) {
         val outputDir = stringPreferencesKey("output_dir")
         val preferManual = booleanPreferencesKey("prefer_manual")
         val skipNoSub = booleanPreferencesKey("skip_no_sub")
+        val timestampMode = stringPreferencesKey("timestamp_mode")
     }
 
     val settings: Flow<AppSettings> = context.settingsStore.data.map { p ->
         AppSettings(
-            p[Keys.languages]?.split(",")?.filter(String::isNotBlank) ?: listOf("vi", "en"),
-            p[Keys.formats]?.split(",")?.mapNotNull { value ->
+            languages = p[Keys.languages]?.split(",")?.filter(String::isNotBlank) ?: listOf("vi", "en"),
+            formats = p[Keys.formats]?.split(",")?.mapNotNull { value ->
                 OutputFormat.entries.find { it.name == value }
             }?.toSet() ?: setOf(OutputFormat.TXT),
-            p[Keys.outputDir] ?: "Download/Subtitles",
-            p[Keys.preferManual] ?: true,
-            p[Keys.skipNoSub] ?: true
+            outputDir = p[Keys.outputDir] ?: "Download/Subtitles",
+            preferManualSub = p[Keys.preferManual] ?: true,
+            skipNoSub = p[Keys.skipNoSub] ?: true,
+            timestampMode = p[Keys.timestampMode]?.let {
+                runCatching { SubtitleTimestampMode.valueOf(it) }.getOrNull()
+            } ?: SubtitleTimestampMode.WITH_TIMESTAMP
         )
     }
 
@@ -39,6 +44,7 @@ class SettingsRepository(private val context: Context) {
             p[Keys.outputDir] = value.outputDir
             p[Keys.preferManual] = value.preferManualSub
             p[Keys.skipNoSub] = value.skipNoSub
+            p[Keys.timestampMode] = value.timestampMode.name
         }
     }
 }
