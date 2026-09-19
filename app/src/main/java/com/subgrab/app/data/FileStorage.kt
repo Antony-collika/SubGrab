@@ -18,10 +18,6 @@ class FileStorage(private val context: Context) {
         return File(stagingRoot, safeBase + File.separator + FileNameSanitizer.sanitize(folderName).ifBlank { "SubGrab" }).apply { mkdirs() }
     }
 
-    fun convertSrtToTxt(directory: File): List<File> = directory.listFiles()?.filter { it.extension.equals("srt", true) }?.map { srt ->
-        File(srt.parentFile, srt.nameWithoutExtension + ".txt").also { it.writeText(SrtToTxtConverter.convert(srt.readText())) }
-    } ?: emptyList()
-
     fun publishToDownloads(directory: File, relativePath: String): List<String> {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) publishWithMediaStore(directory, relativePath) else publishLegacy(directory, relativePath)
     }
