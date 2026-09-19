@@ -130,4 +130,4 @@ class DownloadViewModel(
     }
 }
 
-private fun AppSettings.toDownloadConfig() = com.subgrab.app.domain.DownloadConfig(languages, formats, preferManualSub, skipNoSub, outputDir)
+private fun AppSettings.toDownloadConfig() = com.subgrab.app.domain.DownloadConfig(languages, formats, preferManualSub, skipNoSub, outputDir, timestampMode)
