@@ -17,7 +17,8 @@ sealed interface DownloadState {
 }
 
 class DownloadOrchestrator(
-    private val runner: YtDlpRunner,
+    private val extractorClient: NewPipeExtractorClient,
+    private val subtitleDownloader: SubtitleDownloader,
     private val storage: FileStorage,
     private val history: HistoryRepository,
     private val control: DownloadControlStore
@@ -60,33 +61,33 @@ class DownloadOrchestrator(
 
             var videoToDownload = video
             if (!video.subtitleChecked) {
-                runner.listSubs("https://www.youtube.com/watch?v=${video.videoId}").fold(
+                extractorClient.listSubtitles(video.videoUrl()).fold(
                     onSuccess = { subs ->
                         if (subs.isEmpty()) {
                             skipped++
-                            logs += "⚠️ ${video.title}: không tìm thấy phụ đề"
+                            logs += "⚠️ " + video.title + ": không tìm thấy phụ đề"
                         } else {
                             videoToDownload = video.copy(availableSubs = subs, subtitleChecked = true)
                         }
                     },
                     onFailure = { error ->
-                        logs += "⚠️ ${video.title}: kiểm tra phụ đề thất bại: ${error.message}"
+                        logs += "⚠️ " + video.title + ": kiểm tra phụ đề thất bại: " + error.message
                     }
                 )
                 if (!videoToDownload.hasSub) return@forEachIndexed
             } else if (!video.hasSub) {
                 skipped++
-                logs += "⚠️ ${video.title}: không có phụ đề"
+                logs += "⚠️ " + video.title + ": không có phụ đề"
                 return@forEachIndexed
             }
 
             publish(DownloadState.Running(index + 1, selected.size, video.title, saved, skipped, logs.toList()))
-            runner.downloadSubs(videoToDownload, config.languages, config.formats, dir).onSuccess { files ->
+            subtitleDownloader.download(videoToDownload, config, dir).onSuccess { files ->
                 saved += files.size
-                logs += "✅ ${video.title}: ${files.size} file"
+                logs += "✅ " + video.title + ": " + files.size + " file"
             }.onFailure {
                 skipped++
-                logs += "❌ ${video.title}: ${it.message}"
+                logs += "❌ " + video.title + ": " + it.message
             }
         }
 
@@ -95,16 +96,31 @@ class DownloadOrchestrator(
             return
         }
 
-        storage.convertSrtToTxt(dir)
         val basePath = config.outputDir.removePrefix("Download/").removePrefix("Download\\").ifBlank { "Subtitles" }
-        val relativePath = "$basePath/${dir.name}"
+        val relativePath = basePath + "/" + dir.name
         val published = storage.publishToDownloads(dir, relativePath)
-        logs += "📁 Đã xuất ${published.size} file vào Download/$relativePath"
-        runCatching { history.add(DownloadHistoryEntry(System.currentTimeMillis(), source.title, dir.name, saved, skipped, sourceUrl = source.url, total = selected.size, status = "DONE", logs = logs.toList())) }
+        logs += "📁 Đã xuất " + published.size + " file vào Download/" + relativePath
+        runCatching {
+            history.add(
+                DownloadHistoryEntry(
+                    System.currentTimeMillis(),
+                    source.title,
+                    dir.name,
+                    saved,
+                    skipped,
+                    sourceUrl = source.url,
+                    total = selected.size,
+                    status = "DONE",
+                    logs = logs.toList()
+                )
+            )
+        }
         publish(DownloadState.Done(saved, skipped, logs.toList()))
     }
 
     fun pause() { paused = true }
     fun resume() { paused = false }
     fun cancel() { cancelled = true; paused = false }
+
+    private fun VideoItem.videoUrl(): String = "https://www.youtube.com/watch?v=" + videoId
 }
