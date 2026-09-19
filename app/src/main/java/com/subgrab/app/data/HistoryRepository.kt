@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.subgrab.app.domain.DownloadConfig
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.UUID
 
@@ -45,9 +46,7 @@ class HistoryRepository(private val context: Context) {
         context.historyStore.edit { it.remove(Keys.entries) }
     }
 
-    suspend fun getById(id: String): DownloadHistoryEntry? = entries.map { list -> list.firstOrNull { it.id == id } }.let { flow ->
-        kotlinx.coroutines.flow.first(flow)
-    }
+    suspend fun getById(id: String): DownloadHistoryEntry? = entries.first().firstOrNull { it.id == id }
 
     private fun encode(entry: DownloadHistoryEntry): String = listOf(
         entry.id,
