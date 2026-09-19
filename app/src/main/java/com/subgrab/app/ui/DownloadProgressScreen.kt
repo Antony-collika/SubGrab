@@ -52,8 +52,8 @@ fun DownloadProgressScreen(state: DownloadState, vm: DownloadViewModel, onDone: 
 
 @Composable
 private fun DownloadLogList(logs: List<String>) {
-    Card(Modifier.fillMaxWidth().weight(1f)) {
-        LazyColumn(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Card(Modifier.fillMaxWidth()) {
+        LazyColumn(Modifier.padding(12.dp).heightIn(max = 280.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             items(logs.takeLast(50)) { line -> Text(line, style = MaterialTheme.typography.bodySmall) }
         }
     }
