@@ -45,7 +45,6 @@ import com.subgrab.app.ui.AnalysisState
 import com.subgrab.app.ui.DownloadViewModel
 import com.subgrab.app.ui.DownloadViewModelFactory
 import com.subgrab.app.ui.SettingsScreen
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -73,13 +72,6 @@ fun SubGrabTheme(content: @Composable () -> Unit) {
     val dark = isSystemInDarkTheme()
     val colors = if (dark) darkColorScheme(primary = Color(0xFF63DBA8)) else lightColorScheme(primary = Color(0xFF006C4C))
     MaterialTheme(colorScheme = colors) { content() }
-}
-
-private enum class AppScreen {
-    HOME,
-    RESULTS,
-    SETTINGS,
-    DEBUG
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -423,14 +415,8 @@ private fun VideoRow(video: VideoItem, onToggle: () -> Unit) {
 @Composable
 private fun DebugLogScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    var logs by remember { mutableStateOf(DebugLog.snapshot()) }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            logs = DebugLog.snapshot()
-            delay(300)
-        }
-    }
+    DebugLog.updates.collectAsState()
+    val logs = DebugLog.snapshot()
 
     Column(
         Modifier.fillMaxSize().padding(16.dp),
