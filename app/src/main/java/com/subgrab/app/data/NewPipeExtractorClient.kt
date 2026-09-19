@@ -2,6 +2,7 @@ package com.subgrab.app.data
 
 import android.content.Context
 import android.net.Uri
+import java.text.Normalizer
 import com.subgrab.app.domain.Source
 import com.subgrab.app.domain.SubtitleLanguage
 import com.subgrab.app.domain.VideoItem
@@ -95,26 +96,58 @@ class NewPipeExtractorClient(context: Context) {
 
     suspend fun search(query: String): Result<Pair<Source, List<VideoItem>>> = withContext(Dispatchers.IO) {
         runCatching {
-            val encoded = Uri.encode(query.trim())
-            val url = "https://www.youtube.com/results?search_query=" + encoded
+            val rawQuery = query.trim().replace(Regex("\\s+"), " ")
+            require(rawQuery.isNotBlank()) { "Vui lòng nhập từ khóa tìm kiếm" }
+
+            val quoted = rawQuery.length >= 2 &&
+                rawQuery.first() == '"' && rawQuery.last() == '"'
+            val phrase = rawQuery.trim('"').trim()
+            require(phrase.isNotBlank()) { "Từ khóa tìm kiếm không hợp lệ" }
+
+            // Dấu ngoặc kép yêu cầu YouTube tìm đúng cụm từ. Không tự động thêm
+            // ngoặc kép cho mọi truy vấn nhiều từ vì điều đó dễ làm mất kết quả.
+            val searchQuery = if (quoted) ""$phrase"" else phrase
+            val encoded = Uri.encode(searchQuery)
+            val url = "https://www.youtube.com/results?search_query=$encoded"
             val extractor = NewPipe.getServiceByUrl(url).getSearchExtractor(url)
             extractor.fetchPage()
-            val videos = extractor.getInitialPage().items
+
+            val terms = normalizeSearchText(phrase).split(' ').filter { it.length >= 2 }.distinct()
+            val items = extractor.getInitialPage().items
                 .filterIsInstance<StreamInfoItem>()
                 .take(50)
-                .mapIndexed { index, item ->
-                    VideoItem(
-                        index = index + 1,
-                        videoId = youtubeVideoId(item.getUrl()),
-                        title = item.getName(),
-                        durationSec = item.getDuration().toInt(),
-                        availableSubs = emptyList(),
-                        subtitleChecked = false
-                    )
-                }
-            Source(url, url, "Tìm kiếm: " + query.trim(), videos.size) to videos
+                .toList()
+
+            // YouTube có thể trả kết quả rộng hơn truy vấn người dùng. Ưu tiên
+            // tiêu đề chứa nguyên cụm từ, sau đó ưu tiên số từ khớp để tránh
+            // các kết quả nhìn như không liên quan.
+            val ranked = items.sortedByDescending { item ->
+                val title = normalizeSearchText(item.getName())
+                val exact = if (title.contains(normalizeSearchText(phrase))) 10_000 else 0
+                val matched = terms.count(title::contains)
+                val positionBonus = 50 - items.indexOf(item)
+                exact + matched * 100 + positionBonus
+            }
+
+            val videos = ranked.mapIndexed { index, item ->
+                VideoItem(
+                    index = index + 1,
+                    videoId = youtubeVideoId(item.getUrl()),
+                    title = item.getName(),
+                    durationSec = item.getDuration().toInt(),
+                    availableSubs = emptyList(),
+                    subtitleChecked = false
+                )
+            }
+            Source(url, url, "Tìm kiếm: " + phrase, videos.size) to videos
         }
     }
+
+    private fun normalizeSearchText(value: String): String =
+        Normalizer.normalize(value.lowercase(), Normalizer.Form.NFD)
+            .replace("\\p{Mn}+".toRegex(), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
 
     private fun youtubeVideoId(url: String): String {
         val uri = Uri.parse(url)
