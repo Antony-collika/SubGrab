@@ -5,6 +5,7 @@ import com.subgrab.app.domain.DownloadConfig
 import com.subgrab.app.domain.OutputFormat
 import com.subgrab.app.domain.Source
 import com.subgrab.app.domain.SubtitleLanguage
+import com.subgrab.app.domain.SubtitleTimestampMode
 import com.subgrab.app.domain.VideoItem
 import org.json.JSONArray
 import org.json.JSONObject
@@ -29,8 +30,8 @@ object DownloadTaskCodec {
             put("preferManual", config.preferManual)
             put("skipNoSub", config.skipNoSub)
             put("outputDir", config.outputDir)
+            put("timestampMode", config.timestampMode.name)
         })
-
         val videosJson = JSONArray()
         videos.filter { it.isSelected }.take(50).forEach { video ->
             val subs = JSONArray()
@@ -73,7 +74,11 @@ object DownloadTaskCodec {
             formats = formats,
             preferManual = configJson.getBoolean("preferManual"),
             skipNoSub = configJson.getBoolean("skipNoSub"),
-            outputDir = configJson.getString("outputDir")
+            outputDir = configJson.getString("outputDir"),
+            timestampMode = configJson.optString("timestampMode")
+                .takeIf { it.isNotBlank() }
+                ?.let { runCatching { SubtitleTimestampMode.valueOf(it) }.getOrNull() }
+                ?: SubtitleTimestampMode.WITH_TIMESTAMP
         )
         val videosJson = root.getJSONArray("videos")
         val videos = List(videosJson.length()) { i ->
@@ -90,7 +95,7 @@ object DownloadTaskCodec {
                 durationSec = json.getInt("durationSec"),
                 availableSubs = subs,
                 isSelected = json.optBoolean("selected", true),
-                subtitleChecked = json.optBoolean("checked", true),
+                subtitleChecked = json.optBoolean("checked", false),
                 channelTitle = json.optString("channelTitle"),
                 publishedAt = json.optString("publishedAt"),
                 viewCount = if (json.has("viewCount")) json.getLong("viewCount") else null,
