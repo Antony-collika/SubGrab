@@ -46,7 +46,7 @@ class DownloadOrchestrator(private val runner: YtDlpRunner, private val storage:
         val relativePath = "$basePath/${dir.name}"
         val published = storage.publishToDownloads(dir, relativePath)
         logs += "📁 Đã xuất ${published.size} file vào Download/$relativePath"
-        history.add(DownloadHistoryEntry(System.currentTimeMillis(), source.title, dir.name, saved, skipped))
+        runCatching { history.add(DownloadHistoryEntry(System.currentTimeMillis(), source.title, dir.name, saved, skipped)) }
         _state.value = DownloadState.Done(saved, skipped, logs)
     }
     fun pause() { paused = true }
