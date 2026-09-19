@@ -41,7 +41,12 @@ class DownloadViewModel(
 
     val downloadState: StateFlow<DownloadState> = workManager
         .getWorkInfosForUniqueWorkFlow(DownloadWorker.UNIQUE_WORK)
-        .map { infos -> infos.firstOrNull()?.toDownloadState() ?: DownloadState.Idle }
+        .map { infos ->
+            infos.firstOrNull()?.let { work ->
+                val data = if (work.state.isFinished) work.outputData else work.progress
+                work.toDownloadState(data)
+            } ?: DownloadState.Idle
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DownloadState.Idle)
 
     private var lastUrl: String? = null
@@ -108,8 +113,7 @@ class DownloadViewModel(
         viewModelScope.launch { control.cancel() }
     }
 
-    private fun WorkInfo.toDownloadState(): DownloadState {
-        val data = progress
+    private fun WorkInfo.toDownloadState(data: androidx.work.Data): DownloadState {
         val current = data.getInt(DownloadWorker.KEY_CURRENT, 0)
         val total = data.getInt(DownloadWorker.KEY_TOTAL, 0)
         val title = data.getString(DownloadWorker.KEY_TITLE).orEmpty()
