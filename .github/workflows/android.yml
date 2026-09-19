@@ -48,7 +48,7 @@ jobs:
         run: ./gradlew test
 
       - name: Compile Android UI tests
-        run: ./gradlew compileArm64DebugAndroidTest
+        run: ./gradlew :app:compileArm64DebugAndroidTestKotlin :app:compileArm64DebugAndroidTestJavaWithJavac
 
       - name: Build release APK
         run: |
