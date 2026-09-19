@@ -40,7 +40,6 @@ import com.subgrab.app.ui.DownloadProgressScreen
 import com.subgrab.app.ui.HistoryScreen
 import com.subgrab.app.domain.AppSettings
 import com.subgrab.app.domain.VideoItem
-import com.subgrab.app.service.DownloadService
 import com.subgrab.app.ui.AnalysisState
 import com.subgrab.app.ui.DownloadViewModel
 import com.subgrab.app.ui.DownloadViewModelFactory
@@ -335,7 +334,6 @@ private fun SelectVideoScreen(
             OutlinedButton(onClick = onNewAnalysis, modifier = Modifier.weight(1f)) { Text("Phân tích mới") }
             Button(
                 onClick = {
-                    ContextCompat.startForegroundService(context, android.content.Intent(context, DownloadService::class.java))
                     vm.startDownload(settings)
                     onDownloadStarted()
                 },
