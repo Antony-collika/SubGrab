@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.dp
 import com.subgrab.app.data.SettingsRepository
 import com.subgrab.app.domain.AppSettings
 import com.subgrab.app.domain.OutputFormat
+import com.subgrab.app.domain.SubtitleTimestampMode
 import kotlinx.coroutines.launch
 
 @Composable
@@ -20,9 +21,20 @@ fun SettingsScreen(repository: SettingsRepository, onBack: () -> Unit) {
         Text("Ngôn ngữ phụ đề", style = MaterialTheme.typography.titleMedium)
         LanguageToggle("Tiếng Việt", "vi", value.languages) { next -> value = value.copy(languages = next); scope.launch { repository.update(value) } }
         LanguageToggle("English", "en", value.languages) { next -> value = value.copy(languages = next); scope.launch { repository.update(value) } }
-        Text("Định dạng file", style = MaterialTheme.typography.titleMedium)
+        Text("Định dạng", style = MaterialTheme.typography.titleMedium)
         FormatToggle("TXT", OutputFormat.TXT, value.formats) { next -> value = value.copy(formats = next); scope.launch { repository.update(value) } }
         FormatToggle("SRT", OutputFormat.SRT, value.formats) { next -> value = value.copy(formats = next); scope.launch { repository.update(value) } }
+        if (OutputFormat.SRT in value.formats) {
+            Text("Timestamp", style = MaterialTheme.typography.titleMedium)
+            TimestampToggle("Có timestamp", SubtitleTimestampMode.WITH_TIMESTAMP, value.timestampMode) { next ->
+                value = value.copy(timestampMode = next)
+                scope.launch { repository.update(value) }
+            }
+            TimestampToggle("Không timestamp", SubtitleTimestampMode.WITHOUT_TIMESTAMP, value.timestampMode) { next ->
+                value = value.copy(timestampMode = next)
+                scope.launch { repository.update(value) }
+            }
+        }
         HorizontalDivider()
         Text("Tìm kiếm từ khóa sử dụng NewPipeExtractor, không cần API key.", style = MaterialTheme.typography.bodyMedium)
         OutlinedTextField(
@@ -48,6 +60,19 @@ fun SettingsScreen(repository: SettingsRepository, onBack: () -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label)
         Checkbox(checked = code in selected, onCheckedChange = { checked -> val next = if (checked) (selected + code).distinct() else selected - code; if (next.isNotEmpty()) onChange(next) })
+    }
+}
+
+@Composable
+private fun TimestampToggle(
+    label: String,
+    mode: SubtitleTimestampMode,
+    selected: SubtitleTimestampMode,
+    onChange: (SubtitleTimestampMode) -> Unit
+) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label)
+        RadioButton(selected = mode == selected, onClick = { onChange(mode) })
     }
 }
 
