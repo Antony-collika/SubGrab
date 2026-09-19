@@ -35,7 +35,6 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
     override suspend fun doWork(): Result {
         val encoded = inputData.getString(KEY_TASK) ?: return Result.failure()
         val task = runCatching { DownloadTaskCodec.decode(encoded) }.getOrElse { return Result.failure() }
-        control.reset()
         val runner = runCatching { YtDlpRunner(applicationContext) }.getOrElse { return Result.failure() }
         val orchestrator = DownloadOrchestrator(runner, FileStorage(applicationContext), history, control)
 
