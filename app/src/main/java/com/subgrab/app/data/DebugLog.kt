@@ -13,6 +13,8 @@ object DebugLog {
     private val _updates = MutableStateFlow(0L)
     val updates: StateFlow<Long> = _updates.asStateFlow()
 
+    fun refresh() { _updates.value++ }
+
     fun clear() {
         synchronized(lock) {
             lines.clear()
