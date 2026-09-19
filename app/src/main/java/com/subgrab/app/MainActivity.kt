@@ -29,6 +29,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.subgrab.app.data.DebugLog
 import com.subgrab.app.data.DownloadState
@@ -192,8 +193,8 @@ private fun HomeScreen(
         }
         item {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                SegmentedButton(!mode, { mode = false }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text("Nhập URL") }
-                SegmentedButton(mode, { mode = true }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text("Từ khóa") }
+                SegmentedButton(selected = !mode, onClick = { mode = false }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text("Nhập URL") }
+                SegmentedButton(selected = mode, onClick = { mode = true }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text("Từ khóa") }
             }
         }
         if (!mode) {
