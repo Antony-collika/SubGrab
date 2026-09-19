@@ -192,9 +192,25 @@ private fun HomeScreen(
             Text("Nhập link như trước, hoặc tìm video bằng từ khóa.")
         }
         item {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                SegmentedButton(selected = !mode, onClick = { mode = false }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text("Nhập URL") }
-                SegmentedButton(selected = mode, onClick = { mode = true }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text("Từ khóa") }
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (!mode) {
+                    Button(onClick = { mode = false }, modifier = Modifier.weight(1f)) {
+                        Text("Nhập URL")
+                    }
+                    OutlinedButton(onClick = { mode = true }, modifier = Modifier.weight(1f)) {
+                        Text("Từ khóa")
+                    }
+                } else {
+                    OutlinedButton(onClick = { mode = false }, modifier = Modifier.weight(1f)) {
+                        Text("Nhập URL")
+                    }
+                    Button(onClick = { mode = true }, modifier = Modifier.weight(1f)) {
+                        Text("Từ khóa")
+                    }
+                }
             }
         }
         if (!mode) {
