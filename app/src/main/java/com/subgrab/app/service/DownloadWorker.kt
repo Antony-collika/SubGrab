@@ -42,12 +42,14 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         val orchestrator = DownloadOrchestrator(extractorClient, subtitleDownloader, FileStorage(applicationContext), history, control)
 
         setForeground(createForegroundInfo("Đang chuẩn bị tải phụ đề", null, false))
+        var finalState: DownloadState = DownloadState.Idle
         orchestrator.start(task.source, task.videos, task.folder, task.config) { state ->
+            finalState = state
             val progress = state.toData()
             setProgress(progress)
             setForeground(createForegroundInfo(state.notificationText(), state.progressPair(), state is DownloadState.Paused))
         }
-        return Result.success()
+        return Result.success(finalState.toData())
     }
 
     private fun DownloadState.toData(): Data = Data.Builder()
