@@ -8,8 +8,7 @@ import androidx.work.WorkManager
 import com.subgrab.app.data.DownloadControlStore
 import com.subgrab.app.data.DownloadState
 import com.subgrab.app.data.DownloadOrchestrator
-import com.subgrab.app.data.YouTubeSearchClient
-import com.subgrab.app.data.YtDlpRunner
+import com.subgrab.app.data.NewPipeExtractorClient
 import com.subgrab.app.domain.AppSettings
 import com.subgrab.app.domain.Source
 import com.subgrab.app.domain.UrlValidator
@@ -32,9 +31,8 @@ sealed interface AnalysisState {
 
 class DownloadViewModel(
     private val context: Context,
-    private val runner: YtDlpRunner?,
-    private val orchestrator: DownloadOrchestrator? = null,
-    private val searchClient: YouTubeSearchClient = YouTubeSearchClient()
+    private val extractorClient: NewPipeExtractorClient,
+    private val orchestrator: DownloadOrchestrator? = null
 ) : ViewModel() {
     private val _state = MutableStateFlow<AnalysisState>(AnalysisState.Idle)
     val state: StateFlow<AnalysisState> = _state.asStateFlow()
@@ -52,16 +50,15 @@ class DownloadViewModel(
     fun analyze(url: String) {
         lastUrl = url
         if (!UrlValidator.isValid(url)) { _state.value = AnalysisState.Error("Link không hợp lệ. Vui lòng kiểm tra lại", url); return }
-        val actual = runner ?: run { _state.value = AnalysisState.Error("Không thể khởi tạo yt-dlp trên thiết bị này", url); return }
         _state.value = AnalysisState.Loading
-        viewModelScope.launch { actual.fetch(url).onSuccess { (source, videos) -> _state.value = AnalysisState.Ready(source, videos, source.title) }.onFailure { _state.value = AnalysisState.Error(it.message ?: "Không thể phân tích link", lastUrl) } }
+        viewModelScope.launch { extractorClient.extractSource(url).onSuccess { (source, videos) -> _state.value = AnalysisState.Ready(source, videos, source.title) }.onFailure { _state.value = AnalysisState.Error(it.message ?: "Không thể phân tích link", lastUrl) } }
     }
 
     fun searchKeyword(keyword: String) {
         lastKeyword = keyword
         _state.value = AnalysisState.Loading
         viewModelScope.launch {
-            searchClient.search(keyword).onSuccess { (source, videos) ->
+            extractorClient.search(keyword).onSuccess { (source, videos) ->
                 _state.value = AnalysisState.Ready(source, videos, "Search - ${keyword.trim()}")
             }.onFailure { _state.value = AnalysisState.Error(it.message ?: "Không thể tìm video", null) }
         }
