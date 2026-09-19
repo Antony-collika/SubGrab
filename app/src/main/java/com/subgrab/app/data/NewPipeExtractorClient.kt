@@ -10,6 +10,7 @@ import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.MediaFormat
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor
+import org.schabi.newpipe.extractor.stream.StreamExtractor
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
 class NewPipeExtractorClient(context: Context) {
@@ -86,7 +87,7 @@ class NewPipeExtractorClient(context: Context) {
         }
     }
 
-    fun streamExtractor(videoUrl: String): YoutubeStreamExtractor =
+    fun streamExtractor(videoUrl: String): StreamExtractor =
         NewPipe.getServiceByUrl(videoUrl).getStreamExtractor(videoUrl)
 
     fun subtitles(videoUrl: String, format: MediaFormat = MediaFormat.VTT) =
