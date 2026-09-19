@@ -96,58 +96,58 @@ class NewPipeExtractorClient(context: Context) {
 
     suspend fun search(query: String): Result<Pair<Source, List<VideoItem>>> = withContext(Dispatchers.IO) {
         runCatching {
-            val rawQuery = query.trim().replace(Regex("\\s+"), " ")
-            require(rawQuery.isNotBlank()) { "Vui lòng nhập từ khóa tìm kiếm" }
+            val cleanQuery = query.trim()
+            require(cleanQuery.isNotBlank()) { "Vui lòng nhập từ khóa" }
 
-            val quoted = rawQuery.length >= 2 &&
-                rawQuery.first() == '"' && rawQuery.last() == '"'
-            val phrase = rawQuery.trim('"').trim()
-            require(phrase.isNotBlank()) { "Từ khóa tìm kiếm không hợp lệ" }
+            // Keep the same search construction used by the keyword branch.
+            // Building SearchQueryHandler explicitly avoids NewPipeExtractor
+            // changing/normalizing the query while constructing the handler.
+            val encodedQuery = Uri.encode(cleanQuery)
+            val searchUrl = "https://www.youtube.com/results?search_query=" + encodedQuery
+            val searchHandler = org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler(
+                searchUrl,
+                searchUrl,
+                cleanQuery,
+                emptyList(),
+                ""
+            )
 
-            // Dấu ngoặc kép yêu cầu YouTube tìm đúng cụm từ. Không tự động thêm
-            // ngoặc kép cho mọi truy vấn nhiều từ vì điều đó dễ làm mất kết quả.
-            val searchQuery = if (quoted) ""$phrase"" else phrase
-            val encoded = Uri.encode(searchQuery)
-            val url = "https://www.youtube.com/results?search_query=$encoded"
-            val extractor = NewPipe.getServiceByUrl(url).getSearchExtractor(url)
+            val service = org.schabi.newpipe.extractor.ServiceList.YouTube
+            val extractor = service.getSearchExtractor(searchHandler)
             extractor.fetchPage()
 
-            val terms = normalizeSearchText(phrase).split(' ').filter { it.length >= 2 }.distinct()
+            // Preserve NewPipeExtractor's own result order. Do not rank, filter,
+            // normalize titles, or otherwise implement a second search engine.
             val items = extractor.getInitialPage().items
                 .filterIsInstance<StreamInfoItem>()
                 .take(50)
-                .toList()
 
-            // YouTube có thể trả kết quả rộng hơn truy vấn người dùng. Ưu tiên
-            // tiêu đề chứa nguyên cụm từ, sau đó ưu tiên số từ khớp để tránh
-            // các kết quả nhìn như không liên quan.
-            val ranked = items.sortedByDescending { item ->
-                val title = normalizeSearchText(item.getName())
-                val exact = if (title.contains(normalizeSearchText(phrase))) 10_000 else 0
-                val matched = terms.count(title::contains)
-                val positionBonus = 50 - items.indexOf(item)
-                exact + matched * 100 + positionBonus
-            }
-
-            val videos = ranked.mapIndexed { index, item ->
+            val videos = items.mapIndexed { index, item ->
                 VideoItem(
                     index = index + 1,
                     videoId = youtubeVideoId(item.getUrl()),
                     title = item.getName(),
-                    durationSec = item.getDuration().toInt(),
+                    durationSec = item.getDuration().coerceAtLeast(0L)
+                        .coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
                     availableSubs = emptyList(),
-                    subtitleChecked = false
+                    isSelected = false,
+                    subtitleChecked = false,
+                    channelTitle = item.getUploaderName().orEmpty(),
+                    publishedAt = item.getTextualUploadDate().orEmpty(),
+                    viewCount = item.getViewCount().takeIf { it >= 0 },
+                    thumbnailUrl = item.getThumbnails().firstOrNull()?.getUrl().orEmpty()
                 )
             }
-            Source(url, url, "Tìm kiếm: " + phrase, videos.size) to videos
+
+            val source = Source(
+                id = "keyword:" + cleanQuery,
+                url = searchUrl,
+                title = cleanQuery,
+                originalTotalVideos = videos.size
+            )
+            source to videos
         }
     }
-
-    private fun normalizeSearchText(value: String): String =
-        Normalizer.normalize(value.lowercase(), Normalizer.Form.NFD)
-            .replace("\\p{Mn}+".toRegex(), "")
-            .replace(Regex("\\s+"), " ")
-            .trim()
 
     private fun youtubeVideoId(url: String): String {
         val uri = Uri.parse(url)
