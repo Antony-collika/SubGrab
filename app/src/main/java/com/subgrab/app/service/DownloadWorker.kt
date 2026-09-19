@@ -74,14 +74,20 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             is DownloadState.Done -> this.skipped
             else -> 0
         })
-        .putStringArray(KEY_LOGS, when (this) {
-            is DownloadState.Running -> this.logs.toTypedArray()
-            is DownloadState.Paused -> this.logs.toTypedArray()
-            is DownloadState.Done -> this.logs.toTypedArray()
-            is DownloadState.Cancelled -> this.logs.toTypedArray()
-            else -> emptyArray()
-        })
+        .putStringArray(KEY_LOGS, logsForWorkData())
         .build()
+
+    /**
+     * WorkManager Data is limited to 10 KiB. Keep only a small preview of logs
+     * in progress/output data; the full log is still retained by download history.
+     */
+    private fun DownloadState.logsForWorkData(): Array<String> = when (this) {
+        is DownloadState.Running -> logs
+        is DownloadState.Paused -> logs
+        is DownloadState.Done -> logs
+        is DownloadState.Cancelled -> logs
+        else -> emptyList()
+    }.takeLast(MAX_WORK_LOGS).map { it.take(MAX_WORK_LOG_CHARS) }.toTypedArray()
 
     private fun DownloadState.notificationText(): String = when (this) {
         DownloadState.Idle -> "Đang chuẩn bị tải phụ đề"
@@ -134,6 +140,8 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         const val KEY_SAVED = "saved"
         const val KEY_SKIPPED = "skipped"
         const val KEY_LOGS = "logs"
+        private const val MAX_WORK_LOGS = 8
+        private const val MAX_WORK_LOG_CHARS = 180
         private const val CHANNEL = "subgrab_download"
         private const val NOTIFICATION_ID = 41
 
