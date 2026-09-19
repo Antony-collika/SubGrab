@@ -415,8 +415,8 @@ private fun VideoRow(video: VideoItem, onToggle: () -> Unit) {
 @Composable
 private fun DebugLogScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    DebugLog.updates.collectAsState()
-    val logs = DebugLog.snapshot()
+    val debugVersion by DebugLog.updates.collectAsState()
+    val logs = remember(debugVersion) { DebugLog.snapshot() }
 
     Column(
         Modifier.fillMaxSize().padding(16.dp),
