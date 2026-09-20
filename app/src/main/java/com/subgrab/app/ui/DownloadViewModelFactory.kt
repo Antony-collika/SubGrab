@@ -11,11 +11,11 @@ class DownloadViewModelFactory(context:Context):ViewModelProvider.Factory{
  private val pacer=RequestPacer(settings,governor,database)
  private val extractor=NewPipeExtractorClient(appContext)
  private val api=YouTubeDataApiClient(settings,pacer)
- private val apiDiscovery=ApiDiscoveryClient(api)
+ private val apiDiscovery=ApiDiscoveryClient(api)\n private val extractorDiscovery=ExtractorDiscoveryClient(extractor,pacer)
  private val history=HistoryRepository(appContext)
  private val control=DownloadControlStore(appContext)
  private val subtitle=SubtitleDownloader(extractor,NewPipeDownloader(),pacer)
  private val orchestrator=DownloadOrchestrator(extractor,subtitle,FileStorage(appContext),history,control)
  @Suppress("UNCHECKED_CAST")
- override fun <T:ViewModel> create(modelClass:Class<T>):T=DownloadViewModel(appContext,extractor,apiDiscovery,settings,orchestrator) as T
+ override fun <T:ViewModel> create(modelClass:Class<T>):T=DownloadViewModel(appContext,extractor,apiDiscovery,extractorDiscovery,settings,orchestrator) as T
 }
