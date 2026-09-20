@@ -114,8 +114,7 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         })
         .putInt(KEY_SKIPPED, when (this) {
             is DownloadState.Running -> this.skipped
-            is DownloadState.Done -> this.saved
-            is DownloadState.Cancelled -> this.saved
+            is DownloadState.Done -> this.skipped
             else -> 0
         })
         .putStringArray(KEY_LOGS, logsForWorkData())
