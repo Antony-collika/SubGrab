@@ -150,7 +150,7 @@ fun SubGrabApp() {
             modifier = Modifier.padding(pad)
         ) {
             composable("home") {
-                HomeScreen(state, vm, downloadState, Modifier.fillMaxSize())
+                HomeScreen(state, vm, if (route == "progress") downloadState else DownloadState.Idle, Modifier.fillMaxSize())
             }
             composable("results") {
                 SelectVideoScreen(
@@ -158,7 +158,7 @@ fun SubGrabApp() {
                     folder = (state as? AnalysisState.Ready)?.folder.orEmpty(),
                     vm = vm,
                     settings = settings,
-                    downloadState = downloadState,
+                    downloadState = if (route == "progress") downloadState else DownloadState.Idle,
                     onDownloadStarted = { navController.navigate("progress") },
                     onNewAnalysis = {
                         vm.resetAnalysis()
