@@ -197,3 +197,5 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             WorkManager.getInstance(context).enqueueUniqueWork(UNIQUE_WORK, ExistingWorkPolicy.REPLACE, request)
         }
 
+    }
+}
