@@ -17,11 +17,7 @@ class SubtitleDownloader(
     ): Result<List<File>> = withContext(Dispatchers.IO) {
         runCatching {
             val url = "https://www.youtube.com/watch?v=" + video.videoId
-            val extractor = extractorClient.streamExtractor(url)
-
-            downloader.withRequestContext(RequestLane.SUBTITLE_EXTRACTOR, "subtitle.fetch") {
-                extractor.fetchPage()
-            }
+            val extractor = extractorClient.fetchSubtitleExtractor(url)
 
             val tracks = extractor.getSubtitles(MediaFormat.VTT)
                 .filter { track ->
