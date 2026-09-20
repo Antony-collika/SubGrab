@@ -28,4 +28,13 @@ import kotlinx.coroutines.launch
   }
  }
 }
-private fun percentile(values:List<Long>,p:Double):Long=if(values.isEmpty())0 else values[((values.size-1)*p).toInt().coerceIn(0,values.lastIndex)]
+private fun percentile(values:List<Long>,p:Double):Long {
+ if(values.isEmpty()) return 0
+ if(values.size == 1) return values[0]
+ val position = (values.size - 1) * p.coerceIn(0.0, 1.0)
+ val lower = position.toInt()
+ val upper = kotlin.math.ceil(position).toInt().coerceAtMost(values.lastIndex)
+ if(lower == upper) return values[lower]
+ val fraction = position - lower
+ return (values[lower] + (values[upper] - values[lower]) * fraction).toLong()
+}
