@@ -70,4 +70,43 @@ class CoreTest {
         val videos = (1..50).map { VideoItem(it, "$it", "Video $it", 60, listOf(SubtitleLanguage("vi"))) }
         assertEquals(50, videos.size)
     }
+
+    @Test fun governorSlowsDownOnRateLimitAndRecoversAfterStableTraffic() {
+        val governor = RequestGovernor()
+        val lane = RequestLane.SUBTITLE_EXTRACTOR
+        val limited = RequestResult(false, 429, 10, FailureType.HTTP_429)
+
+        assertTrue(governor.observe(lane, limited))
+        assertEquals(GovernorState.SLOWDOWN, governor.state(lane))
+        assertTrue(governor.delay(lane) > 0)
+
+        repeat(5) {
+            governor.observe(lane, RequestResult(true, 200, 10, null))
+        }
+
+        assertEquals(GovernorState.NORMAL, governor.state(lane))
+        assertEquals(0L, governor.delay(lane))
+    }
+
+    @Test fun governorDoesNotSlowDownForBenignSubtitleFailures() {
+        val governor = RequestGovernor()
+        val result = RequestResult(false, 200, 10, FailureType.LANGUAGE_UNAVAILABLE)
+
+        repeat(3) {
+            governor.observe(RequestLane.SUBTITLE_EXTRACTOR, result)
+        }
+
+        assertEquals(GovernorState.NORMAL, governor.state(RequestLane.SUBTITLE_EXTRACTOR))
+        assertEquals(0L, governor.delay(RequestLane.SUBTITLE_EXTRACTOR))
+    }
+
+    @Test fun failureClassifierPreservesHttpSemantics() {
+        assertEquals(FailureType.HTTP_429, FailureClassifier.classify(429, null))
+        assertEquals(FailureType.SERVER_ERROR, FailureClassifier.classify(503, null))
+        assertEquals(FailureType.HTTP_403, FailureClassifier.classify(403, null))
+    }
+
+    @Test fun downloadConfigDefaultsToSingleSubtitleWorker() {
+        assertEquals(1, DownloadConfig().subtitleConcurrency)
+    }
 }
