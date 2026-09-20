@@ -48,6 +48,8 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             taskId?.let(taskStore::delete)
             return Result.failure()
         }
+        val runtimeDb = com.subgrab.app.data.SubGrabDatabase.get(applicationContext)
+        runtimeDb.runtimeLogDao().insert(com.subgrab.app.data.RuntimeLogEntity(timestamp=System.currentTimeMillis(),level="INFO",category="TASK",lane=null,operation=null,message="task start id="+taskId+" index="+task.taskIndex+"/"+task.totalTasks))
         val extractorClient = runCatching { NewPipeExtractorClient(applicationContext) }.getOrElse {
             taskId?.let(taskStore::delete)
             return Result.failure()
