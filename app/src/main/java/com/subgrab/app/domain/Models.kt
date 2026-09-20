@@ -40,7 +40,8 @@ data class DownloadConfig(
     val preferManual: Boolean = true,
     val skipNoSub: Boolean = true,
     val outputDir: String = "Download/Subtitles",
-    val timestampMode: SubtitleTimestampMode = SubtitleTimestampMode.WITH_TIMESTAMP
+    val timestampMode: SubtitleTimestampMode = SubtitleTimestampMode.WITH_TIMESTAMP,
+    val subtitleConcurrency: Int = 1
 )
 data class AppSettings(
     val languages: List<String> = listOf("vi", "en"),
