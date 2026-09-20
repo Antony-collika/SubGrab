@@ -8,7 +8,7 @@ class DownloadTaskStore(context:Context){
  fun save(encodedTask:String,taskIndex:Int=1,totalTasks:Int=1):String{val id=UUID.randomUUID().toString();File(directory,"$taskIndex-$totalTasks-$id.task").writeText(encodedTask,Charsets.UTF_8);cleanupOld();return id}
  fun load(id:String):String?{if(!id.matches(ID_PATTERN))return null;val f=find(id);return if(f?.exists()==true)f.readText(Charsets.UTF_8)else null}
  fun delete(id:String){if(!id.matches(ID_PATTERN))return;find(id)?.delete()}
- fun pendingIds():List<String>=directory.listFiles{f->f.isFile&&f.name.endsWith(".task")}?.sortedBy{f->f.name.substringBefore("-").toIntOrNull()?:Int.MAX_VALUE}?.mapNotNull{ID_PATTERN.find(it.name)?.groupValues?.get(1)}?:emptyList()
+ fun pendingIds():List<String> =directory.listFiles{f->f.isFile&&f.name.endsWith(".task")}?.sortedBy{f->f.name.substringBefore("-").toIntOrNull()?:Int.MAX_VALUE}?.mapNotNull{ID_PATTERN.find(it.name)?.groupValues?.get(1)}?:emptyList()
  private fun find(id:String)=directory.listFiles()?.firstOrNull{it.name.endsWith("-$id.task")}
  private fun cleanupOld(){val cutoff=System.currentTimeMillis()-7L*24*60*60*1000;directory.listFiles{f->f.isFile&&f.name.endsWith(".task")}?.filter{it.lastModified()<cutoff}?.forEach(File::delete)}
  companion object{private val ID_PATTERN=Regex("^(?:\\d+-\\d+-)?([0-9a-fA-F-]{36})\\.task$")}
