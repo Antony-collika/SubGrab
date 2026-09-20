@@ -34,7 +34,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.subgrab.app.data.DebugLog
 import com.subgrab.app.data.DownloadState
-import com.subgrab.app.data.SettingsRepository
+import com.subgrab.app.data.SettingsRepository\nimport com.subgrab.app.data.SubGrabDatabase
 import com.subgrab.app.data.HistoryRepository
 import com.subgrab.app.ui.DownloadProgressScreen
 import com.subgrab.app.ui.HistoryScreen
@@ -44,7 +44,7 @@ import com.subgrab.app.domain.VideoItem
 import com.subgrab.app.ui.AnalysisState
 import com.subgrab.app.ui.DownloadViewModel
 import com.subgrab.app.ui.DownloadViewModelFactory
-import com.subgrab.app.ui.SettingsScreen
+import com.subgrab.app.ui.SettingsScreen\nimport com.subgrab.app.ui.DiagnosticsScreen
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
