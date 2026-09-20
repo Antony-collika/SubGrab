@@ -46,10 +46,7 @@ class CoreTest {
         assertEquals(1, cues.size)
         assertEquals("Good day.", cues.single().text)
         assertEquals(
-            "1
-00:00:10,000 --> 00:00:13,000
-Good day.
-",
+            "1\n00:00:10,000 --> 00:00:13,000\nGood day.\n",
             SubtitleFormatter.format(cues, SubtitleTimestampMode.WITH_TIMESTAMP)
         )
     }
@@ -66,8 +63,7 @@ Good day.
             Good day.
             """.trimIndent()
         )
-        assertEquals("Good day.
-", SubtitleFormatter.format(cues, SubtitleTimestampMode.WITHOUT_TIMESTAMP))
+        assertEquals("Good day.\n", SubtitleFormatter.format(cues, SubtitleTimestampMode.WITHOUT_TIMESTAMP))
     }
 
     @Test fun taskProgressNeverExceedsLimit() {
