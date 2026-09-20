@@ -18,7 +18,7 @@ class DownloadViewModelFactory(context:Context):ViewModelProvider.Factory{
  private val history=HistoryRepository(appContext)
  private val control=DownloadControlStore(appContext)
  private val subtitle=SubtitleDownloader(extractor,downloader)
- private val orchestrator=DownloadOrchestrator(extractor,subtitle,FileStorage(appContext),history,control)
+ private val orchestrator=DownloadOrchestrator(extractor,subtitle,FileStorage(appContext),history,control,database)
  @Suppress("UNCHECKED_CAST")
  override fun <T:ViewModel> create(modelClass:Class<T>):T=DownloadViewModel(appContext,extractor,apiDiscovery,extractorDiscovery,settings,orchestrator) as T
 }
