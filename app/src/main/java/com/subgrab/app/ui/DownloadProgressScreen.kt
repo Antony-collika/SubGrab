@@ -16,7 +16,7 @@ fun DownloadProgressScreen(state: DownloadState, vm: DownloadViewModel, onDone: 
         when (state) {
             DownloadState.Idle -> { Text("Chưa có tác vụ tải đang hoạt động."); OutlinedButton(onClick = onDone) { Text("Quay lại") } }
             is DownloadState.Running -> {
-                Text(state.current.toString() + "/" + state.total, style = MaterialTheme.typography.titleLarge)
+                Text("Task " + state.taskIndex + "/" + state.totalTasks + " · " + state.current + "/" + state.total, style = MaterialTheme.typography.titleLarge)
                 Text(state.title, style = MaterialTheme.typography.titleMedium)
                 LinearProgressIndicator(progress = { state.current.toFloat() / state.total.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth())
                 Text("Đã lưu " + state.saved + " file · Bỏ qua " + state.skipped)
@@ -28,7 +28,7 @@ fun DownloadProgressScreen(state: DownloadState, vm: DownloadViewModel, onDone: 
                 DownloadLogList(state.logs)
             }
             is DownloadState.Paused -> {
-                Text("Đã tạm dừng " + state.current + "/" + state.total, style = MaterialTheme.typography.titleLarge)
+                Text("Task " + state.taskIndex + "/" + state.totalTasks + " · Đã tạm dừng " + state.current + "/" + state.total, style = MaterialTheme.typography.titleLarge)
                 state.etaSeconds?.let { Text("Ước tính còn " + formatEta(it)) }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = vm::resumeDownload) { Text("Tiếp tục") }
