@@ -26,21 +26,27 @@ sealed interface DownloadState {
         val saved: Int,
         val skipped: Int,
         val logs: List<String>,
-        val etaSeconds: Long? = null
+        val etaSeconds: Long? = null,
+        val taskIndex: Int = 1,
+        val totalTasks: Int = 1
     ) : DownloadState
     data class Paused(
         val current: Int,
         val total: Int,
         val logs: List<String>,
-        val etaSeconds: Long? = null
+        val etaSeconds: Long? = null,
+        val taskIndex: Int = 1,
+        val totalTasks: Int = 1
     ) : DownloadState
-    data class Done(val saved: Int, val skipped: Int, val logs: List<String>) : DownloadState
-    data class Cancelled(val saved: Int, val logs: List<String>) : DownloadState
+    data class Done(val saved: Int, val skipped: Int, val logs: List<String>, val taskIndex: Int = 1, val totalTasks: Int = 1) : DownloadState
+    data class Cancelled(val saved: Int, val logs: List<String>, val taskIndex: Int = 1, val totalTasks: Int = 1) : DownloadState
     data class Error(
         val saved: Int,
         val skipped: Int,
         val message: String,
-        val logs: List<String>
+        val logs: List<String>,
+        val taskIndex: Int = 1,
+        val totalTasks: Int = 1
     ) : DownloadState
 }
 
