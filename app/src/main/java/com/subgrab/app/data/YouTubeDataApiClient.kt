@@ -38,7 +38,7 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
    val a=json.optJSONArray("items")?:return@forEach
    for(i in 0 until a.length()){val x=a.getJSONObject(i);val sn=x.getJSONObject("snippet");val st=x.optJSONObject("statistics");val cd=x.optJSONObject("contentDetails")
     val dur=parseDuration(cd?.optString("duration").orEmpty());out+=VideoItem(out.size+1,x.getString("id"),sn.optString("title"),dur.toInt(),emptyList(),channelTitle=sn.optString("channelTitle"),publishedAt=sn.optString("publishedAt"),viewCount=st?.optString("viewCount")?.toLongOrNull(),thumbnailUrl=sn.optJSONObject("thumbnails")?.optJSONObject("medium")?.optString("url").orEmpty(),description=sn.optString("description").takeIf{it.isNotBlank()},durationSeconds=dur,likeCount=st?.optString("likeCount")?.toLongOrNull())
-   }}
+   }
   }
   return out.take(50)
  }
