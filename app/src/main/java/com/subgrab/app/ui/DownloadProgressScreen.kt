@@ -16,10 +16,11 @@ fun DownloadProgressScreen(state: DownloadState, vm: DownloadViewModel, onDone: 
         when (state) {
             DownloadState.Idle -> { Text("Chưa có tác vụ tải đang hoạt động."); OutlinedButton(onClick = onDone) { Text("Quay lại") } }
             is DownloadState.Running -> {
-                Text("${state.current}/${state.total}", style = MaterialTheme.typography.titleLarge)
+                Text(state.current.toString() + "/" + state.total, style = MaterialTheme.typography.titleLarge)
                 Text(state.title, style = MaterialTheme.typography.titleMedium)
                 LinearProgressIndicator(progress = { state.current.toFloat() / state.total.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth())
-                Text("Đã lưu ${state.saved} file · Bỏ qua ${state.skipped}")
+                Text("Đã lưu " + state.saved + " file · Bỏ qua " + state.skipped)
+                state.etaSeconds?.let { Text("Ước tính còn " + formatEta(it)) }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = vm::pauseDownload) { Text("Tạm dừng") }
                     OutlinedButton(onClick = vm::cancelDownload) { Text("Hủy") }
@@ -27,7 +28,8 @@ fun DownloadProgressScreen(state: DownloadState, vm: DownloadViewModel, onDone: 
                 DownloadLogList(state.logs)
             }
             is DownloadState.Paused -> {
-                Text("Đã tạm dừng ${state.current}/${state.total}", style = MaterialTheme.typography.titleLarge)
+                Text("Đã tạm dừng " + state.current + "/" + state.total, style = MaterialTheme.typography.titleLarge)
+                state.etaSeconds?.let { Text("Ước tính còn " + formatEta(it)) }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = vm::resumeDownload) { Text("Tiếp tục") }
                     OutlinedButton(onClick = vm::cancelDownload) { Text("Hủy") }
@@ -36,18 +38,32 @@ fun DownloadProgressScreen(state: DownloadState, vm: DownloadViewModel, onDone: 
             }
             is DownloadState.Done -> {
                 Text("Hoàn tất", style = MaterialTheme.typography.titleLarge)
-                Text("Đã lưu ${state.saved} file · Bỏ qua ${state.skipped}")
+                Text("Đã lưu " + state.saved + " file · Bỏ qua " + state.skipped)
                 DownloadLogList(state.logs)
                 Button(onClick = onDone) { Text("Xem kết quả") }
             }
             is DownloadState.Cancelled -> {
                 Text("Đã hủy", style = MaterialTheme.typography.titleLarge)
-                Text("Đã lưu ${state.saved} file trước khi hủy.")
+                Text("Đã lưu " + state.saved + " file trước khi hủy.")
+                DownloadLogList(state.logs)
+                OutlinedButton(onClick = onDone) { Text("Quay lại") }
+            }
+            is DownloadState.Error -> {
+                Text("Tác vụ thất bại", style = MaterialTheme.typography.titleLarge)
+                Text(state.message)
+                Text("Đã lưu " + state.saved + " file · Bỏ qua " + state.skipped)
                 DownloadLogList(state.logs)
                 OutlinedButton(onClick = onDone) { Text("Quay lại") }
             }
         }
     }
+}
+
+private fun formatEta(seconds: Long): String {
+    val safe = seconds.coerceAtLeast(0)
+    val minutes = safe / 60
+    val remaining = safe % 60
+    return if (minutes > 0) minutes.toString() + " phút " + remaining + " giây" else remaining.toString() + " giây"
 }
 
 @Composable
