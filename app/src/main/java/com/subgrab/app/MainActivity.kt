@@ -34,7 +34,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.subgrab.app.data.DebugLog
 import com.subgrab.app.data.DownloadState
-import com.subgrab.app.data.SettingsRepository\nimport com.subgrab.app.data.SubGrabDatabase
+import com.subgrab.app.data.SettingsRepository
+import com.subgrab.app.data.SubGrabDatabase
 import com.subgrab.app.data.HistoryRepository
 import com.subgrab.app.ui.DownloadProgressScreen
 import com.subgrab.app.ui.HistoryScreen
@@ -44,7 +45,8 @@ import com.subgrab.app.domain.VideoItem
 import com.subgrab.app.ui.AnalysisState
 import com.subgrab.app.ui.DownloadViewModel
 import com.subgrab.app.ui.DownloadViewModelFactory
-import com.subgrab.app.ui.SettingsScreen\nimport com.subgrab.app.ui.DiagnosticsScreen
+import com.subgrab.app.ui.SettingsScreen
+import com.subgrab.app.ui.DiagnosticsScreen
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -110,7 +112,8 @@ fun SubGrabApp() {
     val title = when (route) {
         "results" -> "Chọn video"
         "settings" -> "Cài đặt"
-        "debug" -> "Nhật ký debug"\n        "diagnostics" -> "Diagnostics"
+        "debug" -> "Nhật ký debug"
+        "diagnostics" -> "Diagnostics"
         "progress" -> "Tiến độ tải"
         "history" -> "Lịch sử tải"
         else -> if (route.startsWith("history/")) "Chi tiết tải" else "SubGrab"
@@ -374,7 +377,12 @@ private fun DownloadProgressCard(state: DownloadState, vm: DownloadViewModel) {
                         OutlinedButton(onClick = vm::cancelDownload) { Text("Hủy") }
                     }
                 }
-                is DownloadState.Done -> {\n                    Text("Hoàn tất task: ${state.saved} file, bỏ qua ${state.skipped}", color = MaterialTheme.colorScheme.primary)\n                    state.logs.takeLast(8).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }\n                    Button(onClick = vm::continueNextTask, modifier = Modifier.fillMaxWidth()) { Text("TIẾP TỤC TASK KẾ TIẾP") }\n                }\n                is DownloadState.Cancelled -> {
+                is DownloadState.Done -> {
+                    Text("Hoàn tất task: ${state.saved} file, bỏ qua ${state.skipped}", color = MaterialTheme.colorScheme.primary)
+                    state.logs.takeLast(8).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    Button(onClick = vm::continueNextTask, modifier = Modifier.fillMaxWidth()) { Text("TIẾP TỤC TASK KẾ TIẾP") }
+                }
+                is DownloadState.Cancelled -> {
                     Text("Đã hủy: ${state.saved} file đã lưu", color = MaterialTheme.colorScheme.error)
                     state.logs.takeLast(8).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
                 }
