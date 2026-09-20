@@ -374,11 +374,7 @@ private fun DownloadProgressCard(state: DownloadState, vm: DownloadViewModel) {
                         OutlinedButton(onClick = vm::cancelDownload) { Text("Hủy") }
                     }
                 }
-                is DownloadState.Done -> {
-                    Text("Hoàn tất: ${state.saved} file, bỏ qua ${state.skipped}", color = MaterialTheme.colorScheme.primary)
-                    state.logs.takeLast(8).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
-                }
-                is DownloadState.Cancelled -> {
+                is DownloadState.Done -> {\n                    Text("Hoàn tất task: ${state.saved} file, bỏ qua ${state.skipped}", color = MaterialTheme.colorScheme.primary)\n                    state.logs.takeLast(8).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }\n                    Button(onClick = vm::continueNextTask, modifier = Modifier.fillMaxWidth()) { Text("TIẾP TỤC TASK KẾ TIẾP") }\n                }\n                is DownloadState.Cancelled -> {
                     Text("Đã hủy: ${state.saved} file đã lưu", color = MaterialTheme.colorScheme.error)
                     state.logs.takeLast(8).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
                 }
