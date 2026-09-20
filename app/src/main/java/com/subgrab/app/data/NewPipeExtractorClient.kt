@@ -13,12 +13,14 @@ import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor
 import org.schabi.newpipe.extractor.stream.StreamExtractor
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
+import java.util.concurrent.ConcurrentHashMap
 
 class NewPipeExtractorClient(
     context: Context,
     private val downloader: NewPipeDownloader
 ) {
     private val poTokenProvider = NewPipePoTokenProvider(context.applicationContext, downloader)
+    private val fetchedSubtitleExtractors = ConcurrentHashMap<String, StreamExtractor>()
 
     init {
         synchronized(NewPipeExtractorClient::class.java) {
@@ -84,10 +86,7 @@ class NewPipeExtractorClient(
     suspend fun listSubtitles(videoUrl: String): Result<List<SubtitleLanguage>> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val extractor = streamExtractor(videoUrl)
-                downloader.withRequestContext(RequestLane.SUBTITLE_EXTRACTOR, "subtitle.list") {
-                    extractor.fetchPage()
-                }
+                val extractor = fetchSubtitleExtractor(videoUrl)
                 extractor.getSubtitlesDefault()
                     .map { track ->
                         SubtitleLanguage(
@@ -98,6 +97,16 @@ class NewPipeExtractorClient(
                     }
                     .distinctBy { it.code to it.isAuto }
             }
+        }
+
+    suspend fun fetchSubtitleExtractor(videoUrl: String): StreamExtractor =
+        fetchedSubtitleExtractors[videoUrl] ?: run {
+            val extractor = streamExtractor(videoUrl)
+            downloader.withRequestContext(RequestLane.SUBTITLE_EXTRACTOR, "subtitle.fetch") {
+                extractor.fetchPage()
+            }
+            fetchedSubtitleExtractors.putIfAbsent(videoUrl, extractor)
+            fetchedSubtitleExtractors[videoUrl] ?: extractor
         }
 
     fun streamExtractor(videoUrl: String): StreamExtractor =
