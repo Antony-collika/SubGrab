@@ -52,7 +52,10 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             taskId?.let(taskStore::delete)
             return Result.failure()
         }
-        val settings = com.subgrab.app.data.SettingsRepository(applicationContext)\n        val database = com.subgrab.app.data.SubGrabDatabase.get(applicationContext)\n        val pacer = com.subgrab.app.data.RequestPacer(settings, com.subgrab.app.data.RequestGovernor(), database)\n        val subtitleDownloader = SubtitleDownloader(extractorClient, NewPipeDownloader(), pacer)
+        val settings = com.subgrab.app.data.SettingsRepository(applicationContext)
+        val database = com.subgrab.app.data.SubGrabDatabase.get(applicationContext)
+        val pacer = com.subgrab.app.data.RequestPacer(settings, com.subgrab.app.data.RequestGovernor(), database)
+        val subtitleDownloader = SubtitleDownloader(extractorClient, NewPipeDownloader(), pacer)
         val orchestrator = DownloadOrchestrator(extractorClient, subtitleDownloader, FileStorage(applicationContext), history, control)
 
         setForeground(createForegroundInfo("Đang chuẩn bị tải phụ đề", null, false))
