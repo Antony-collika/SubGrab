@@ -88,7 +88,7 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         var finalState: DownloadState = DownloadState.Idle
         orchestrator.start(task.source, task.videos, task.folder, task.config) { state ->
             finalState = state
-            val progress = state.toData()
+            val progress = state.toData(task.taskIndex, task.totalTasks)
             setProgress(progress)
             setForeground(createForegroundInfo(state.notificationText(), state.progressPair(), state is DownloadState.Paused))
         }
@@ -106,11 +106,13 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         )
 
         taskId?.let(taskStore::delete)
-        val resultData = finalState.toData()
+        val resultData = finalState.toData(task.taskIndex, task.totalTasks)
         return if (finalState is DownloadState.Error) Result.failure(resultData) else Result.success(resultData)
     }
 
-    private fun DownloadState.toData(): Data = Data.Builder()
+    private fun DownloadState.toData(taskIndex: Int = 1, totalTasks: Int = 1): Data = Data.Builder()
+        .putInt(KEY_TASK_INDEX, taskIndex)
+        .putInt(KEY_TOTAL_TASKS, totalTasks)
         .putString(KEY_STATE, when (this) {
             DownloadState.Idle -> "idle"
             is DownloadState.Running -> "running"
@@ -209,6 +211,8 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         const val UNIQUE_WORK = "subgrab-download"
         const val KEY_TASK_ID = "task_id"
         const val KEY_TASK = "task"
+        const val KEY_TASK_INDEX = "task_index"
+        const val KEY_TOTAL_TASKS = "total_tasks"
         const val KEY_STATE = "state"
         const val KEY_CURRENT = "current"
         const val KEY_TOTAL = "total"
