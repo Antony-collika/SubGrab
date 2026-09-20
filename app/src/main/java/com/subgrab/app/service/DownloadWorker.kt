@@ -91,8 +91,22 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             setProgress(progress)
             setForeground(createForegroundInfo(state.notificationText(), state.progressPair(), state is DownloadState.Paused))
         }
+
+        runtimeDb.runtimeLogDao().insert(
+            com.subgrab.app.data.RuntimeLogEntity(
+                timestamp = System.currentTimeMillis(),
+                level = if (finalState is DownloadState.Error) "ERROR" else "INFO",
+                category = "TASK",
+                lane = null,
+                operation = null,
+                message = "task finished status=" + finalState.javaClass.simpleName +
+                    " index=" + task.taskIndex + "/" + task.totalTasks
+            )
+        )
+
         taskId?.let(taskStore::delete)
-        return Result.success(finalState.toData())
+        val resultData = finalState.toData()
+        return if (finalState is DownloadState.Error) Result.failure(resultData) else Result.success(resultData)
     }
 
     private fun DownloadState.toData(): Data = Data.Builder()
@@ -102,6 +116,7 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             is DownloadState.Paused -> "paused"
             is DownloadState.Done -> "done"
             is DownloadState.Cancelled -> "cancelled"
+            is DownloadState.Error -> "error"
         })
         .putInt(KEY_CURRENT, (this as? DownloadState.Running)?.current ?: (this as? DownloadState.Paused)?.current ?: 0)
         .putInt(KEY_TOTAL, (this as? DownloadState.Running)?.total ?: (this as? DownloadState.Paused)?.total ?: 0)
@@ -110,34 +125,50 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             is DownloadState.Running -> this.saved
             is DownloadState.Done -> this.saved
             is DownloadState.Cancelled -> this.saved
+            is DownloadState.Error -> this.saved
             else -> 0
         })
         .putInt(KEY_SKIPPED, when (this) {
             is DownloadState.Running -> this.skipped
             is DownloadState.Done -> this.skipped
+            is DownloadState.Error -> this.skipped
             else -> 0
         })
+        .putLong(KEY_ETA, when (this) {
+            is DownloadState.Running -> this.etaSeconds ?: -1L
+            is DownloadState.Paused -> this.etaSeconds ?: -1L
+            else -> -1L
+        })
+        .putString(KEY_MESSAGE, (this as? DownloadState.Error)?.message.orEmpty())
         .putStringArray(KEY_LOGS, logsForWorkData())
         .build()
 
-    /**
-     * WorkManager Data is limited to 10 KiB. Keep only a small preview of logs
-     * in progress/output data; the full log is still retained by download history.
-     */
     private fun DownloadState.logsForWorkData(): Array<String?> = when (this) {
         is DownloadState.Running -> logs
         is DownloadState.Paused -> logs
         is DownloadState.Done -> logs
         is DownloadState.Cancelled -> logs
+        is DownloadState.Error -> logs
         else -> emptyList()
     }.takeLast(MAX_WORK_LOGS).map { it.take(MAX_WORK_LOG_CHARS) }.toTypedArray()
 
     private fun DownloadState.notificationText(): String = when (this) {
         DownloadState.Idle -> "Đang chuẩn bị tải phụ đề"
-        is DownloadState.Running -> "${this.current}/${this.total} · ${this.title}"
-        is DownloadState.Paused -> "Đã tạm dừng · ${this.current}/${this.total}"
-        is DownloadState.Done -> "Hoàn tất · ${this.saved} file, bỏ qua ${this.skipped}"
-        is DownloadState.Cancelled -> "Đã hủy · ${this.saved} file đã lưu"
+        is DownloadState.Running -> {
+            val eta = this.etaSeconds?.let { " · còn khoảng " + formatEta(it) } ?: ""
+            this.current.toString() + "/" + this.total + " · " + this.title + eta
+        }
+        is DownloadState.Paused -> "Đã tạm dừng · " + this.current + "/" + this.total
+        is DownloadState.Done -> "Hoàn tất · " + this.saved + " file, bỏ qua " + this.skipped
+        is DownloadState.Cancelled -> "Đã hủy · " + this.saved + " file đã lưu"
+        is DownloadState.Error -> "Lỗi · " + this.message
+    }
+
+    private fun formatEta(seconds: Long): String {
+        val safe = seconds.coerceAtLeast(0)
+        val minutes = safe / 60
+        val remaining = safe % 60
+        return if (minutes > 0) minutes.toString() + " phút " + remaining + " giây" else remaining.toString() + " giây"
     }
 
     private fun DownloadState.progressPair(): Pair<Int, Int>? = when (this) {
@@ -176,7 +207,6 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
     companion object {
         const val UNIQUE_WORK = "subgrab-download"
         const val KEY_TASK_ID = "task_id"
-        /** Legacy key kept so already-enqueued work from older app versions can finish. */
         const val KEY_TASK = "task"
         const val KEY_STATE = "state"
         const val KEY_CURRENT = "current"
@@ -184,6 +214,8 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         const val KEY_TITLE = "title"
         const val KEY_SAVED = "saved"
         const val KEY_SKIPPED = "skipped"
+        const val KEY_ETA = "eta_seconds"
+        const val KEY_MESSAGE = "message"
         const val KEY_LOGS = "logs"
         private const val MAX_WORK_LOGS = 8
         private const val MAX_WORK_LOG_CHARS = 180
