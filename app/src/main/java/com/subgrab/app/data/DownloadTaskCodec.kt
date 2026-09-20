@@ -33,6 +33,7 @@ object DownloadTaskCodec {
             put("skipNoSub", config.skipNoSub)
             put("outputDir", config.outputDir)
             put("timestampMode", config.timestampMode.name)
+            put("subtitleConcurrency", config.subtitleConcurrency)
         })
         val videosJson = JSONArray()
         videos.filter { it.isSelected }.take(50).forEach { video ->
@@ -80,7 +81,8 @@ object DownloadTaskCodec {
             timestampMode = configJson.optString("timestampMode")
                 .takeIf { it.isNotBlank() }
                 ?.let { runCatching { SubtitleTimestampMode.valueOf(it) }.getOrNull() }
-                ?: SubtitleTimestampMode.WITH_TIMESTAMP
+                ?: SubtitleTimestampMode.WITH_TIMESTAMP,
+            subtitleConcurrency = configJson.optInt("subtitleConcurrency", 1).coerceAtLeast(1)
         )
         val videosJson = root.getJSONArray("videos")
         val videos = List(videosJson.length()) { i ->
