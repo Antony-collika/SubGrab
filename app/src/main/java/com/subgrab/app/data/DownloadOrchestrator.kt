@@ -49,7 +49,8 @@ class DownloadOrchestrator(
     private val subtitleDownloader: SubtitleDownloader,
     private val storage: FileStorage,
     private val history: HistoryRepository,
-    private val control: DownloadControlStore
+    private val control: DownloadControlStore,
+    private val database: SubGrabDatabase
 ) {
     private val _state = MutableStateFlow<DownloadState>(DownloadState.Idle)
     val state: StateFlow<DownloadState> = _state.asStateFlow()
@@ -133,7 +134,16 @@ class DownloadOrchestrator(
                 val error = result.exceptionOrNull() ?: return result
                 if (!retryable(error)) return result
                 val delayMs = RETRY_BASE_DELAY_MS * attempt
-                log("↻ " + label + ": thử lại lần " + (attempt + 1) + "/" + MAX_ATTEMPTS + " sau " + delayMs + "ms")
+                val retryMessage = "↻ " + label + ": thử lại lần " + (attempt + 1) + "/" + MAX_ATTEMPTS + " sau " + delayMs + "ms"
+                log(retryMessage)
+                database.runtimeLogDao().insert(RuntimeLogEntity(
+                    timestamp = System.currentTimeMillis(),
+                    level = "INFO",
+                    category = "RETRY",
+                    lane = "SUBTITLE_EXTRACTOR",
+                    operation = label.take(120),
+                    message = retryMessage
+                ))
                 delay(delayMs)
                 attempt++
             }
@@ -149,7 +159,9 @@ class DownloadOrchestrator(
                 }
                 if (subtitleResult.isFailure) {
                     val error = subtitleResult.exceptionOrNull()
-                    log("❌ " + video.title + ": kiểm tra phụ đề thất bại: " + (error?.message ?: "không rõ lỗi"))
+                    val message = "❌ " + video.title + ": kiểm tra phụ đề thất bại: " + (error?.message ?: "không rõ lỗi")
+                    log(message)
+                    database.runtimeLogDao().insert(RuntimeLogEntity(System.currentTimeMillis(), "ERROR", "FAILURE", "SUBTITLE_EXTRACTOR", "subtitle.list", message.take(500)))
                     val eta = markCompleted(0, true)
                     val (savedNow, skippedNow, logSnapshot) = progress()
                     publish(DownloadState.Running(completed, selected.size, video.title, savedNow, skippedNow, logSnapshot, eta))
@@ -183,7 +195,9 @@ class DownloadOrchestrator(
                 publish(DownloadState.Running(completed, selected.size, video.title, savedNow, skippedNow, logSnapshot, eta))
             } else {
                 val error = downloadResult.exceptionOrNull()
-                log("❌ " + video.title + ": " + (error?.message ?: "tải phụ đề thất bại"))
+                val message = "❌ " + video.title + ": " + (error?.message ?: "tải phụ đề thất bại")
+                log(message)
+                database.runtimeLogDao().insert(RuntimeLogEntity(System.currentTimeMillis(), "ERROR", "FAILURE", "SUBTITLE_EXTRACTOR", "subtitle.download", message.take(500)))
                 val eta = markCompleted(0, true)
                 val (savedNow, skippedNow, logSnapshot) = progress()
                 publish(DownloadState.Running(completed, selected.size, video.title, savedNow, skippedNow, logSnapshot, eta))
@@ -233,6 +247,14 @@ class DownloadOrchestrator(
             val (savedNow, skippedNow, _) = progress()
             val message = error.message ?: error::class.java.simpleName
             log("❌ Tác vụ thất bại: " + message)
+            database.runtimeLogDao().insert(RuntimeLogEntity(
+                timestamp = System.currentTimeMillis(),
+                level = "ERROR",
+                category = if (error is StorageFailure) "STORAGE" else "TASK",
+                lane = null,
+                operation = null,
+                message = message.take(500)
+            ))
             val errorLogs = progress().third
             runCatching {
                 history.add(
