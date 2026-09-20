@@ -20,6 +20,8 @@ object DownloadTaskCodec {
             put("total", source.originalTotalVideos)
         })
         root.put("folder", folder)
+        root.put("taskIndex", 1)
+        root.put("totalTasks", 1)
         root.put("config", JSONObject().apply {
             val languages = JSONArray()
             config.languages.forEach(languages::put)
@@ -102,8 +104,8 @@ object DownloadTaskCodec {
                 thumbnailUrl = json.optString("thumbnailUrl")
             )
         }
-        return Task(source, videos, root.getString("folder"), config)
+        return Task(source, videos, root.getString("folder"), config, root.optInt("taskIndex",1), root.optInt("totalTasks",1))
     }
 
-    data class Task(val source: Source, val videos: List<VideoItem>, val folder: String, val config: DownloadConfig)
+    data class Task(val source: Source, val videos: List<VideoItem>, val folder: String, val config: DownloadConfig, val taskIndex:Int = 1, val totalTasks:Int = 1)
 }
