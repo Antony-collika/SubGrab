@@ -80,7 +80,8 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             subtitleDownloader,
             FileStorage(applicationContext),
             history,
-            control
+            control,
+            database
         )
 
         setForeground(createForegroundInfo("Đang chuẩn bị tải phụ đề", null, false))
