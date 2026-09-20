@@ -1,6 +1,11 @@
 package com.subgrab.app
 
-import com.subgrab.app.data.SubtitleFormatter\nimport com.subgrab.app.data.FailureClassifier\nimport com.subgrab.app.data.RequestGovernor\nimport com.subgrab.app.domain.FailureType\nimport com.subgrab.app.domain.RequestLane\nimport com.subgrab.app.domain.RequestResult
+import com.subgrab.app.data.SubtitleFormatter
+import com.subgrab.app.data.FailureClassifier
+import com.subgrab.app.data.RequestGovernor
+import com.subgrab.app.domain.FailureType
+import com.subgrab.app.domain.RequestLane
+import com.subgrab.app.domain.RequestResult
 import com.subgrab.app.data.SubtitleParser
 import com.subgrab.app.domain.*
 import org.junit.Assert.assertEquals
@@ -41,7 +46,10 @@ class CoreTest {
         assertEquals(1, cues.size)
         assertEquals("Good day.", cues.single().text)
         assertEquals(
-            "1\n00:00:10,000 --> 00:00:13,000\nGood day.\n",
+            "1
+00:00:10,000 --> 00:00:13,000
+Good day.
+",
             SubtitleFormatter.format(cues, SubtitleTimestampMode.WITH_TIMESTAMP)
         )
     }
@@ -58,7 +66,8 @@ class CoreTest {
             Good day.
             """.trimIndent()
         )
-        assertEquals("Good day.\n", SubtitleFormatter.format(cues, SubtitleTimestampMode.WITHOUT_TIMESTAMP))
+        assertEquals("Good day.
+", SubtitleFormatter.format(cues, SubtitleTimestampMode.WITHOUT_TIMESTAMP))
     }
 
     @Test fun taskProgressNeverExceedsLimit() {
