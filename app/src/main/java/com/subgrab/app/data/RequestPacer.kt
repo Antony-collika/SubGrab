@@ -11,7 +11,7 @@ class RequestPacer(private val settings:SettingsRepository,private val governor:
   val wait=user+governor.delay(operation.lane); if(wait>0)delay(wait)
   val started=System.currentTimeMillis(); var status:Int?=null
   try { val value=block(); val result=RequestResult(true,status,System.currentTimeMillis()-started,null); persist(operation,result);governor.observe(operation.lane,result);return value }
-  catch(t:Throwable){status=(t as? HttpFailure)?.status;val result=RequestResult(false,status,System.currentTimeMillis()-started,FailureClassifier.classify(status,t));persist(operation,result);governor.observe(operation.lane,result);throw t}
+  catch(t:Throwable){status=(t as? HttpFailure)?.status;val failureType=(t as? SubtitleFailure)?.type ?: FailureClassifier.classify(status,t);val result=RequestResult(false,status,System.currentTimeMillis()-started,failureType);persist(operation,result);governor.observe(operation.lane,result);throw t}
  }
  private suspend fun persist(op:RequestOperation,r:RequestResult){
   database.requestMetricDao().insert(RequestMetricEntity(timestamp=System.currentTimeMillis(),lane=op.lane.name,operation=op.operation,durationMs=r.durationMs,httpStatus=r.httpStatus,success=r.success,failureType=r.failureType?.name))
