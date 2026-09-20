@@ -11,7 +11,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 object DownloadTaskCodec {
-    fun encode(source: Source, videos: List<VideoItem>, folder: String, config: DownloadConfig): String {
+    fun encode(source: Source, videos: List<VideoItem>, folder: String, config: DownloadConfig, taskIndex:Int=1, totalTasks:Int=1): String {
         val root = JSONObject()
         root.put("source", JSONObject().apply {
             put("id", source.id)
