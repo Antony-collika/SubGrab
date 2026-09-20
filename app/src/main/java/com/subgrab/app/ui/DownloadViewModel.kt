@@ -34,8 +34,8 @@ class DownloadViewModel(
  fun selectAll(){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(videos=c.videos.map{if(it.canSelect)it.copy(isSelected=true)else it})}
  fun clearSelection(){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(videos=c.videos.map{it.copy(isSelected=false)})}
  fun updateFolder(folder:String){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(folder=folder)}
- fun startDownload(settings:AppSettings){val c=_state.value as? AnalysisState.Ready?:return;viewModelScope.launch{DownloadWorker.enqueue(context,c.source,c.videos,c.folder,settings.toDownloadConfig())}}
- fun pauseDownload(){viewModelScope.launch{control.pause()}};fun resumeDownload(){viewModelScope.launch{control.resume()}};fun cancelDownload(){viewModelScope.launch{control.cancel()}}
+ fun startDownload(settings:AppSettings){val c=_state.value as? AnalysisState.Ready?:return;viewModelScope.launch{DownloadWorker.enqueueBatch(context,c.source,c.videos,c.folder,settings.toDownloadConfig())}}
+ fun pauseDownload(){viewModelScope.launch{control.pause()}};fun resumeDownload(){viewModelScope.launch{control.resume()}};fun cancelDownload(){viewModelScope.launch{control.cancel()}}\n fun continueNextTask(){viewModelScope.launch{DownloadWorker.enqueueNext(context)}}
  private fun WorkInfo.toDownloadState(data:Data):DownloadState{val current=data.getInt(DownloadWorker.KEY_CURRENT,0);val total=data.getInt(DownloadWorker.KEY_TOTAL,0);val title=data.getString(DownloadWorker.KEY_TITLE).orEmpty();val saved=data.getInt(DownloadWorker.KEY_SAVED,0);val skipped=data.getInt(DownloadWorker.KEY_SKIPPED,0);val logs=data.getStringArray(DownloadWorker.KEY_LOGS)?.toList().orEmpty();return when(data.getString(DownloadWorker.KEY_STATE)){"running"->DownloadState.Running(current,total,title,saved,skipped,logs);"paused"->DownloadState.Paused(current,total,logs);"done"->DownloadState.Done(saved,skipped,logs);"cancelled"->DownloadState.Cancelled(saved,logs);else->DownloadState.Idle}}
 }
 private fun AppSettings.toDownloadConfig()=DownloadConfig(languages,formats,preferManualSub,skipNoSub,outputDir,timestampMode)
