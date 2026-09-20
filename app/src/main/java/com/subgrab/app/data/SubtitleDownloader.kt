@@ -9,7 +9,7 @@ class SubtitleDownloader(
  private val downloader:NewPipeDownloader,
  private val pacer:RequestPacer?=null
 ){
- suspend fun download(video:VideoItem,config:DownloadConfig,outputDir:File):Result<List<File>>=withContext(Dispatchers.IO){
+ suspend fun download(video:VideoItem,config:DownloadConfig,outputDir:File):Result<List<File>> =withContext(Dispatchers.IO){
   runCatching{
    suspend fun work():List<File>{
     val url="https://www.youtube.com/watch?v="+video.videoId
