@@ -1,6 +1,6 @@
 package com.subgrab.app
 
-import com.subgrab.app.data.SubtitleFormatter
+import com.subgrab.app.data.SubtitleFormatter\nimport com.subgrab.app.data.FailureClassifier\nimport com.subgrab.app.data.RequestGovernor\nimport com.subgrab.app.domain.FailureType\nimport com.subgrab.app.domain.RequestLane\nimport com.subgrab.app.domain.RequestResult
 import com.subgrab.app.data.SubtitleParser
 import com.subgrab.app.domain.*
 import org.junit.Assert.assertEquals
