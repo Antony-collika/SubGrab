@@ -9,7 +9,7 @@ import androidx.compose.ui.unit.dp
 import com.subgrab.app.data.SettingsRepository
 import com.subgrab.app.domain.*
 import kotlinx.coroutines.launch
-@Composable fun SettingsScreen(repository:SettingsRepository,onBack:()->Unit){
+@Composable fun SettingsScreen(repository:SettingsRepository,onBack:()->Unit,onDiagnostics:()->Unit={}){
  val scope=rememberCoroutineScope();val stored by repository.settings.collectAsState(initial=AppSettings());var value by remember(stored){mutableStateOf(stored)}
  fun save(v:AppSettings){value=v;scope.launch{repository.update(v)}}
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
   Text("Định dạng",style=MaterialTheme.typography.titleMedium)
   FormatToggle("TXT",OutputFormat.TXT,value.formats){save(value.copy(formats=it))};FormatToggle("SRT",OutputFormat.SRT,value.formats){save(value.copy(formats=it))}
   if(OutputFormat.SRT in value.formats){Text("Timestamp",style=MaterialTheme.typography.titleMedium);TimestampToggle("Có timestamp",SubtitleTimestampMode.WITH_TIMESTAMP,value.timestampMode){save(value.copy(timestampMode=it))};TimestampToggle("Không timestamp",SubtitleTimestampMode.WITHOUT_TIMESTAMP,value.timestampMode){save(value.copy(timestampMode=it))}}
-  HorizontalDivider();Text("YouTube Data API",style=MaterialTheme.typography.titleMedium)
+  HorizontalDivider();Button(onClick=onDiagnostics,modifier=Modifier.fillMaxWidth()){Text("DIAGNOSTICS")}\n  Text("YouTube Data API",style=MaterialTheme.typography.titleMedium)
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("Bật API");Switch(checked=value.useYouTubeDataApi,onCheckedChange={save(value.copy(useYouTubeDataApi=it))})}
   OutlinedTextField(value=value.youtubeDataApiKey,onValueChange={save(value.copy(youtubeDataApiKey=it))},label={Text("YouTube Data API key")},singleLine=true,modifier=Modifier.fillMaxWidth())
   PacingSection("Subtitle Requests",value.subtitleDelayMode,value.subtitleBaseDelayMs,value.subtitleJitterMinMs,value.subtitleJitterMaxMs,value.subtitleConcurrency,
