@@ -186,6 +186,9 @@ fun SubGrabApp() {
             composable("settings") {
                 SettingsScreen(settingsRepo, goBack, onDiagnostics = { navController.navigate("diagnostics") })
             }
+            composable("diagnostics") {
+                DiagnosticsScreen(SubGrabDatabase.get(context), goBack)
+            }
             composable("debug") {
                 DebugLogScreen(goBack)
             }
