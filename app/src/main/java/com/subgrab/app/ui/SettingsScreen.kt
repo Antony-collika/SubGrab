@@ -37,7 +37,7 @@ import kotlinx.coroutines.launch
  Text(title,style=MaterialTheme.typography.titleMedium)
  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){FilterChip(selected=mode=="NONE",onClick={setMode("NONE")},label={Text("None")});if(auto)FilterChip(selected=mode=="AUTO",onClick={setMode("AUTO")},label={Text("Auto")})}
  NumberField("BaseDelay",base,setBase);NumberField("Jitter min",jmin,setMin);NumberField("Jitter max",jmax,setMax)
- concurrency?.let{NumberField("Concurrency",it.toLong(),{setConcurrency(it.toIntOrNull()?:1)})}
+ concurrency?.let { NumberField("Concurrency", it.toLong(), { setConcurrency(it.toInt()) }) }
 }
 @Composable private fun NumberField(label:String,value:Long,onChange:(Long)->Unit){OutlinedTextField(value=if(value==0L)"" else value.toString(),onValueChange={it.toLongOrNull()?.takeIf{n->n>=0}?.let(onChange)},label={Text(label)},singleLine=true,modifier=Modifier.fillMaxWidth())}
 @Composable private fun LanguageToggle(label:String,code:String,selected:List<String>,onChange:(List<String>)->Unit){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(label);Checkbox(checked=code in selected,onCheckedChange={checked->val n=if(checked)(selected+code).distinct()else selected-code;if(n.isNotEmpty())onChange(n)})}}
