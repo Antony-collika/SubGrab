@@ -1,5 +1,7 @@
 package com.subgrab.app.data
 
+class StorageFailure(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
+
 import android.content.ContentValues
 import android.content.Context
 import android.os.Build
@@ -31,13 +33,17 @@ class FileStorage(private val context: Context) {
                 put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$relativePath")
                 put(MediaStore.Downloads.IS_PENDING, 1)
             }
-            val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return@forEach
+            val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: throw StorageFailure("Không thể tạo file trong Downloads: " + file.name)
             runCatching {
                 context.contentResolver.openOutputStream(uri)?.use { output -> file.inputStream().use { it.copyTo(output) } }
                 values.clear(); values.put(MediaStore.Downloads.IS_PENDING, 0)
                 context.contentResolver.update(uri, values, null, null)
                 published += uri.toString()
-            }.onFailure { context.contentResolver.delete(uri, null, null) }
+            }.onFailure {
+                context.contentResolver.delete(uri, null, null)
+                throw StorageFailure("Không thể xuất file: " + file.name, it)
+            }
         }
         return published
     }
@@ -46,7 +52,11 @@ class FileStorage(private val context: Context) {
     private fun publishLegacy(directory: File, relativePath: String): List<String> {
         val target = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), relativePath).apply { mkdirs() }
         return directory.listFiles()?.filter(::isSubtitleFile)?.map { source ->
-            val destination = File(target, source.name); source.copyTo(destination, overwrite = true); destination.absolutePath
+            runCatching {
+                val destination = File(target, source.name)
+                source.copyTo(destination, overwrite = true)
+                destination.absolutePath
+            }.getOrElse { throw StorageFailure("Không thể xuất file: " + source.name, it) }
         } ?: emptyList()
     }
 
