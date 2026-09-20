@@ -52,7 +52,7 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             taskId?.let(taskStore::delete)
             return Result.failure()
         }
-        val subtitleDownloader = SubtitleDownloader(extractorClient, NewPipeDownloader())
+        val settings = com.subgrab.app.data.SettingsRepository(applicationContext)\n        val database = com.subgrab.app.data.SubGrabDatabase.get(applicationContext)\n        val pacer = com.subgrab.app.data.RequestPacer(settings, com.subgrab.app.data.RequestGovernor(), database)\n        val subtitleDownloader = SubtitleDownloader(extractorClient, NewPipeDownloader(), pacer)
         val orchestrator = DownloadOrchestrator(extractorClient, subtitleDownloader, FileStorage(applicationContext), history, control)
 
         setForeground(createForegroundInfo("Đang chuẩn bị tải phụ đề", null, false))
@@ -163,9 +163,26 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         private const val NOTIFICATION_ID = 41
 
         suspend fun enqueue(context: Context, source: com.subgrab.app.domain.Source, videos: List<com.subgrab.app.domain.VideoItem>, folder: String, config: com.subgrab.app.domain.DownloadConfig) {
+            enqueueBatch(context, source, videos, folder, config)
+        }
+        suspend fun enqueueBatch(context: Context, source: com.subgrab.app.domain.Source, videos: List<com.subgrab.app.domain.VideoItem>, folder: String, config: com.subgrab.app.domain.DownloadConfig) {
             DownloadControlStore(context).reset()
-            val encodedTask = DownloadTaskCodec.encode(source, videos, folder, config)
-            val taskId = DownloadTaskStore(context).save(encodedTask)
+            val selected=videos.filter { it.isSelected }.take(50)
+            val groups=selected.chunked(10).ifEmpty { listOf(emptyList()) }
+            val store=DownloadTaskStore(context)
+            val ids=groups.mapIndexed { index, group ->
+                store.save(DownloadTaskCodec.encode(source, group, folder, config, index+1, groups.size), index+1, groups.size)
+            }
+            enqueueTaskId(context, ids.first())
+        }
+        suspend fun enqueueNext(context: Context): Boolean {
+            val store=DownloadTaskStore(context)
+            val id=store.pendingIds().firstOrNull() ?: return false
+            DownloadControlStore(context).reset()
+            enqueueTaskId(context,id)
+            return true
+        }
+        private fun enqueueTaskId(context: Context, taskId: String) {
             val input = Data.Builder().putString(KEY_TASK_ID, taskId).build()
             val request = OneTimeWorkRequest.Builder(DownloadWorker::class.java)
                 .setInputData(input)
@@ -174,5 +191,4 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
                 .build()
             WorkManager.getInstance(context).enqueueUniqueWork(UNIQUE_WORK, ExistingWorkPolicy.REPLACE, request)
         }
-    }
-}
+
