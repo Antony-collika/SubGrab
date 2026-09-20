@@ -62,11 +62,13 @@ class SubtitleDownloader(
         }
     }
 
-    private fun write(directory: File, name: String, content: String) =
-        File(directory, name).apply {
-            parentFile?.mkdirs()
-            writeText(content)
-        }
+    private fun write(directory: File, name: String, content: String): File =
+        runCatching {
+            File(directory, name).apply {
+                parentFile?.mkdirs()
+                writeText(content)
+            }
+        }.getOrElse { throw StorageFailure("Không thể ghi subtitle: " + name, it) }
 }
 
 class SubtitleFailure(
