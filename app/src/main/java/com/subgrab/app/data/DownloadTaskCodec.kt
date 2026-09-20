@@ -20,8 +20,8 @@ object DownloadTaskCodec {
             put("total", source.originalTotalVideos)
         })
         root.put("folder", folder)
-        root.put("taskIndex", 1)
-        root.put("totalTasks", 1)
+        root.put("taskIndex", taskIndex)
+        root.put("totalTasks", totalTasks)
         root.put("config", JSONObject().apply {
             val languages = JSONArray()
             config.languages.forEach(languages::put)
