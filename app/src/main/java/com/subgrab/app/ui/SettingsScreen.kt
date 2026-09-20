@@ -19,7 +19,8 @@ import kotlinx.coroutines.launch
   Text("Định dạng",style=MaterialTheme.typography.titleMedium)
   FormatToggle("TXT",OutputFormat.TXT,value.formats){save(value.copy(formats=it))};FormatToggle("SRT",OutputFormat.SRT,value.formats){save(value.copy(formats=it))}
   if(OutputFormat.SRT in value.formats){Text("Timestamp",style=MaterialTheme.typography.titleMedium);TimestampToggle("Có timestamp",SubtitleTimestampMode.WITH_TIMESTAMP,value.timestampMode){save(value.copy(timestampMode=it))};TimestampToggle("Không timestamp",SubtitleTimestampMode.WITHOUT_TIMESTAMP,value.timestampMode){save(value.copy(timestampMode=it))}}
-  HorizontalDivider();Button(onClick=onDiagnostics,modifier=Modifier.fillMaxWidth()){Text("DIAGNOSTICS")}\n  Text("YouTube Data API",style=MaterialTheme.typography.titleMedium)
+  HorizontalDivider();Button(onClick=onDiagnostics,modifier=Modifier.fillMaxWidth()){Text("DIAGNOSTICS")}
+  Text("YouTube Data API",style=MaterialTheme.typography.titleMedium)
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("Bật API");Switch(checked=value.useYouTubeDataApi,onCheckedChange={save(value.copy(useYouTubeDataApi=it))})}
   OutlinedTextField(value=value.youtubeDataApiKey,onValueChange={save(value.copy(youtubeDataApiKey=it))},label={Text("YouTube Data API key")},singleLine=true,modifier=Modifier.fillMaxWidth())
   PacingSection("Subtitle Requests",value.subtitleDelayMode,value.subtitleBaseDelayMs,value.subtitleJitterMinMs,value.subtitleJitterMaxMs,value.subtitleConcurrency,
