@@ -28,6 +28,10 @@ import com.subgrab.app.data.FileStorage
 import com.subgrab.app.data.HistoryRepository
 import com.subgrab.app.data.NewPipeExtractorClient
 import com.subgrab.app.data.NewPipeDownloader
+import com.subgrab.app.data.RequestGovernor
+import com.subgrab.app.data.RequestPacer
+import com.subgrab.app.data.SettingsRepository
+import com.subgrab.app.data.SubGrabDatabase
 import com.subgrab.app.data.SubtitleDownloader
 import java.util.concurrent.TimeUnit
 
@@ -48,17 +52,36 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             taskId?.let(taskStore::delete)
             return Result.failure()
         }
-        val runtimeDb = com.subgrab.app.data.SubGrabDatabase.get(applicationContext)
-        runtimeDb.runtimeLogDao().insert(com.subgrab.app.data.RuntimeLogEntity(timestamp=System.currentTimeMillis(),level="INFO",category="TASK",lane=null,operation=null,message="task start id="+taskId+" index="+task.taskIndex+"/"+task.totalTasks))
-        val extractorClient = runCatching { NewPipeExtractorClient(applicationContext) }.getOrElse {
+        val runtimeDb = SubGrabDatabase.get(applicationContext)
+        runtimeDb.runtimeLogDao().insert(
+            com.subgrab.app.data.RuntimeLogEntity(
+                timestamp = System.currentTimeMillis(),
+                level = "INFO",
+                category = "TASK",
+                lane = null,
+                operation = null,
+                message = "task start id=" + taskId + " index=" + task.taskIndex + "/" + task.totalTasks
+            )
+        )
+
+        val settings = SettingsRepository(applicationContext)
+        val database = SubGrabDatabase.get(applicationContext)
+        val pacer = RequestPacer(settings, RequestGovernor(), database)
+        val downloader = NewPipeDownloader(pacer)
+        val extractorClient = runCatching {
+            NewPipeExtractorClient(applicationContext, downloader)
+        }.getOrElse {
             taskId?.let(taskStore::delete)
             return Result.failure()
         }
-        val settings = com.subgrab.app.data.SettingsRepository(applicationContext)
-        val database = com.subgrab.app.data.SubGrabDatabase.get(applicationContext)
-        val pacer = com.subgrab.app.data.RequestPacer(settings, com.subgrab.app.data.RequestGovernor(), database)
-        val subtitleDownloader = SubtitleDownloader(extractorClient, NewPipeDownloader(), pacer)
-        val orchestrator = DownloadOrchestrator(extractorClient, subtitleDownloader, FileStorage(applicationContext), history, control)
+        val subtitleDownloader = SubtitleDownloader(extractorClient, downloader)
+        val orchestrator = DownloadOrchestrator(
+            extractorClient,
+            subtitleDownloader,
+            FileStorage(applicationContext),
+            history,
+            control
+        )
 
         setForeground(createForegroundInfo("Đang chuẩn bị tải phụ đề", null, false))
         var finalState: DownloadState = DownloadState.Idle
@@ -91,7 +114,8 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         })
         .putInt(KEY_SKIPPED, when (this) {
             is DownloadState.Running -> this.skipped
-            is DownloadState.Done -> this.skipped
+            is DownloadState.Done -> this.saved
+            is DownloadState.Cancelled -> this.saved
             else -> 0
         })
         .putStringArray(KEY_LOGS, logsForWorkData())
@@ -170,23 +194,26 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         suspend fun enqueue(context: Context, source: com.subgrab.app.domain.Source, videos: List<com.subgrab.app.domain.VideoItem>, folder: String, config: com.subgrab.app.domain.DownloadConfig) {
             enqueueBatch(context, source, videos, folder, config)
         }
+
         suspend fun enqueueBatch(context: Context, source: com.subgrab.app.domain.Source, videos: List<com.subgrab.app.domain.VideoItem>, folder: String, config: com.subgrab.app.domain.DownloadConfig) {
             DownloadControlStore(context).reset()
-            val selected=videos.filter { it.isSelected }.take(50)
-            val groups=selected.chunked(10).ifEmpty { listOf(emptyList()) }
-            val store=DownloadTaskStore(context)
-            val ids=groups.mapIndexed { index, group ->
-                store.save(DownloadTaskCodec.encode(source, group, folder, config, index+1, groups.size), index+1, groups.size)
+            val selected = videos.filter { it.isSelected }.take(50)
+            val groups = selected.chunked(10).ifEmpty { listOf(emptyList()) }
+            val store = DownloadTaskStore(context)
+            val ids = groups.mapIndexed { index, group ->
+                store.save(DownloadTaskCodec.encode(source, group, folder, config, index + 1, groups.size), index + 1, groups.size)
             }
             enqueueTaskId(context, ids.first())
         }
+
         suspend fun enqueueNext(context: Context): Boolean {
-            val store=DownloadTaskStore(context)
-            val id=store.pendingIds().firstOrNull() ?: return false
+            val store = DownloadTaskStore(context)
+            val id = store.pendingIds().firstOrNull() ?: return false
             DownloadControlStore(context).reset()
-            enqueueTaskId(context,id)
+            enqueueTaskId(context, id)
             return true
         }
+
         private fun enqueueTaskId(context: Context, taskId: String) {
             val input = Data.Builder().putString(KEY_TASK_ID, taskId).build()
             val request = OneTimeWorkRequest.Builder(DownloadWorker::class.java)
@@ -196,6 +223,5 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
                 .build()
             WorkManager.getInstance(context).enqueueUniqueWork(UNIQUE_WORK, ExistingWorkPolicy.REPLACE, request)
         }
-
     }
 }
