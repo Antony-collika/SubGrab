@@ -110,7 +110,7 @@ fun SubGrabApp() {
     val title = when (route) {
         "results" -> "Chọn video"
         "settings" -> "Cài đặt"
-        "debug" -> "Nhật ký debug"
+        "debug" -> "Nhật ký debug"\n        "diagnostics" -> "Diagnostics"
         "progress" -> "Tiến độ tải"
         "history" -> "Lịch sử tải"
         else -> if (route.startsWith("history/")) "Chi tiết tải" else "SubGrab"
@@ -181,7 +181,7 @@ fun SubGrabApp() {
                 HistoryDetailScreen(historyRepo, id, goBack, Modifier.fillMaxSize())
             }
             composable("settings") {
-                SettingsScreen(settingsRepo, goBack)
+                SettingsScreen(settingsRepo, goBack, onDiagnostics = { navController.navigate("diagnostics") })
             }
             composable("debug") {
                 DebugLogScreen(goBack)
