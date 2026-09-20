@@ -1,7 +1,5 @@
 package com.subgrab.app.data
 
-class StorageFailure(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
-
 import android.content.ContentValues
 import android.content.Context
 import android.os.Build
@@ -9,6 +7,8 @@ import android.os.Environment
 import android.provider.MediaStore
 import com.subgrab.app.domain.FileNameSanitizer
 import java.io.File
+
+class StorageFailure(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
 
 class FileStorage(private val context: Context) {
     private val stagingRoot: File get() = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "SubGrab")
