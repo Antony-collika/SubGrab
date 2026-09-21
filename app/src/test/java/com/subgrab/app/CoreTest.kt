@@ -118,6 +118,30 @@ class CoreTest {
         )
     }
 
+    @Test fun failureClassifierSeparatesStorageFromBenignSubtitleFailures() {
+        assertEquals(
+            FailureType.STORAGE_ERROR,
+            FailureClassifier.classify(null, com.subgrab.app.data.StorageFailure("disk full"))
+        )
+        assertFalse(FailureClassifier.benign(FailureType.STORAGE_ERROR))
+    }
+
+    @Test fun videoMetadataUsesLongFieldsForCountsAndDuration() {
+        val video = VideoItem(
+            index = 1,
+            videoId = "abc",
+            title = "Video",
+            durationSec = 60,
+            availableSubs = emptyList(),
+            viewCount = 9_000_000_000L,
+            durationSeconds = 3_600L,
+            likeCount = 8_000_000_000L
+        )
+        assertEquals(9_000_000_000L, video.viewCount)
+        assertEquals(3_600L, video.durationSeconds)
+        assertEquals(8_000_000_000L, video.likeCount)
+    }
+
     @Test fun governorRuntimeInstanceIsShared() {
         assertTrue(RequestGovernor.runtime() === RequestGovernor.runtime())
     }
