@@ -204,7 +204,7 @@ class DownloadOrchestrator(
                     )
                 }
                 database.runtimeLogDao().insert(
-                    RuntimeLogEntity(System.currentTimeMillis(), "INFO", "TASK", null, null, "task cancelled")
+                    RuntimeLogEntity(timestamp = System.currentTimeMillis(), level = "INFO", category = "TASK", lane = null, operation = null, message = "task cancelled")
                 )
                 publish(DownloadState.Cancelled(savedNow, finalLogs))
                 return
