@@ -102,13 +102,15 @@ class DownloadOrchestrator(
                 saved += filesSaved
                 if (wasSkipped) skipped++
                 completed++
-                val elapsed = System.currentTimeMillis() - startedAt
+                val elapsedMs = System.currentTimeMillis() - startedAt
                 val remaining = (selected.size - completed).coerceAtLeast(0)
                 if (completed > 0 && remaining > 0) {
-                    val observedPerVideo = elapsed.toDouble() / completed
-                    val currentPacingMs = pacer.estimatedDelayMs(RequestLane.SUBTITLE_EXTRACTOR)
-                    val pacingAdjustment = currentPacingMs * 2.0 * remaining / concurrency.coerceAtLeast(1)
-                    ((observedPerVideo * remaining) + pacingAdjustment).toLong().coerceAtLeast(0)
+                    // The observed wall-clock rate already includes pacing, retries and actual
+                    // subtitle/extractor latency. Do not add a second synthetic pacing term.
+                    // Round up so a non-zero remaining workload never displays 0 seconds.
+                    kotlin.math.ceil(
+                        (elapsedMs.toDouble() / completed) * remaining / 1000.0
+                    ).toLong().coerceAtLeast(1)
                 } else null
             }
         }
