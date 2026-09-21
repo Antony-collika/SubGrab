@@ -88,11 +88,25 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
 
         setForeground(createForegroundInfo("Đang chuẩn bị tải phụ đề", null, false))
         var finalState: DownloadState = DownloadState.Idle
-        orchestrator.start(task.source, task.videos, task.folder, task.config) { state ->
-            finalState = state
-            val progress = state.toData(task.taskIndex, task.totalTasks)
-            setProgress(progress)
-            setForeground(createForegroundInfo(state.notificationText(), state.progressPair(), state is DownloadState.Paused))
+        try {
+            orchestrator.start(task.source, task.videos, task.folder, task.config) { state ->
+                finalState = state
+                val progress = state.toData(task.taskIndex, task.totalTasks)
+                setProgress(progress)
+                setForeground(createForegroundInfo(state.notificationText(), state.progressPair(), state is DownloadState.Paused))
+            }
+        } catch (error: CancellationException) {
+            runtimeDb.runtimeLogDao().insert(
+                com.subgrab.app.data.RuntimeLogEntity(
+                    timestamp = System.currentTimeMillis(),
+                    level = "INFO",
+                    category = "TASK",
+                    lane = null,
+                    operation = null,
+                    message = "worker cancellation requested index=" + task.taskIndex + "/" + task.totalTasks
+                )
+            )
+            throw error
         }
 
         runtimeDb.runtimeLogDao().insert(
