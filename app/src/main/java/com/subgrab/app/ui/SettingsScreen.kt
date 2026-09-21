@@ -11,7 +11,11 @@ import com.subgrab.app.domain.*
 import kotlinx.coroutines.launch
 @Composable fun SettingsScreen(repository:SettingsRepository,onBack:()->Unit,onDiagnostics:()->Unit={}){
  val scope=rememberCoroutineScope();val stored by repository.settings.collectAsState(initial=AppSettings());var value by remember(stored){mutableStateOf(stored)}
- fun save(v:AppSettings){value=v;scope.launch{repository.update(v)}}
+ fun save(v:AppSettings){
+  if(v.subtitleBaseDelayMs<0L||v.apiBaseDelayMs<0L||v.subtitleJitterMinMs<0L||v.subtitleJitterMaxMs<v.subtitleJitterMinMs||v.apiJitterMinMs<0L||v.apiJitterMaxMs<v.apiJitterMinMs||v.subtitleConcurrency<1)return
+  value=v
+  scope.launch{repository.update(v)}
+ }
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   Text("Thiết lập phụ đề và thư mục tải xuống",style=MaterialTheme.typography.bodyMedium)
   Text("Ngôn ngữ phụ đề",style=MaterialTheme.typography.titleMedium)
@@ -39,7 +43,13 @@ import kotlinx.coroutines.launch
  NumberField("BaseDelay",base,setBase);NumberField("Jitter min",jmin,setMin);NumberField("Jitter max",jmax,setMax)
  concurrency?.let { NumberField("Concurrency", it.toLong(), { setConcurrency(it.toInt()) }) }
 }
-@Composable private fun NumberField(label:String,value:Long,onChange:(Long)->Unit){OutlinedTextField(value=if(value==0L)"" else value.toString(),onValueChange={it.toLongOrNull()?.takeIf{n->n>=0}?.let(onChange)},label={Text(label)},singleLine=true,modifier=Modifier.fillMaxWidth())}
+@Composable private fun NumberField(label:String,value:Long,onChange:(Long)->Unit){
+ var text by remember(value){mutableStateOf(if(value==0L)"" else value.toString())}
+ OutlinedTextField(value=text,onValueChange={input->
+  if(input.isEmpty()){text="";onChange(0L)}
+  else if(input.all(Char::isDigit)){input.toLongOrNull()?.let{n->{text=input;onChange(n)}}}
+ },label={Text(label)},singleLine=true,modifier=Modifier.fillMaxWidth())
+}
 @Composable private fun LanguageToggle(label:String,code:String,selected:List<String>,onChange:(List<String>)->Unit){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(label);Checkbox(checked=code in selected,onCheckedChange={checked->val n=if(checked)(selected+code).distinct()else selected-code;if(n.isNotEmpty())onChange(n)})}}
 @Composable private fun TimestampToggle(label:String,mode:SubtitleTimestampMode,selected:SubtitleTimestampMode,onChange:(SubtitleTimestampMode)->Unit){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(label);RadioButton(selected=mode==selected,onClick={onChange(mode)})}}
 @Composable private fun FormatToggle(label:String,format:OutputFormat,selected:Set<OutputFormat>,onChange:(Set<OutputFormat>)->Unit){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(".$label");Checkbox(checked=format in selected,onCheckedChange={checked -> val n=if(checked)selected+format else selected-format;if(n.isNotEmpty())onChange(n)})}}
