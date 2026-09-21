@@ -14,6 +14,8 @@ import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExt
 import org.schabi.newpipe.extractor.stream.StreamExtractor
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class NewPipeExtractorClient(
     context: Context,
@@ -21,6 +23,7 @@ class NewPipeExtractorClient(
 ) {
     private val poTokenProvider = NewPipePoTokenProvider(context.applicationContext, downloader)
     private val fetchedSubtitleExtractors = ConcurrentHashMap<String, StreamExtractor>()
+    private val subtitleFetchLocks = ConcurrentHashMap<String, Mutex>()
 
     init {
         synchronized(NewPipeExtractorClient::class.java) {
@@ -99,15 +102,20 @@ class NewPipeExtractorClient(
             }
         }
 
-    suspend fun fetchSubtitleExtractor(videoUrl: String): StreamExtractor =
-        fetchedSubtitleExtractors[videoUrl] ?: run {
-            val extractor = streamExtractor(videoUrl)
-            downloader.withRequestContext(RequestLane.SUBTITLE_EXTRACTOR, "subtitle.fetch") {
-                extractor.fetchPage()
+    suspend fun fetchSubtitleExtractor(videoUrl: String): StreamExtractor {
+        fetchedSubtitleExtractors[videoUrl]?.let { return it }
+        val lock = subtitleFetchLocks.computeIfAbsent(videoUrl) { Mutex() }
+        return lock.withLock {
+            fetchedSubtitleExtractors[videoUrl] ?: run {
+                val extractor = streamExtractor(videoUrl)
+                downloader.withRequestContext(RequestLane.SUBTITLE_EXTRACTOR, "subtitle.fetch") {
+                    extractor.fetchPage()
+                }
+                fetchedSubtitleExtractors[videoUrl] = extractor
+                extractor
             }
-            fetchedSubtitleExtractors.putIfAbsent(videoUrl, extractor)
-            fetchedSubtitleExtractors[videoUrl] ?: extractor
         }
+    }
 
     fun streamExtractor(videoUrl: String): StreamExtractor =
         NewPipe.getServiceByUrl(videoUrl).getStreamExtractor(videoUrl)
