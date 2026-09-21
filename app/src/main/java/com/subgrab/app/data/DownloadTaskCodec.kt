@@ -54,6 +54,9 @@ object DownloadTaskCodec {
                 put("checked", video.subtitleChecked)
                 put("channelTitle", video.channelTitle)
                 put("publishedAt", video.publishedAt)
+                video.description?.let { put("description", it) }
+                video.durationSeconds?.let { put("durationSeconds", it) }
+                video.likeCount?.let { put("likeCount", it) }
                 video.viewCount?.let { put("viewCount", it) }
                 put("thumbnailUrl", video.thumbnailUrl)
                 put("subs", subs)
@@ -103,7 +106,10 @@ object DownloadTaskCodec {
                 channelTitle = json.optString("channelTitle"),
                 publishedAt = json.optString("publishedAt"),
                 viewCount = if (json.has("viewCount")) json.getLong("viewCount") else null,
-                thumbnailUrl = json.optString("thumbnailUrl")
+                thumbnailUrl = json.optString("thumbnailUrl"),
+                description = json.optString("description").takeIf { it.isNotEmpty() },
+                durationSeconds = if (json.has("durationSeconds")) json.getLong("durationSeconds") else null,
+                likeCount = if (json.has("likeCount")) json.getLong("likeCount") else null
             )
         }
         return Task(source, videos, root.getString("folder"), config, root.optInt("taskIndex",1), root.optInt("totalTasks",1))
