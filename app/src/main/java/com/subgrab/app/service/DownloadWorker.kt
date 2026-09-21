@@ -66,7 +66,7 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
 
         val settings = SettingsRepository(applicationContext)
         val database = SubGrabDatabase.get(applicationContext)
-        val pacer = RequestPacer(settings, RequestGovernor(), database)
+        val pacer = RequestPacer(settings, RequestGovernor.runtime(), database)
         val downloader = NewPipeDownloader(pacer)
         val extractorClient = runCatching {
             NewPipeExtractorClient(applicationContext, downloader)
@@ -81,7 +81,8 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             FileStorage(applicationContext),
             history,
             control,
-            database
+            database,
+            pacer
         )
 
         setForeground(createForegroundInfo("Đang chuẩn bị tải phụ đề", null, false))
