@@ -84,7 +84,7 @@ class RequestPacer(
         }
     }
 
-    fun estimatedDelayMs(lane: RequestLane): Long {
+    suspend fun estimatedDelayMs(lane: RequestLane): Long {
         val s = settings.current()
         val api = lane == RequestLane.DISCOVERY_API || lane == RequestLane.API_METADATA
         val base = if (api) s.apiBaseDelayMs else s.subtitleBaseDelayMs
