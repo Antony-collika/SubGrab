@@ -26,7 +26,8 @@ class DownloadViewModel(
  private val _state=MutableStateFlow<AnalysisState>(AnalysisState.Idle);val state:StateFlow<AnalysisState> = _state.asStateFlow()
  private val control=DownloadControlStore(context.applicationContext);private val workManager=WorkManager.getInstance(context.applicationContext)
  val downloadState:StateFlow<DownloadState> =workManager.getWorkInfosForUniqueWorkFlow(DownloadWorker.UNIQUE_WORK).map{infos->
-  infos.firstOrNull()?.let{w->
+  val work=infos.firstOrNull{!it.state.isFinished} ?: infos.firstOrNull()
+  work?.let{w->
    val state=w.toDownloadState(if(w.state.isFinished)w.outputData else w.progress)
    if(!w.state.isFinished && state is DownloadState.Idle) DownloadState.Running(0,1,"Đang chuẩn bị tải phụ đề",0,0, emptyList())
    else state
