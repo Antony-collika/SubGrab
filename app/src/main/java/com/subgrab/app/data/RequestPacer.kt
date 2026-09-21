@@ -87,11 +87,32 @@ class RequestPacer(
     suspend fun estimatedDelayMs(lane: RequestLane): Long {
         val s = settings.current()
         val api = lane == RequestLane.DISCOVERY_API || lane == RequestLane.API_METADATA
-        val base = if (api) s.apiBaseDelayMs else s.subtitleBaseDelayMs
-        val mode = if (api) s.apiDelayMode else s.subtitleDelayMode
-        val min = if (api) s.apiJitterMinMs else s.subtitleJitterMinMs
-        val max = if (api) s.apiJitterMaxMs else s.subtitleJitterMaxMs
-        val jitter = if (mode == "AUTO" && max >= min) (min + max) / 2 else 0L
+        val subtitle = lane == RequestLane.SUBTITLE_EXTRACTOR
+        val base = when {
+            api -> s.apiBaseDelayMs
+            subtitle -> s.subtitleBaseDelayMs
+            else -> 0L
+        }
+        val mode = when {
+            api -> s.apiDelayMode
+            subtitle -> s.subtitleDelayMode
+            else -> "NONE"
+        }
+        val min = when {
+            api -> s.apiJitterMinMs
+            subtitle -> s.subtitleJitterMinMs
+            else -> 0L
+        }
+        val max = when {
+            api -> s.apiJitterMaxMs
+            subtitle -> s.subtitleJitterMaxMs
+            else -> 0L
+        }
+        val jitter = if (mode == "AUTO" && max >= min && max > 0L) {
+            Random.nextLong(min, max + 1L)
+        } else {
+            0L
+        }
         return base + jitter + governor.delay(lane)
     }
 
