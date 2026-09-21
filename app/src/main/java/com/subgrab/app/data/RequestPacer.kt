@@ -9,6 +9,8 @@ import kotlinx.coroutines.delay
 import kotlin.random.Random
 import org.schabi.newpipe.extractor.downloader.Response
 
+data class PacedHttpResult<T>(val value: T, val status: Int, val errorBody: String = "")
+
 class RequestPacer(
     private val settings: SettingsRepository,
     private val governor: RequestGovernor,
@@ -35,11 +37,13 @@ class RequestPacer(
             try {
                 val value = block()
                 val response = value as? Response
-                val status = response?.responseCode()
+                val pacedResponse = value as? PacedHttpResult<*>
+                val status = response?.responseCode() ?: pacedResponse?.status
+                val errorBody = response?.responseBody().orEmpty().ifBlank { pacedResponse?.errorBody.orEmpty() }
                 val success = status == null || status in 200..299
                 val failureType = if (success) null else FailureClassifier.classify(
                     status,
-                    HttpFailure(status ?: 0, response?.responseBody().orEmpty())
+                    HttpFailure(status ?: 0, errorBody)
                 )
                 val result = RequestResult(
                     success = success,
@@ -59,7 +63,7 @@ class RequestPacer(
                         attempt++
                         continue
                     }
-                    throw RecordedHttpFailure(status ?: 0, response?.responseBody().orEmpty())
+                    throw RecordedHttpFailure(status ?: 0, errorBody)
                 }
                 return value
             } catch (t: Throwable) {
