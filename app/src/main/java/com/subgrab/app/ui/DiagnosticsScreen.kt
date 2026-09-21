@@ -16,6 +16,13 @@ import kotlinx.coroutines.launch
  Column(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){Button(onClick={refresh()},modifier=Modifier.weight(1f)){Text("Làm mới")};OutlinedButton(onClick=onBack,modifier=Modifier.weight(1f)){Text("Quay lại")}}
   LazyColumn(Modifier.fillMaxWidth().weight(1f),verticalArrangement=Arrangement.spacedBy(8.dp)){
+   item{
+    Text("Governor",style=MaterialTheme.typography.titleLarge)
+    val governor = RequestGovernor.runtime()
+    RequestLane.entries.forEach { lane ->
+     Text("${lane.name}: state=${governor.state(lane)}, delay=${governor.delay(lane)}ms")
+    }
+   }
    item{Text("Request metrics",style=MaterialTheme.typography.titleLarge)}
    items(RequestLane.entries){lane->
     val rows=metrics.filter{it.lane==lane.name};val d=rows.map{it.durationMs}.sorted()
