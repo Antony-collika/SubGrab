@@ -9,6 +9,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -137,9 +138,11 @@ class DownloadOrchestrator(
                 }
                 if (subtitleResult.isFailure) {
                     val error = subtitleResult.exceptionOrNull()
+                    val failureType = (error as? SubtitleFailure)?.type
+                        ?: FailureClassifier.classify((error as? HttpFailure)?.status, error)
                     val message = "❌ " + video.title + ": kiểm tra phụ đề thất bại: " + (error?.message ?: "không rõ lỗi")
                     log(message)
-                    val eta = markCompleted(0, true)
+                    val eta = markCompleted(0, FailureClassifier.benign(failureType))
                     val (savedNow, skippedNow, logSnapshot) = progress()
                     publish(DownloadState.Running(completed, selected.size, video.title, savedNow, skippedNow, logSnapshot, eta))
                     return
@@ -172,9 +175,11 @@ class DownloadOrchestrator(
                 publish(DownloadState.Running(completed, selected.size, video.title, savedNow, skippedNow, logSnapshot, eta))
             } else {
                 val error = downloadResult.exceptionOrNull()
+                val failureType = (error as? SubtitleFailure)?.type
+                    ?: FailureClassifier.classify((error as? HttpFailure)?.status, error)
                 val message = "❌ " + video.title + ": " + (error?.message ?: "tải phụ đề thất bại")
                 log(message)
-                val eta = markCompleted(0, true)
+                val eta = markCompleted(0, FailureClassifier.benign(failureType))
                 val (savedNow, skippedNow, logSnapshot) = progress()
                 publish(DownloadState.Running(completed, selected.size, video.title, savedNow, skippedNow, logSnapshot, eta))
             }
@@ -223,6 +228,19 @@ class DownloadOrchestrator(
             )
             publish(DownloadState.Done(savedNow, skippedNow, finalLogs))
         } catch (error: Throwable) {
+            if (error is CancellationException) {
+                database.runtimeLogDao().insert(
+                    RuntimeLogEntity(
+                        timestamp = System.currentTimeMillis(),
+                        level = "INFO",
+                        category = "TASK",
+                        lane = null,
+                        operation = null,
+                        message = "task cancellation requested"
+                    )
+                )
+                throw error
+            }
             val (savedNow, skippedNow, _) = progress()
             val message = error.message ?: error::class.java.simpleName
             log("❌ Tác vụ thất bại: " + message)
