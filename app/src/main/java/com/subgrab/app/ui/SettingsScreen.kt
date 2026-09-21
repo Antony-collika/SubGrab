@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 @Composable fun SettingsScreen(repository:SettingsRepository,onBack:()->Unit,onDiagnostics:()->Unit={}){
  val scope=rememberCoroutineScope();val stored by repository.settings.collectAsState(initial=AppSettings());var value by remember(stored){mutableStateOf(stored)}
  fun save(v:AppSettings){
-  if(v.subtitleBaseDelayMs<0L||v.apiBaseDelayMs<0L||v.subtitleJitterMinMs<0L||v.subtitleJitterMaxMs<v.subtitleJitterMinMs||v.apiJitterMinMs<0L||v.apiJitterMaxMs<v.apiJitterMinMs||v.subtitleConcurrency<1)return
+  if(v.subtitleBaseDelayMs<0L||v.apiBaseDelayMs<0L||v.subtitleJitterMinMs<0L||v.subtitleJitterMaxMs<v.subtitleJitterMinMs||v.apiJitterMinMs<0L||v.apiJitterMaxMs<v.apiJitterMinMs||v.subtitleConcurrency<1||v.maxSubtitlesPerTask !in 1..50)return
   value=v
   scope.launch{repository.update(v)}
  }
@@ -27,6 +27,9 @@ import kotlinx.coroutines.launch
   Text("YouTube Data API",style=MaterialTheme.typography.titleMedium)
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("Bật API");Switch(checked=value.useYouTubeDataApi,onCheckedChange={save(value.copy(useYouTubeDataApi=it))})}
   OutlinedTextField(value=value.youtubeDataApiKey,onValueChange={save(value.copy(youtubeDataApiKey=it))},label={Text("YouTube Data API key")},singleLine=true,modifier=Modifier.fillMaxWidth())
+  Text("Giới hạn task",style=MaterialTheme.typography.titleMedium)
+  NumberField("Số subtitle tối đa trong 1 task",value.maxSubtitlesPerTask.toLong(),{save(value.copy(maxSubtitlesPerTask=it.toInt().coerceIn(1,50)))})
+  Text("Mỗi task xử lý tối đa số video này; các video còn lại sẽ chờ task kế tiếp.",style=MaterialTheme.typography.bodySmall)
   PacingSection("Subtitle Requests",value.subtitleDelayMode,value.subtitleBaseDelayMs,value.subtitleJitterMinMs,value.subtitleJitterMaxMs,value.subtitleConcurrency,
    {save(value.copy(subtitleDelayMode=it))},{save(value.copy(subtitleBaseDelayMs=it))},{save(value.copy(subtitleJitterMinMs=it))},{save(value.copy(subtitleJitterMaxMs=it))},{save(value.copy(subtitleConcurrency=it.coerceAtLeast(1)))},true)
   PacingSection("API Requests",value.apiDelayMode,value.apiBaseDelayMs,value.apiJitterMinMs,value.apiJitterMaxMs,null,
