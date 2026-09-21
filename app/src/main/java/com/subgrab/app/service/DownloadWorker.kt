@@ -23,6 +23,7 @@ import com.subgrab.app.data.DownloadControlStore
 import com.subgrab.app.data.DownloadOrchestrator
 import com.subgrab.app.data.DownloadState
 import com.subgrab.app.data.DownloadTaskCodec
+import com.subgrab.app.data.DownloadTaskPlanner
 import com.subgrab.app.data.DownloadTaskStore
 import com.subgrab.app.data.FileStorage
 import com.subgrab.app.data.HistoryRepository
