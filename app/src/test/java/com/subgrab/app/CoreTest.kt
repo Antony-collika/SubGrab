@@ -150,8 +150,9 @@ class CoreTest {
         assertTrue(com.subgrab.app.data.DiscoveryClient::class.java.methods.any { it.name == "discoverVideo" })
     }
 
-    @Test fun downloadConfigDefaultsToSingleSubtitleWorker() {
+    @Test fun downloadConfigDefaultsToSingleSubtitleWorkerAndTenVideosPerTask() {
         assertEquals(1, DownloadConfig().subtitleConcurrency)
+        assertEquals(10, DownloadConfig().maxSubtitlesPerTask)
     }
     @Test fun governorNeedsTwoNegativeFailuresToEnterSlowdown() {
         val governor = RequestGovernor()
@@ -165,16 +166,16 @@ class CoreTest {
         assertEquals(1500L, governor.delay(lane))
     }
 
-    @Test fun taskPlannerSplitsAtTenAndCapsAtFifty() {
+    @Test fun taskPlannerUsesConfiguredTaskSizeAndCapsAtFifty() {
         fun videos(count: Int) = (1..count).map {
             VideoItem(it, "id$it", "Video $it", 60, listOf(SubtitleLanguage("vi")), isSelected = true)
         }
 
         assertEquals(listOf(10), DownloadTaskPlanner.plan(videos(10)).map { it.size })
         assertEquals(listOf(10, 1), DownloadTaskPlanner.plan(videos(11)).map { it.size })
-        assertEquals(listOf(10, 10), DownloadTaskPlanner.plan(videos(20)).map { it.size })
-        assertEquals(listOf(10, 10, 1), DownloadTaskPlanner.plan(videos(21)).map { it.size })
-        assertEquals(listOf(10, 10, 10, 10, 10), DownloadTaskPlanner.plan(videos(60)).map { it.size })
+        assertEquals(listOf(5, 5, 1), DownloadTaskPlanner.plan(videos(11), 5).map { it.size })
+        assertEquals(listOf(20, 20, 10), DownloadTaskPlanner.plan(videos(60), 20).map { it.size })
+        assertEquals(listOf(10, 10, 10, 10, 10), DownloadTaskPlanner.plan(videos(60), 10).map { it.size })
     }
 
     @Test fun benignFailuresAreRecognized() {
