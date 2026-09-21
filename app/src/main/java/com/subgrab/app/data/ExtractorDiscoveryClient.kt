@@ -13,4 +13,7 @@ class ExtractorDiscoveryClient(
 
     override suspend fun discoverVideo(source: String): List<VideoItem> =
         extractor.extractSource(source).getOrThrow().second.take(50)
+
+    override suspend fun discoverChannel(source: String): List<VideoItem> =
+        extractor.extractSource(source).getOrThrow().second.take(50)
 }

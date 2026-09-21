@@ -23,6 +23,18 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
   val ids=buildList{val a=json.optJSONArray("items")?:return@buildList;for(i in 0 until a.length())a.optJSONObject(i)?.optString("videoId")?.takeIf{it.isNotBlank()}?.let(::add)}
   return getVideoMetadata(ids)
  }
+ suspend fun listChannelUploads(source:String):List<VideoItem>{
+  val uri=Uri.parse(source)
+  val channelParams=when {
+   uri.pathSegments.any{it.equals("channel",true)} -> mapOf("part" to "contentDetails","id" to (uri.pathSegments.lastOrNull() ?: error("Không tìm thấy channel id")))
+   uri.pathSegments.any{it.startsWith("@") } -> mapOf("part" to "contentDetails","forHandle" to (uri.pathSegments.lastOrNull() ?: error("Không tìm thấy channel handle")))
+   else -> error("URL channel chưa được API hỗ trợ")
+  }
+  val channelJson=get("channels",channelParams)
+  val uploads=channelJson.optJSONArray("items")?.optJSONObject(0)?.optJSONObject("contentDetails")?.optJSONObject("relatedPlaylists")?.optString("uploads").orEmpty()
+  require(uploads.isNotBlank()) { "Không tìm thấy uploads playlist của channel" }
+  return listPlaylistItems("https://www.youtube.com/playlist?list=$uploads")
+ }
  suspend fun listPlaylistItems(source:String):List<VideoItem>{
   val id=Uri.parse(source).getQueryParameter("list")?:Regex("[?&]list=([^&]+)").find(source)?.groupValues?.get(1) ?: error("Không tìm thấy playlist id")
   val json=get("playlistItems",mapOf("part" to "snippet","maxResults" to "50","playlistId" to id))
