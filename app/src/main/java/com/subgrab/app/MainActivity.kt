@@ -361,7 +361,7 @@ private fun DownloadProgressCard(state: DownloadState, vm: DownloadViewModel) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             when (state) {
                 is DownloadState.Running -> {
-                    Text("Đang tải ${state.current}/${state.total}", style = MaterialTheme.typography.titleMedium)
+                    Text("Task ${state.taskIndex}/${state.totalTasks} · Đang tải ${state.current}/${state.total}", style = MaterialTheme.typography.titleMedium)
                     Text(state.title)
                     LinearProgressIndicator(
                         progress = { state.current.toFloat() / state.total.coerceAtLeast(1) },
@@ -374,7 +374,7 @@ private fun DownloadProgressCard(state: DownloadState, vm: DownloadViewModel) {
                     }
                 }
                 is DownloadState.Paused -> {
-                    Text("Đã tạm dừng ${state.current}/${state.total}", style = MaterialTheme.typography.titleMedium)
+                    Text("Task ${state.taskIndex}/${state.totalTasks} · Đã tạm dừng ${state.current}/${state.total}", style = MaterialTheme.typography.titleMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = vm::resumeDownload) { Text("Tiếp tục") }
                         OutlinedButton(onClick = vm::cancelDownload) { Text("Hủy") }
@@ -383,12 +383,20 @@ private fun DownloadProgressCard(state: DownloadState, vm: DownloadViewModel) {
                 is DownloadState.Done -> {
                     Text("Hoàn tất task: ${state.saved} file, bỏ qua ${state.skipped}", color = MaterialTheme.colorScheme.primary)
                     state.logs.takeLast(8).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
-                    Button(onClick = vm::continueNextTask, modifier = Modifier.fillMaxWidth()) { Text("TIẾP TỤC TASK KẾ TIẾP") }
+                    if (state.taskIndex < state.totalTasks) { Button(onClick = vm::continueNextTask, modifier = Modifier.fillMaxWidth()) { Text("TIẾP TỤC TASK KẾ TIẾP") } }
                 }
                 is DownloadState.Cancelled -> {
                     Text("Đã hủy task: ${state.saved} file đã lưu", color = MaterialTheme.colorScheme.error)
                     state.logs.takeLast(8).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
                     Button(onClick = vm::continueNextTask, modifier = Modifier.fillMaxWidth()) { Text("TIẾP TỤC TASK KẾ TIẾP") }
+                }
+                is DownloadState.Error -> {
+                    Text("Task ${state.taskIndex}/${state.totalTasks} thất bại", color = MaterialTheme.colorScheme.error)
+                    Text(state.message)
+                    state.logs.takeLast(8).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    if (state.taskIndex < state.totalTasks) {
+                        Button(onClick = vm::continueNextTask, modifier = Modifier.fillMaxWidth()) { Text("TIẾP TỤC TASK KẾ TIẾP") }
+                    }
                 }
                 else -> Text("Đang chuẩn bị tải")
             }
