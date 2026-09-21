@@ -139,7 +139,7 @@ class CoreTest {
 
     @Test fun taskPlannerSplitsAtTenAndCapsAtFifty() {
         fun videos(count: Int) = (1..count).map {
-            VideoItem(it, "id$it", "Video $it", 60, listOf(SubtitleLanguage("vi")))
+            VideoItem(it, "id$it", "Video $it", 60, listOf(SubtitleLanguage("vi")), isSelected = true)
         }
 
         assertEquals(listOf(10), DownloadTaskPlanner.plan(videos(10)).map { it.size })
