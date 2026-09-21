@@ -1,4 +1,7 @@
 package com.subgrab.app.ui
+import android.provider.DocumentsContract
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -11,6 +14,11 @@ import com.subgrab.app.domain.*
 import kotlinx.coroutines.launch
 @Composable fun SettingsScreen(repository:SettingsRepository,onBack:()->Unit,onDiagnostics:()->Unit={}){
  val scope=rememberCoroutineScope();val stored by repository.settings.collectAsState(initial=AppSettings());var value by remember(stored){mutableStateOf(stored)}
+ val folderPicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()){uri->
+  val documentId=uri?.let{runCatching{DocumentsContract.getTreeDocumentId(it)}.getOrNull()}
+  val relative=documentId?.removePrefix("primary:")
+  if(relative=="Download"||relative?.startsWith("Download/")==true){save(value.copy(outputDir=relative))}
+ }
  fun save(v:AppSettings){
   if(v.subtitleBaseDelayMs<0L||v.apiBaseDelayMs<0L||v.subtitleJitterMinMs<0L||v.subtitleJitterMaxMs<v.subtitleJitterMinMs||v.apiJitterMinMs<0L||v.apiJitterMaxMs<v.apiJitterMinMs||v.subtitleConcurrency<1||v.maxSubtitlesPerTask !in 1..50)return
   value=v
@@ -35,7 +43,15 @@ import kotlinx.coroutines.launch
   PacingSection("API Requests",value.apiDelayMode,value.apiBaseDelayMs,value.apiJitterMinMs,value.apiJitterMaxMs,null,
    {save(value.copy(apiDelayMode=it))},{save(value.copy(apiBaseDelayMs=it))},{save(value.copy(apiJitterMinMs=it))},{save(value.copy(apiJitterMaxMs=it))},{},false)
   HorizontalDivider()
-  OutlinedTextField(value=value.outputDir,onValueChange={save(value.copy(outputDir=it))},label={Text("Thư mục trong Downloads")},singleLine=true,modifier=Modifier.fillMaxWidth())
+  Text("Thư mục lưu kết quả",style=MaterialTheme.typography.titleMedium)
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+   OutlinedTextField(value=value.outputDir,readOnly=true,onValueChange={},label={Text("Thư mục trong Downloads")},modifier=Modifier.weight(1f))
+   Button(onClick={
+    val initial=DocumentsContract.buildTreeDocumentUri("com.android.externalstorage.documents","primary:Download")
+    folderPicker.launch(initial)
+   }){Text("Chọn thư mục")}
+  }
+  Text("Thư mục được chọn bên trong Download; ví dụ Download/Subtitles.",style=MaterialTheme.typography.bodySmall)
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("Ưu tiên phụ đề chính thức");Switch(checked=value.preferManualSub,onCheckedChange={save(value.copy(preferManualSub=it))})}
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("Bỏ qua video không có sub");Switch(checked=value.skipNoSub,onCheckedChange={save(value.copy(skipNoSub=it))})}
  }
