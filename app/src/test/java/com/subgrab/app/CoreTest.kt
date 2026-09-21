@@ -3,6 +3,7 @@ package com.subgrab.app
 import com.subgrab.app.data.SubtitleFormatter
 import com.subgrab.app.data.FailureClassifier
 import com.subgrab.app.data.RequestGovernor
+import com.subgrab.app.data.DownloadTaskPlanner
 import com.subgrab.app.domain.FailureType
 import com.subgrab.app.domain.RequestLane
 import com.subgrab.app.domain.RequestResult
