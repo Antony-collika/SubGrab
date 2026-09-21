@@ -44,7 +44,8 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
     private val taskStore = DownloadTaskStore(appContext)
 
     override suspend fun doWork(): Result {
-        val taskId = inputData.getString(KEY_TASK_ID)
+        val inputTaskId = inputData.getString(KEY_TASK_ID)
+        val taskId = inputTaskId ?: taskStore.currentId()
         val encoded = taskId?.let(taskStore::load) ?: inputData.getString(KEY_TASK)
         if (encoded.isNullOrBlank()) {
             SubGrabDatabase.get(applicationContext).runtimeLogDao().insert(
@@ -281,17 +282,19 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
 
         suspend fun enqueueBatch(context: Context, source: com.subgrab.app.domain.Source, videos: List<com.subgrab.app.domain.VideoItem>, folder: String, config: com.subgrab.app.domain.DownloadConfig) {
             DownloadControlStore(context).reset()
-            val groups = DownloadTaskPlanner.plan(videos)
+            val groups = DownloadTaskPlanner.plan(videos, config.maxSubtitlesPerTask)
             val store = DownloadTaskStore(context)
             val ids = groups.mapIndexed { index, group ->
                 store.save(DownloadTaskCodec.encode(source, group, folder, config, index + 1, groups.size), index + 1, groups.size)
             }
+            store.setCurrent(ids.first())
             enqueueTaskId(context, ids.first())
         }
 
         suspend fun enqueueNext(context: Context): Boolean {
             val store = DownloadTaskStore(context)
             val id = store.pendingIds().firstOrNull() ?: return false
+            store.setCurrent(id)
             DownloadControlStore(context).reset()
             enqueueTaskId(context, id)
             return true
