@@ -9,7 +9,11 @@ import java.net.URL
 
 class YouTubeDataApiClient(private val settings:SettingsRepository,private val pacer:RequestPacer){
  private suspend fun get(path:String,params:Map<String,String>):JSONObject=withContext(Dispatchers.IO){
-  val key=settings.current().youtubeDataApiKey.trim();require(key.isNotEmpty()){"YouTube Data API đã bật nhưng API key đang trống"}
+  val key=settings.current().youtubeDataApiKey.trim()
+  if(key.isEmpty()) {
+   pacer.logConfigurationError(RequestOperation(if(path=="search" || path=="playlistItems") RequestLane.DISCOVERY_API else RequestLane.API_METADATA, path, "https://www.googleapis.com/youtube/v3/$path"), "YouTube Data API đã bật nhưng API key đang trống")
+   throw IllegalStateException("YouTube Data API đã bật nhưng API key đang trống")
+  }
   val query=(params+("key" to key)).entries.joinToString("&"){Uri.encode(it.key)+"="+Uri.encode(it.value)}
   val safeUrl="https://www.googleapis.com/youtube/v3/$path"
   pacer.execute(RequestOperation(if(path=="search")RequestLane.DISCOVERY_API else if(path=="playlistItems")RequestLane.DISCOVERY_API else RequestLane.API_METADATA,path,safeUrl)){
