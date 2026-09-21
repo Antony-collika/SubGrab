@@ -106,6 +106,21 @@ class CoreTest {
         assertEquals(FailureType.HTTP_403, FailureClassifier.classify(403, null))
     }
 
+    @Test fun failureClassifierDetectsBotIndicationsIn403Body() {
+        assertEquals(
+            FailureType.BOT_DETECTION,
+            FailureClassifier.classify(403, com.subgrab.app.data.HttpFailure(403, "Sign in to confirm that you're not a bot"))
+        )
+        assertEquals(
+            FailureType.ACCESS_DENIED,
+            FailureClassifier.classify(403, com.subgrab.app.data.HttpFailure(403, "video unavailable"))
+        )
+    }
+
+    @Test fun governorRuntimeInstanceIsShared() {
+        assertTrue(RequestGovernor.runtime() === RequestGovernor.runtime())
+    }
+
     @Test fun downloadConfigDefaultsToSingleSubtitleWorker() {
         assertEquals(1, DownloadConfig().subtitleConcurrency)
     }
