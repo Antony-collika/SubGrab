@@ -28,6 +28,7 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
   val channelParams=when {
    uri.pathSegments.any{it.equals("channel",true)} -> mapOf("part" to "contentDetails","id" to (uri.pathSegments.lastOrNull() ?: error("Không tìm thấy channel id")))
    uri.pathSegments.any{it.startsWith("@") } -> mapOf("part" to "contentDetails","forHandle" to (uri.pathSegments.lastOrNull() ?: error("Không tìm thấy channel handle")))
+   uri.pathSegments.any{it.equals("c",true)} -> mapOf("part" to "contentDetails","forUsername" to (uri.pathSegments.lastOrNull() ?: error("Không tìm thấy channel username")))
    else -> error("URL channel chưa được API hỗ trợ")
   }
   val channelJson=get("channels",channelParams)
