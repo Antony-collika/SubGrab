@@ -122,6 +122,10 @@ class CoreTest {
         assertTrue(RequestGovernor.runtime() === RequestGovernor.runtime())
     }
 
+    @Test fun discoveryClientContractIncludesDirectVideoLane() {
+        assertTrue(com.subgrab.app.data.DiscoveryClient::class.java.methods.any { it.name == "discoverVideo" })
+    }
+
     @Test fun downloadConfigDefaultsToSingleSubtitleWorker() {
         assertEquals(1, DownloadConfig().subtitleConcurrency)
     }

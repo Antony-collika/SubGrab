@@ -147,7 +147,7 @@ class DownloadOrchestrator(
                 val subs = subtitleResult.getOrThrow()
                 if (subs.isEmpty()) {
                     log("⚠️ " + video.title + ": không tìm thấy phụ đề")
-                    val eta = markCompleted(0, true)
+                    val eta = markCompleted(0, config.skipNoSub)
                     val (savedNow, skippedNow, logSnapshot) = progress()
                     publish(DownloadState.Running(completed, selected.size, video.title, savedNow, skippedNow, logSnapshot, eta))
                     return
@@ -155,7 +155,7 @@ class DownloadOrchestrator(
                 videoToDownload = video.copy(availableSubs = subs, subtitleChecked = true)
             } else if (!video.hasSub) {
                 log("⚠️ " + video.title + ": không có phụ đề")
-                val eta = markCompleted(0, true)
+                val eta = markCompleted(0, config.skipNoSub)
                 val (savedNow, skippedNow, logSnapshot) = progress()
                 publish(DownloadState.Running(completed, selected.size, video.title, savedNow, skippedNow, logSnapshot, eta))
                 return
@@ -203,6 +203,9 @@ class DownloadOrchestrator(
                         )
                     )
                 }
+                database.runtimeLogDao().insert(
+                    RuntimeLogEntity(System.currentTimeMillis(), "INFO", "TASK", null, null, "task cancelled")
+                )
                 publish(DownloadState.Cancelled(savedNow, finalLogs))
                 return
             }

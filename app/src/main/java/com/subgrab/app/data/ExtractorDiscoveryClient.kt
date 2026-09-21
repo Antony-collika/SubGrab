@@ -10,4 +10,7 @@ class ExtractorDiscoveryClient(
 
     override suspend fun discoverKeyword(query: String): List<VideoItem> =
         extractor.search(query).getOrThrow().second.take(50)
+
+    override suspend fun discoverVideo(source: String): List<VideoItem> =
+        extractor.extractSource(source).getOrThrow().second.take(50)
 }
