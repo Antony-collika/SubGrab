@@ -234,8 +234,7 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
 
         suspend fun enqueueBatch(context: Context, source: com.subgrab.app.domain.Source, videos: List<com.subgrab.app.domain.VideoItem>, folder: String, config: com.subgrab.app.domain.DownloadConfig) {
             DownloadControlStore(context).reset()
-            val selected = videos.filter { it.isSelected }.take(50)
-            val groups = selected.chunked(10).ifEmpty { listOf(emptyList()) }
+            val groups = DownloadTaskPlanner.plan(videos)
             val store = DownloadTaskStore(context)
             val ids = groups.mapIndexed { index, group ->
                 store.save(DownloadTaskCodec.encode(source, group, folder, config, index + 1, groups.size), index + 1, groups.size)
