@@ -19,8 +19,8 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
   pacer.execute(RequestOperation(if(path=="search")RequestLane.DISCOVERY_API else if(path=="playlistItems")RequestLane.DISCOVERY_API else RequestLane.API_METADATA,path,safeUrl)){
    val c=(URL("$safeUrl?$query").openConnection() as HttpURLConnection).apply{requestMethod="GET";connectTimeout=15000;readTimeout=30000;setRequestProperty("Accept","application/json")}
    val code=c.responseCode;val body=(if(code in 200..299)c.inputStream else c.errorStream)?.bufferedReader()?.use{it.readText()}.orEmpty()
-   c.disconnect();if(code !in 200..299)throw HttpFailure(code,body.take(500));JSONObject(body)
-  }
+   c.disconnect();if(code !in 200..299)throw HttpFailure(code,body.take(500));PacedHttpResult(JSONObject(body),code)
+  }.value
  }
  suspend fun searchKeyword(query:String):List<VideoItem>{
   val json=get("search",mapOf("part" to "snippet","type" to "video","maxResults" to "50","q" to query))
