@@ -345,8 +345,7 @@ private fun SelectVideoScreen(
             OutlinedButton(onClick = onNewAnalysis, modifier = Modifier.weight(1f)) { Text("Phân tích mới") }
             Button(
                 onClick = {
-                    vm.startDownload(settings)
-                    onDownloadStarted()
+                    vm.startDownload(settings, onDownloadStarted)
                 },
                 enabled = selected > 0 && folderName.isNotBlank() && downloadState !is DownloadState.Running,
                 modifier = Modifier.weight(1f)
