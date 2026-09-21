@@ -35,7 +35,7 @@ import com.subgrab.app.data.SettingsRepository
 import com.subgrab.app.data.SubGrabDatabase
 import com.subgrab.app.data.SubtitleDownloader
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.guava.await
+import androidx.work.await
 import java.util.concurrent.TimeUnit
 
 class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {
