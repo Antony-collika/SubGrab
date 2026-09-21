@@ -46,11 +46,23 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         val taskId = inputData.getString(KEY_TASK_ID)
         val encoded = taskId?.let(taskStore::load) ?: inputData.getString(KEY_TASK)
         if (encoded.isNullOrBlank()) {
+            SubGrabDatabase.get(applicationContext).runtimeLogDao().insert(
+                com.subgrab.app.data.RuntimeLogEntity(
+                    timestamp = System.currentTimeMillis(), level = "ERROR", category = "TASK",
+                    lane = null, operation = null, message = "task input missing"
+                )
+            )
             taskId?.let(taskStore::delete)
             return Result.failure()
         }
 
-        val task = runCatching { DownloadTaskCodec.decode(encoded) }.getOrElse {
+        val task = runCatching { DownloadTaskCodec.decode(encoded) }.getOrElse { error ->
+            SubGrabDatabase.get(applicationContext).runtimeLogDao().insert(
+                com.subgrab.app.data.RuntimeLogEntity(
+                    timestamp = System.currentTimeMillis(), level = "ERROR", category = "TASK",
+                    lane = null, operation = null, message = "task decode failed: " + (error.message ?: error::class.java.simpleName).take(500)
+                )
+            )
             taskId?.let(taskStore::delete)
             return Result.failure()
         }
@@ -72,7 +84,13 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         val downloader = NewPipeDownloader(pacer)
         val extractorClient = runCatching {
             NewPipeExtractorClient(applicationContext, downloader)
-        }.getOrElse {
+        }.getOrElse { error ->
+            database.runtimeLogDao().insert(
+                com.subgrab.app.data.RuntimeLogEntity(
+                    timestamp = System.currentTimeMillis(), level = "ERROR", category = "TASK",
+                    lane = null, operation = null, message = "extractor init failed: " + (error.message ?: error::class.java.simpleName).take(500)
+                )
+            )
             taskId?.let(taskStore::delete)
             return Result.failure()
         }
