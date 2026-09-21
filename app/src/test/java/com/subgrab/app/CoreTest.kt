@@ -124,4 +124,34 @@ class CoreTest {
     @Test fun downloadConfigDefaultsToSingleSubtitleWorker() {
         assertEquals(1, DownloadConfig().subtitleConcurrency)
     }
+    @Test fun governorNeedsTwoNegativeFailuresToEnterSlowdown() {
+        val governor = RequestGovernor()
+        val lane = RequestLane.SUBTITLE_EXTRACTOR
+        val negative = RequestResult(false, 403, 10, FailureType.ACCESS_DENIED)
+
+        assertFalse(governor.observe(lane, negative))
+        assertEquals(GovernorState.NORMAL, governor.state(lane))
+        assertTrue(governor.observe(lane, negative))
+        assertEquals(GovernorState.SLOWDOWN, governor.state(lane))
+        assertEquals(1500L, governor.delay(lane))
+    }
+
+    @Test fun taskPlannerSplitsAtTenAndCapsAtFifty() {
+        fun videos(count: Int) = (1..count).map {
+            VideoItem(it, "id$it", "Video $it", 60, listOf(SubtitleLanguage("vi")))
+        }
+
+        assertEquals(listOf(10), DownloadTaskPlanner.plan(videos(10)).map { it.size })
+        assertEquals(listOf(10, 1), DownloadTaskPlanner.plan(videos(11)).map { it.size })
+        assertEquals(listOf(10, 10), DownloadTaskPlanner.plan(videos(20)).map { it.size })
+        assertEquals(listOf(10, 10, 1), DownloadTaskPlanner.plan(videos(21)).map { it.size })
+        assertEquals(listOf(10, 10, 10, 10, 10), DownloadTaskPlanner.plan(videos(60)).map { it.size })
+    }
+
+    @Test fun benignFailuresAreRecognized() {
+        assertTrue(FailureClassifier.benign(FailureType.NO_SUBTITLE))
+        assertTrue(FailureClassifier.benign(FailureType.LANGUAGE_UNAVAILABLE))
+        assertTrue(FailureClassifier.benign(FailureType.VIDEO_UNAVAILABLE))
+        assertFalse(FailureClassifier.benign(FailureType.ACCESS_DENIED))
+    }
 }
