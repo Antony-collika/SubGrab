@@ -35,6 +35,7 @@ import com.subgrab.app.data.SettingsRepository
 import com.subgrab.app.data.SubGrabDatabase
 import com.subgrab.app.data.SubtitleDownloader
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.guava.await
 import java.util.concurrent.TimeUnit
 
 class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {
@@ -53,7 +54,7 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
                 )
             )
             taskId?.let(taskStore::delete)
-            return Result.failure()
+            return Result.failure(failureData("Không tìm thấy dữ liệu tác vụ tải"))
         }
 
         val task = runCatching { DownloadTaskCodec.decode(encoded) }.getOrElse { error ->
@@ -64,7 +65,7 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
                 )
             )
             taskId?.let(taskStore::delete)
-            return Result.failure()
+            return Result.failure(failureData("Không thể đọc dữ liệu tác vụ tải"))
         }
         val runtimeDb = SubGrabDatabase.get(applicationContext)
         runtimeDb.runtimeLogDao().insert(
@@ -92,7 +93,7 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
                 )
             )
             taskId?.let(taskStore::delete)
-            return Result.failure()
+            return Result.failure(failureData("Không thể khởi tạo bộ tải phụ đề"))
         }
         val subtitleDownloader = SubtitleDownloader(extractorClient, downloader)
         val orchestrator = DownloadOrchestrator(
@@ -144,6 +145,18 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         val resultData = finalState.toData(task.taskIndex, task.totalTasks)
         return if (finalState is DownloadState.Error) Result.failure(resultData) else Result.success(resultData)
     }
+
+    private fun failureData(message: String): Data = Data.Builder()
+        .putInt(KEY_TASK_INDEX, 1)
+        .putInt(KEY_TOTAL_TASKS, 1)
+        .putString(KEY_STATE, "error")
+        .putInt(KEY_CURRENT, 0)
+        .putInt(KEY_TOTAL, 0)
+        .putInt(KEY_SAVED, 0)
+        .putInt(KEY_SKIPPED, 0)
+        .putLong(KEY_ETA, -1L)
+        .putString(KEY_MESSAGE, message)
+        .build()
 
     private fun DownloadState.toData(taskIndex: Int = 1, totalTasks: Int = 1): Data = Data.Builder()
         .putInt(KEY_TASK_INDEX, taskIndex)
@@ -284,14 +297,17 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             return true
         }
 
-        private fun enqueueTaskId(context: Context, taskId: String) {
+        private suspend fun enqueueTaskId(context: Context, taskId: String) {
             val input = Data.Builder().putString(KEY_TASK_ID, taskId).build()
             val request = OneTimeWorkRequest.Builder(DownloadWorker::class.java)
                 .setInputData(input)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
                 .build()
-            WorkManager.getInstance(context).enqueueUniqueWork(UNIQUE_WORK, ExistingWorkPolicy.REPLACE, request)
+            WorkManager.getInstance(context)
+                .enqueueUniqueWork(UNIQUE_WORK, ExistingWorkPolicy.REPLACE, request)
+                .result
+                .await()
         }
     }
 }
