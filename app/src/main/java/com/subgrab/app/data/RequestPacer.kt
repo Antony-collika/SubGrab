@@ -4,6 +4,7 @@ import com.subgrab.app.domain.FailureType
 import com.subgrab.app.domain.RequestLane
 import com.subgrab.app.domain.RequestOperation
 import com.subgrab.app.domain.RequestResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 import org.schabi.newpipe.extractor.downloader.Response
@@ -62,6 +63,7 @@ class RequestPacer(
                 }
                 return value
             } catch (t: Throwable) {
+                if (t is CancellationException) throw t
                 if (t is RecordedHttpFailure) throw t
                 val status = (t as? HttpFailure)?.status
                 val failureType = (t as? SubtitleFailure)?.type
@@ -130,6 +132,19 @@ class RequestPacer(
             FailureType.BOT_DETECTION,
             FailureType.ACCESS_DENIED,
             FailureType.PARSE_ERROR
+        )
+    }
+
+    suspend fun logConfigurationError(operation: RequestOperation, message: String) {
+        database.runtimeLogDao().insert(
+            RuntimeLogEntity(
+                timestamp = System.currentTimeMillis(),
+                level = "ERROR",
+                category = "FAILURE",
+                lane = operation.lane.name,
+                operation = operation.operation,
+                message = message.take(500)
+            )
         )
     }
 
