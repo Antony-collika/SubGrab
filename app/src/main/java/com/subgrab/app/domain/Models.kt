@@ -41,7 +41,8 @@ data class DownloadConfig(
     val skipNoSub: Boolean = true,
     val outputDir: String = "Download/Subtitles",
     val timestampMode: SubtitleTimestampMode = SubtitleTimestampMode.WITH_TIMESTAMP,
-    val subtitleConcurrency: Int = 1
+    val subtitleConcurrency: Int = 1,
+    val maxSubtitlesPerTask: Int = 10
 )
 data class AppSettings(
     val languages: List<String> = listOf("vi", "en"),
@@ -57,6 +58,7 @@ data class AppSettings(
     val subtitleJitterMinMs: Long = 0,
     val subtitleJitterMaxMs: Long = 0,
     val subtitleConcurrency: Int = 1,
+    val maxSubtitlesPerTask: Int = 10,
     val apiDelayMode: String = "NONE",
     val apiBaseDelayMs: Long = 0,
     val apiJitterMinMs: Long = 0,
