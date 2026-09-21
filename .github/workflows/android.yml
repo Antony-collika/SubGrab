@@ -53,7 +53,7 @@ jobs:
       - name: Build release APK
         run: |
           set -e
-          ./gradlew assembleArm64Release
+          ./gradlew assembleArm64Release -PversionCode="$GITHUB_RUN_NUMBER" -PversionName="1.0.$GITHUB_RUN_NUMBER"
           mkdir -p release-assets
           # Git branch names may contain '/', which must not become a path
           # separator when the APK is copied into the artifact directory.
