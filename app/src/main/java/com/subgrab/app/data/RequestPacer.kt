@@ -58,10 +58,11 @@ class RequestPacer(
                         attempt++
                         continue
                     }
-                    throw HttpFailure(status ?: 0, response?.responseBody().orEmpty())
+                    throw RecordedHttpFailure(status ?: 0, response?.responseBody().orEmpty())
                 }
                 return value
             } catch (t: Throwable) {
+                if (t is RecordedHttpFailure) throw t
                 val status = (t as? HttpFailure)?.status
                 val failureType = (t as? SubtitleFailure)?.type
                     ?: FailureClassifier.classify(status, t)
@@ -197,7 +198,9 @@ class RequestPacer(
     }
 }
 
-class HttpFailure(
+open class HttpFailure(
     val status: Int,
     val body: String = ""
 ) : RuntimeException("HTTP " + status)
+
+private class RecordedHttpFailure(status: Int, body: String) : HttpFailure(status, body)
