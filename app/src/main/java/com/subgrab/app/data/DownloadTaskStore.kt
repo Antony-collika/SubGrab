@@ -55,6 +55,6 @@ class DownloadTaskStore(context: Context) {
 
     companion object {
         private val ID_ONLY_PATTERN = Regex("^[0-9a-fA-F-]{36}$")
-        private val ID_PATTERN = Regex("^(?:\d+-\d+-)?([0-9a-fA-F-]{36})\.task$")
+        private val ID_PATTERN = Regex("^(?:[0-9]+-[0-9]+-)?([0-9a-fA-F-]{36})[.]task$")
     }
 }
