@@ -14,15 +14,15 @@ import com.subgrab.app.domain.*
 import kotlinx.coroutines.launch
 @Composable fun SettingsScreen(repository:SettingsRepository,onBack:()->Unit,onDiagnostics:()->Unit={}){
  val scope=rememberCoroutineScope();val stored by repository.settings.collectAsState(initial=AppSettings());var value by remember(stored){mutableStateOf(stored)}
- val folderPicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()){uri->
-  val documentId=uri?.let{runCatching{DocumentsContract.getTreeDocumentId(it)}.getOrNull()}
-  val relative=documentId?.removePrefix("primary:")
-  if(relative=="Download"||relative?.startsWith("Download/")==true){save(value.copy(outputDir=relative))}
- }
  fun save(v:AppSettings){
   if(v.subtitleBaseDelayMs<0L||v.apiBaseDelayMs<0L||v.subtitleJitterMinMs<0L||v.subtitleJitterMaxMs<v.subtitleJitterMinMs||v.apiJitterMinMs<0L||v.apiJitterMaxMs<v.apiJitterMinMs||v.subtitleConcurrency<1||v.maxSubtitlesPerTask !in 1..50)return
   value=v
   scope.launch{repository.update(v)}
+ }
+ val folderPicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()){uri->
+  val documentId=uri?.let{runCatching{DocumentsContract.getTreeDocumentId(it)}.getOrNull()}
+  val relative=documentId?.removePrefix("primary:")
+  if(relative=="Download"||relative?.startsWith("Download/")==true){save(value.copy(outputDir=relative))}
  }
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   Text("Thiết lập phụ đề và thư mục tải xuống",style=MaterialTheme.typography.bodyMedium)
