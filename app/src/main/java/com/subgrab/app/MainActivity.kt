@@ -297,7 +297,7 @@ private fun HomeScreen(
                 }
             }
         }
-        if (downloadState !is DownloadState.Idle) item { DownloadProgressCard(downloadState, vm) }
+        if (downloadState is DownloadState.Running || downloadState is DownloadState.Paused) item { DownloadProgressCard(downloadState, vm) }
         item {
             Text(
                 if (mode) "Tìm kiếm trực tiếp trên YouTube, sau đó trả về danh sách video để bạn chọn."
@@ -340,7 +340,7 @@ private fun SelectVideoScreen(
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             items(videos, key = { it.index }) { video -> VideoRow(video) { vm.toggle(video.index) } }
         }
-        if (downloadState !is DownloadState.Idle) DownloadProgressCard(downloadState, vm)
+        if (downloadState is DownloadState.Running || downloadState is DownloadState.Paused) DownloadProgressCard(downloadState, vm)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = onNewAnalysis, modifier = Modifier.weight(1f)) { Text("Phân tích mới") }
             Button(
