@@ -64,4 +64,4 @@ class DownloadViewModel(
   }
  }
 }
-private fun AppSettings.toDownloadConfig()=DownloadConfig(languages,formats,preferManualSub,skipNoSub,outputDir,timestampMode,subtitleConcurrency)
+private fun AppSettings.toDownloadConfig()=DownloadConfig(languages,formats,preferManualSub,skipNoSub,outputDir,timestampMode,subtitleConcurrency,maxSubtitlesPerTask)
