@@ -51,11 +51,14 @@ class RequestPacer(
                 if (governor.observe(operation.lane, result)) logGovernor(operation, oldDelay)
 
                 val retryable = retryableFailure(failureType)
-                if (!success && retryable != null && attempt < MAX_ATTEMPTS) {
-                    logRetry(operation, attempt, retryable)
-                    delay(RETRY_BASE_DELAY_MS * attempt)
-                    attempt++
-                    continue
+                if (!success) {
+                    if (retryable != null && attempt < MAX_ATTEMPTS) {
+                        logRetry(operation, attempt, retryable)
+                        delay(RETRY_BASE_DELAY_MS * attempt)
+                        attempt++
+                        continue
+                    }
+                    throw HttpFailure(status ?: 0, response?.responseBody().orEmpty())
                 }
                 return value
             } catch (t: Throwable) {
