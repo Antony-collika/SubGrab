@@ -1,5 +1,6 @@
 package com.subgrab.app.data
 
+import com.subgrab.app.domain.FailureType
 import com.subgrab.app.domain.RequestLane
 import com.subgrab.app.domain.RequestOperation
 import com.subgrab.app.domain.RequestResult
@@ -15,26 +16,71 @@ class RequestPacer(
     suspend fun <T> execute(operation: RequestOperation, block: suspend () -> T): T {
         var attempt = 1
         while (true) {
-            val result = executeAttempt(operation, block)
-            if (result.retryableFailure == null || attempt >= MAX_ATTEMPTS) {
-                return result.value
-            }
+            val wait = estimatedDelayMs(operation.lane)
+            if (wait > 0) delay(wait)
 
-            val retryMessage = "retry " + attempt + "/" + MAX_ATTEMPTS +
-                " after " + RETRY_BASE_DELAY_MS * attempt + "ms: " +
-                result.retryableFailure.name
             database.runtimeLogDao().insert(
                 RuntimeLogEntity(
                     timestamp = System.currentTimeMillis(),
                     level = "INFO",
-                    category = "RETRY",
+                    category = "REQUEST",
                     lane = operation.lane.name,
                     operation = operation.operation,
-                    message = retryMessage
+                    message = "request start attempt=" + attempt
                 )
             )
-            delay(RETRY_BASE_DELAY_MS * attempt)
-            attempt++
+
+            val started = System.currentTimeMillis()
+            try {
+                val value = block()
+                val response = value as? Response
+                val status = response?.responseCode()
+                val success = status == null || status in 200..299
+                val failureType = if (success) null else FailureClassifier.classify(
+                    status,
+                    HttpFailure(status ?: 0, response?.responseBody().orEmpty())
+                )
+                val result = RequestResult(
+                    success = success,
+                    httpStatus = status,
+                    durationMs = System.currentTimeMillis() - started,
+                    failureType = failureType
+                )
+                persist(operation, result)
+                val oldDelay = governor.delay(operation.lane)
+                if (governor.observe(operation.lane, result)) logGovernor(operation, oldDelay)
+
+                val retryable = retryableFailure(failureType)
+                if (!success && retryable != null && attempt < MAX_ATTEMPTS) {
+                    logRetry(operation, attempt, retryable)
+                    delay(RETRY_BASE_DELAY_MS * attempt)
+                    attempt++
+                    continue
+                }
+                return value
+            } catch (t: Throwable) {
+                val status = (t as? HttpFailure)?.status
+                val failureType = (t as? SubtitleFailure)?.type
+                    ?: FailureClassifier.classify(status, t)
+                val result = RequestResult(
+                    success = false,
+                    httpStatus = status,
+                    durationMs = System.currentTimeMillis() - started,
+                    failureType = failureType
+                )
+                persist(operation, result)
+                val oldDelay = governor.delay(operation.lane)
+                if (governor.observe(operation.lane, result)) logGovernor(operation, oldDelay)
+
+                val retryable = retryableFailure(failureType)
+                if (retryable != null && attempt < MAX_ATTEMPTS) {
+                    logRetry(operation, attempt, retryable)
+                    delay(RETRY_BASE_DELAY_MS * attempt)
+                    attempt++
+                    continue
+                }
+                throw t
+            }
         }
     }
 
@@ -49,82 +95,31 @@ class RequestPacer(
         return base + jitter + governor.delay(lane)
     }
 
-    private suspend fun <T> executeAttempt(
-        operation: RequestOperation,
-        block: suspend () -> T
-    ): AttemptResult<T> {
-        val wait = estimatedDelayMs(operation.lane)
-        if (wait > 0) delay(wait)
+    private fun retryableFailure(type: FailureType?): FailureType? = type?.takeIf {
+        it in setOf(
+            FailureType.TIMEOUT,
+            FailureType.CONNECTION_ERROR,
+            FailureType.SERVER_ERROR,
+            FailureType.HTTP_403,
+            FailureType.HTTP_429,
+            FailureType.BOT_DETECTION,
+            FailureType.ACCESS_DENIED,
+            FailureType.PARSE_ERROR
+        )
+    }
 
+    private suspend fun logRetry(operation: RequestOperation, attempt: Int, failure: FailureType) {
         database.runtimeLogDao().insert(
             RuntimeLogEntity(
                 timestamp = System.currentTimeMillis(),
                 level = "INFO",
-                category = "REQUEST",
+                category = "RETRY",
                 lane = operation.lane.name,
                 operation = operation.operation,
-                message = "request start"
+                message = "retry " + attempt + "/" + MAX_ATTEMPTS +
+                    " after " + RETRY_BASE_DELAY_MS * attempt + "ms failure=" + failure.name
             )
         )
-
-        val started = System.currentTimeMillis()
-        return try {
-            val value = block()
-            val response = value as? Response
-            val status = response?.responseCode()
-            val success = status == null || status in 200..299
-            val failureType = if (success) null else FailureClassifier.classify(
-                status,
-                HttpFailure(status ?: 0, response?.responseBody().orEmpty())
-            )
-            val requestResult = RequestResult(
-                success = success,
-                httpStatus = status,
-                durationMs = System.currentTimeMillis() - started,
-                failureType = failureType
-            )
-            persist(operation, requestResult)
-            val oldDelay = governor.delay(operation.lane)
-            if (governor.observe(operation.lane, requestResult)) {
-                logGovernor(operation, oldDelay)
-            }
-            AttemptResult(value, retryableFailure(failureType))
-        } catch (t: Throwable) {
-            val status = (t as? HttpFailure)?.status
-            val failureType = (t as? SubtitleFailure)?.type
-                ?: FailureClassifier.classify(status, t)
-            val requestResult = RequestResult(
-                success = false,
-                httpStatus = status,
-                durationMs = System.currentTimeMillis() - started,
-                failureType = failureType
-            )
-            persist(operation, requestResult)
-            val oldDelay = governor.delay(operation.lane)
-            if (governor.observe(operation.lane, requestResult)) {
-                logGovernor(operation, oldDelay)
-            }
-            val retryable = retryableFailure(failureType)
-            if (retryable != null) {
-                AttemptResultFailure<T>(t, retryable).throwIt()
-            }
-            throw t
-        }
-    }
-
-    private fun retryableFailure(type: com.subgrab.app.domain.FailureType?): com.subgrab.app.domain.FailureType? {
-        return type?.takeIf {
-            it in setOf(
-                com.subgrab.app.domain.FailureType.TIMEOUT,
-                com.subgrab.app.domain.FailureType.CONNECTION_ERROR,
-                com.subgrab.app.domain.FailureType.SERVER_ERROR,
-                com.subgrab.app.domain.FailureType.HTTP_403,
-                com.subgrab.app.domain.FailureType.HTTP_429,
-                com.subgrab.app.domain.FailureType.BOT_DETECTION,
-                com.subgrab.app.domain.FailureType.ACCESS_DENIED,
-                com.subgrab.app.domain.FailureType.PARSE_ERROR
-            )
-        }
     }
 
     private suspend fun logGovernor(op: RequestOperation, oldDelay: Long) {
@@ -172,18 +167,6 @@ class RequestPacer(
         database.runtimeLogDao().deleteOlderThan(cutoff)
     }
 
-    private data class AttemptResult<T>(
-        val value: T,
-        val retryableFailure: com.subgrab.app.domain.FailureType?
-    )
-
-    private class AttemptResultFailure<T>(
-        private val throwable: Throwable,
-        val failure: com.subgrab.app.domain.FailureType
-    ) {
-        fun throwIt(): Nothing = throw throwable
-    }
-
     private companion object {
         const val MAX_ATTEMPTS = 3
         const val RETRY_BASE_DELAY_MS = 1_000L
@@ -193,4 +176,4 @@ class RequestPacer(
 class HttpFailure(
     val status: Int,
     val body: String = ""
-) : RuntimeException("HTTP $status")
+) : RuntimeException("HTTP " + status)
