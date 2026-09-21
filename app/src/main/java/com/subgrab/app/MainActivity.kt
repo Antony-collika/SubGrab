@@ -386,9 +386,11 @@ private fun DownloadProgressCard(state: DownloadState, vm: DownloadViewModel) {
                     if (state.taskIndex < state.totalTasks) { Button(onClick = vm::continueNextTask, modifier = Modifier.fillMaxWidth()) { Text("TIẾP TỤC TASK KẾ TIẾP") } }
                 }
                 is DownloadState.Cancelled -> {
-                    Text("Đã hủy task: ${state.saved} file đã lưu", color = MaterialTheme.colorScheme.error)
+                    Text("Đã hủy task ${state.taskIndex}/${state.totalTasks}: ${state.saved} file đã lưu", color = MaterialTheme.colorScheme.error)
                     state.logs.takeLast(8).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
-                    Button(onClick = vm::continueNextTask, modifier = Modifier.fillMaxWidth()) { Text("TIẾP TỤC TASK KẾ TIẾP") }
+                    if (state.taskIndex < state.totalTasks) {
+                        Button(onClick = vm::continueNextTask, modifier = Modifier.fillMaxWidth()) { Text("TIẾP TỤC TASK KẾ TIẾP") }
+                    }
                 }
                 is DownloadState.Error -> {
                     Text("Task ${state.taskIndex}/${state.totalTasks} thất bại", color = MaterialTheme.colorScheme.error)
