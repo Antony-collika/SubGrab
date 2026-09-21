@@ -26,7 +26,11 @@ class DownloadViewModel(
  private val _state=MutableStateFlow<AnalysisState>(AnalysisState.Idle);val state:StateFlow<AnalysisState> = _state.asStateFlow()
  private val control=DownloadControlStore(context.applicationContext);private val workManager=WorkManager.getInstance(context.applicationContext)
  val downloadState:StateFlow<DownloadState> =workManager.getWorkInfosForUniqueWorkFlow(DownloadWorker.UNIQUE_WORK).map{infos->
-  infos.firstOrNull()?.let{w->w.toDownloadState(if(w.state.isFinished)w.outputData else w.progress)}?:DownloadState.Idle
+  infos.firstOrNull()?.let{w->
+   val state=w.toDownloadState(if(w.state.isFinished)w.outputData else w.progress)
+   if(!w.state.isFinished && state is DownloadState.Idle) DownloadState.Running(0,1,"Đang chuẩn bị tải phụ đề",0,0, emptyList())
+   else state
+  }?:DownloadState.Idle
  }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),DownloadState.Idle)
  private var lastUrl:String?=null;private var lastKeyword:String?=null
  fun analyze(url:String){lastUrl=url;if(!UrlValidator.isValid(url)){_state.value=AnalysisState.Error("Link không hợp lệ. Vui lòng kiểm tra lại",url);return};_state.value=AnalysisState.Loading;viewModelScope.launch{val s=settingsRepository.current();if(s.useYouTubeDataApi&&isPlaylist(url)){runCatching{apiDiscovery.discoverPlaylist(url)}.onSuccess{v->val source=Source(url,url,"YouTube playlist",v.size);_state.value=AnalysisState.Ready(source,v,source.title)}.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích playlist",url)}}else if(s.useYouTubeDataApi&&isChannel(url)){runCatching{apiDiscovery.discoverChannel(url)}.onSuccess{v->val source=Source(url,url,"YouTube channel",v.size);_state.value=AnalysisState.Ready(source,v,source.title)}.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích channel",url)}} else if(s.useYouTubeDataApi){runCatching{apiDiscovery.discoverVideo(url)}.onSuccess{v->val source=Source(url,url,v.firstOrNull()?.title?:"YouTube video",v.size);_state.value=AnalysisState.Ready(source,v,source.title)}.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích video",url)}} else runCatching{extractorDiscovery.discoverPlaylist(url)}.map{v->Source(url,url,"YouTube playlist",v.size) to v}.onSuccess{(source,v)->_state.value=AnalysisState.Ready(source,v,source.title)}.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích link",url)}}}
