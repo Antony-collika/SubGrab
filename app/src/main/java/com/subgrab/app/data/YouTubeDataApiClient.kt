@@ -28,27 +28,28 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
   return getVideoMetadata(ids)
  }
  suspend fun getChannelTitle(source:String):String{
-  val uri=Uri.parse(source)
-  val channelParams=when {
-   uri.pathSegments.any{it.equals("channel",true)} -> mapOf("part" to "snippet","id" to (uri.pathSegments.lastOrNull() ?: error("Không tìm thấy channel id")))
-   uri.pathSegments.any{it.startsWith("@") } -> mapOf("part" to "snippet","forHandle" to (uri.pathSegments.lastOrNull() ?: error("Không tìm thấy channel handle")))
-   uri.pathSegments.any{it.equals("c",true)} -> mapOf("part" to "snippet","forUsername" to (uri.pathSegments.lastOrNull() ?: error("Không tìm thấy channel username")))
-   else -> error("URL channel chưa được API hỗ trợ")
-  }
-  return get("channels",channelParams).optJSONArray("items")?.optJSONObject(0)
+  return getChannelResource(source,"snippet").optJSONArray("items")?.optJSONObject(0)
    ?.optJSONObject("snippet")?.optString("title").orEmpty()
    .ifBlank { error("Không tìm thấy tên channel") }
  }
 
- suspend fun listChannelUploads(source:String):List<VideoItem>{
+ private suspend fun getChannelResource(source:String,part:String):JSONObject{
   val uri=Uri.parse(source)
-  val channelParams=when {
-   uri.pathSegments.any{it.equals("channel",true)} -> mapOf("part" to "contentDetails","id" to (uri.pathSegments.lastOrNull() ?: error("Không tìm thấy channel id")))
-   uri.pathSegments.any{it.startsWith("@") } -> mapOf("part" to "contentDetails","forHandle" to (uri.pathSegments.lastOrNull() ?: error("Không tìm thấy channel handle")))
-   uri.pathSegments.any{it.equals("c",true)} -> mapOf("part" to "contentDetails","forUsername" to (uri.pathSegments.lastOrNull() ?: error("Không tìm thấy channel username")))
+  val segments=uri.pathSegments
+  val channelIndex=segments.indexOfFirst{it.equals("channel",true)}
+  val customIndex=segments.indexOfFirst{it.equals("c",true)}
+  val handle=segments.firstOrNull{it.startsWith("@")}
+  val params=when {
+   channelIndex >= 0 -> mapOf("part" to part,"id" to (segments.getOrNull(channelIndex+1) ?: error("Không tìm thấy channel id")))
+   handle != null -> mapOf("part" to part,"forHandle" to handle.removePrefix("@"))
+   customIndex >= 0 -> mapOf("part" to part,"forUsername" to (segments.getOrNull(customIndex+1) ?: error("Không tìm thấy channel username")))
    else -> error("URL channel chưa được API hỗ trợ")
   }
-  val channelJson=get("channels",channelParams)
+  return get("channels",params)
+ }
+
+ suspend fun listChannelUploads(source:String):List<VideoItem>{
+  val channelJson=getChannelResource(source,"contentDetails")
   val uploads=channelJson.optJSONArray("items")?.optJSONObject(0)?.optJSONObject("contentDetails")?.optJSONObject("relatedPlaylists")?.optString("uploads").orEmpty()
   require(uploads.isNotBlank()) { "Không tìm thấy uploads playlist của channel" }
   return listPlaylistItems("https://www.youtube.com/playlist?list=$uploads")
