@@ -17,7 +17,6 @@ import kotlinx.coroutines.launch
  LaunchedEffect(stored){ if(draft==null) draft=stored }
  fun save(v:AppSettings){
   if(v.subtitleBaseDelayMs<0L||v.apiBaseDelayMs<0L||v.subtitleJitterMinMs<0L||v.subtitleJitterMaxMs<v.subtitleJitterMinMs||v.apiJitterMinMs<0L||v.apiJitterMaxMs<v.apiJitterMinMs||v.subtitleConcurrency<1||v.maxSubtitlesPerTask !in 1..50)return
-  value=v
   draft=v
   scope.launch{repository.update(v)}
  }
