@@ -67,6 +67,35 @@ class CoreTest {
         assertEquals("Good day.\n", SubtitleFormatter.format(cues, SubtitleTimestampMode.WITHOUT_TIMESTAMP))
     }
 
+    @Test fun extractsYoutubeUrlEmbeddedInArbitraryText() {
+        val input = "Mình đang xem video này https://www.youtube.com/watch?v=abc123 rất hay."
+        assertEquals(listOf("https://www.youtube.com/watch?v=abc123"), YoutubeUrlParser.extractUrls(input))
+    }
+
+    @Test fun extractsYoutubeUrlInsideMarkdownAndSurroundingPunctuation() {
+        val input = "Xem [video](https://youtu.be/abc123?t=30), rồi nhé."
+        assertEquals(listOf("https://youtu.be/abc123?t=30"), YoutubeUrlParser.extractUrls(input))
+    }
+
+    @Test fun extractsBareYoutubeHostFromArbitraryText() {
+        val input = "Link: youtube.com/watch?v=abc123 và m.youtube.com/watch?v=def456."
+        assertEquals(
+            listOf(
+                "https://youtube.com/watch?v=abc123",
+                "https://m.youtube.com/watch?v=def456"
+            ),
+            YoutubeUrlParser.extractUrls(input)
+        )
+    }
+
+    @Test fun webUrlExtractorPreservesMatchLocationAndCleansPunctuation() {
+        val input = "Prefix (https://www.youtube.com/watch?v=abc123). Suffix"
+        val candidate = WebUrlExtractor.extract(input).single()
+        assertEquals("https://www.youtube.com/watch?v=abc123", candidate.normalized)
+        assertEquals(input.indexOf("https"), candidate.start)
+        assertEquals(input.indexOf("). Suffix"), candidate.end)
+    }
+
     @Test fun extractsMultipleYoutubeUrlsSeparatedByPunctuation() {
         val input = " https://www.youtube.com/watch?v=abc, https://youtu.be/def. https://www.youtube.com/watch?v=abc "
         assertEquals(
