@@ -27,6 +27,19 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
   val ids=buildList{val a=json.optJSONArray("items")?:return@buildList;for(i in 0 until a.length())a.optJSONObject(i)?.optString("videoId")?.takeIf{it.isNotBlank()}?.let(::add)}
   return getVideoMetadata(ids)
  }
+ suspend fun getChannelTitle(source:String):String{
+  val uri=Uri.parse(source)
+  val channelParams=when {
+   uri.pathSegments.any{it.equals("channel",true)} -> mapOf("part" to "snippet","id" to (uri.pathSegments.lastOrNull() ?: error("Không tìm thấy channel id")))
+   uri.pathSegments.any{it.startsWith("@") } -> mapOf("part" to "snippet","forHandle" to (uri.pathSegments.lastOrNull() ?: error("Không tìm thấy channel handle")))
+   uri.pathSegments.any{it.equals("c",true)} -> mapOf("part" to "snippet","forUsername" to (uri.pathSegments.lastOrNull() ?: error("Không tìm thấy channel username")))
+   else -> error("URL channel chưa được API hỗ trợ")
+  }
+  return get("channels",channelParams).optJSONArray("items")?.optJSONObject(0)
+   ?.optJSONObject("snippet")?.optString("title").orEmpty()
+   .ifBlank { error("Không tìm thấy tên channel") }
+ }
+
  suspend fun listChannelUploads(source:String):List<VideoItem>{
   val uri=Uri.parse(source)
   val channelParams=when {
