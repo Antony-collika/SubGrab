@@ -34,6 +34,10 @@ object SubtitleNormalizer {
             .lines()
             .map { it.trim() }
             .filter { it.isNotBlank() }
+            .fold(mutableListOf<String>()) { lines, line ->
+                if (lines.lastOrNull() != line) lines += line
+                lines
+            }
             .joinToString("\n")
             .replace(Regex("""[ \t]+"""), " ")
             .trim()
