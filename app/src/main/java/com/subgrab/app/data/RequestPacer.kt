@@ -57,7 +57,7 @@ class RequestPacer(
 
                 val retryable = retryableFailure(failureType)
                 if (!success) {
-                    if (retryable != null && attempt < MAX_ATTEMPTS) {
+                    if (retryable != null && attempt < maxAttempts(retryable)) {
                         logRetry(operation, attempt, retryable)
                         delay(RETRY_BASE_DELAY_MS * attempt)
                         attempt++
@@ -83,7 +83,7 @@ class RequestPacer(
                 if (governor.observe(operation.lane, result)) logGovernor(operation, oldDelay)
 
                 val retryable = retryableFailure(failureType)
-                if (retryable != null && attempt < MAX_ATTEMPTS) {
+                if (retryable != null && attempt < maxAttempts(retryable)) {
                     logRetry(operation, attempt, retryable)
                     delay(RETRY_BASE_DELAY_MS * attempt)
                     attempt++
@@ -152,6 +152,16 @@ class RequestPacer(
         )
     }
 
+    private fun maxAttempts(failure: FailureType): Int = when (failure) {
+        // Rate-limit/access signals must not trigger a retry loop. One retry is enough
+        // after the Governor has already entered slowdown.
+        FailureType.HTTP_429,
+        FailureType.HTTP_403,
+        FailureType.BOT_DETECTION,
+        FailureType.ACCESS_DENIED -> RESTRICTION_MAX_ATTEMPTS
+        else -> MAX_ATTEMPTS
+    }
+
     private suspend fun logRetry(operation: RequestOperation, attempt: Int, failure: FailureType) {
         database.runtimeLogDao().insert(
             RuntimeLogEntity(
@@ -213,6 +223,7 @@ class RequestPacer(
 
     private companion object {
         const val MAX_ATTEMPTS = 3
+        const val RESTRICTION_MAX_ATTEMPTS = 2
         const val RETRY_BASE_DELAY_MS = 1_000L
     }
 }
