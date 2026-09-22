@@ -34,7 +34,63 @@ class DownloadViewModel(
   }?:DownloadState.Idle
  }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),DownloadState.Idle)
  private var lastUrl:String?=null;private var lastKeyword:String?=null
- fun analyze(url:String){lastUrl=url;if(!UrlValidator.isValid(url)){_state.value=AnalysisState.Error("Link không hợp lệ. Vui lòng kiểm tra lại",url);return};_state.value=AnalysisState.Loading;viewModelScope.launch{val s=settingsRepository.current();if(s.useYouTubeDataApi&&isPlaylist(url)){runCatching{apiDiscovery.discoverPlaylist(url)}.onSuccess{v->val title=runCatching{extractorClient.extractSource(url).getOrThrow().first.title}.getOrDefault("YouTube playlist");val source=Source(url,url,title,v.size);_state.value=AnalysisState.Ready(source,v,source.title)}.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích playlist",url)}}else if(s.useYouTubeDataApi&&isChannel(url)){runCatching{apiDiscovery.discoverChannel(url)}.onSuccess{v->val title=runCatching{extractorClient.extractSource(url).getOrThrow().first.title}.getOrDefault("YouTube channel");val source=Source(url,url,title,v.size);_state.value=AnalysisState.Ready(source,v,source.title)}.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích channel",url)}} else if(s.useYouTubeDataApi){runCatching{apiDiscovery.discoverVideo(url)}.onSuccess{v->val source=Source(url,url,v.firstOrNull()?.title?:"YouTube video",v.size);_state.value=AnalysisState.Ready(source,v,source.title)}.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích video",url)}} else runCatching{extractorDiscovery.discoverPlaylistWithSource(url)}.onSuccess{(source,v)->_state.value=AnalysisState.Ready(source,v,source.title)}.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích link",url)}}}
+ fun analyze(input:String){
+  lastUrl=input
+  val urls=YoutubeUrlParser.extractUrls(input)
+  if(urls.isEmpty()){
+   _state.value=AnalysisState.Error("Không tìm thấy URL YouTube hợp lệ",input)
+   return
+  }
+  if(urls.size>1){
+   if(urls.any{!YoutubeUrlParser.isVideoUrl(it)}){
+    _state.value=AnalysisState.Error("Chuỗi nhiều URL chỉ hỗ trợ URL video YouTube",input)
+    return
+   }
+   _state.value=AnalysisState.Loading
+   viewModelScope.launch{
+    val s=settingsRepository.current()
+    val result=runCatching{
+     if(s.useYouTubeDataApi) apiDiscovery.discoverVideoCollectionWithSource(urls)
+     else extractorDiscovery.discoverVideoCollectionWithSource(urls)
+    }
+    result.onSuccess{(source,v)->_state.value=AnalysisState.Ready(source,v,source.title)}
+     .onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích chuỗi URL",input)}
+   }
+   return
+  }
+
+  val url=urls.single()
+  if(!UrlValidator.isValid(url)){
+   _state.value=AnalysisState.Error("Link không hợp lệ. Vui lòng kiểm tra lại",url)
+   return
+  }
+  lastUrl=url
+  _state.value=AnalysisState.Loading
+  viewModelScope.launch{
+   val s=settingsRepository.current()
+   val result=runCatching{
+    when {
+     s.useYouTubeDataApi && YoutubeUrlParser.isPlaylistUrl(url) -> {
+      val v=apiDiscovery.discoverPlaylist(url)
+      val title=runCatching{extractorClient.extractSource(url).getOrThrow().first.title}.getOrDefault("YouTube playlist")
+      Source(url,url,title,v.size) to v
+     }
+     s.useYouTubeDataApi && YoutubeUrlParser.isChannelUrl(url) ->
+      apiDiscovery.discoverChannelWithSource(url)
+     s.useYouTubeDataApi ->
+      apiDiscovery.discoverVideo(url).let{v->Source(url,url,v.firstOrNull()?.title?:"YouTube video",v.size) to v}
+     YoutubeUrlParser.isPlaylistUrl(url) ->
+      extractorDiscovery.discoverPlaylistWithSource(url)
+     YoutubeUrlParser.isChannelUrl(url) ->
+      extractorDiscovery.discoverChannelWithSource(url)
+     else ->
+      extractorClient.extractSource(url).getOrThrow()
+    }
+   }
+   result.onSuccess{(source,v)->_state.value=AnalysisState.Ready(source,v,source.title)}
+    .onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích link",url)}
+  }
+ }
  fun searchKeyword(keyword:String){lastKeyword=keyword;_state.value=AnalysisState.Loading;viewModelScope.launch{val s=settingsRepository.current();if(s.useYouTubeDataApi)runCatching{apiDiscovery.discoverKeyword(keyword)}.onSuccess{v->{val clean=keyword.trim();_state.value=AnalysisState.Ready(Source("keyword:"+clean, "https://www.youtube.com/results?search_query="+android.net.Uri.encode(clean),clean,v.size),v,clean)}}.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)} else runCatching{extractorDiscovery.discoverKeyword(keyword)}.map{v->Source("keyword:"+keyword.trim(),"https://www.youtube.com/results?search_query="+android.net.Uri.encode(keyword.trim()),keyword.trim(),v.size) to v}.onSuccess{(source,v)->_state.value=AnalysisState.Ready(source,v,source.title)}.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)}}}
  private fun isPlaylist(url:String)=url.contains("playlist",true)||url.contains("list=",true)
  private fun isChannel(url:String)=url.contains("/channel/",true)||url.contains("/c/",true)||url.contains("/@",true)
