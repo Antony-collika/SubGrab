@@ -17,9 +17,9 @@ class ApiDiscoveryClient(private val api:YouTubeDataApiClient):DiscoveryClient{
  }
  suspend fun discoverVideoCollectionWithSource(sources:List<String>):Pair<com.subgrab.app.domain.Source,List<VideoItem>>{
   val ids=sources.mapNotNull{videoId(it)}.distinct().take(50)
-  require(ids.size==sources.distinctBy{it.lowercase()}.size) { "Chuỗi nhiều URL chỉ hỗ trợ URL video YouTube hợp lệ" }
+  require(ids.size==sources.distinct().size) { "Chuỗi nhiều URL chỉ hỗ trợ URL video YouTube hợp lệ" }
   val videos=api.getVideoMetadataInOrder(ids)
-  return com.subgrab.app.domain.Source("collection",sources.joinToString("\\n"),"Collection",videos.size) to videos
+  return com.subgrab.app.domain.Source("collection",sources.joinToString("\n"),"Collection",videos.size) to videos
  }
  private fun videoId(source:String):String = android.net.Uri.parse(source).getQueryParameter("v")
   ?: android.net.Uri.parse(source).pathSegments.lastOrNull()?.takeIf{it.isNotBlank()}
