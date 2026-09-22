@@ -24,7 +24,11 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
  }
  suspend fun searchKeyword(query:String):List<VideoItem>{
   val json=get("search",mapOf("part" to "snippet","type" to "video","maxResults" to "50","q" to query))
+  val itemCount=json.optJSONArray("items")?.length()?:0
+  pacer.logDiagnostic(RequestLane.DISCOVERY_API,"search","SEARCH_RESPONSE items="+itemCount)
   val ids=buildList{val a=json.optJSONArray("items")?:return@buildList;for(i in 0 until a.length())a.optJSONObject(i)?.optJSONObject("id")?.optString("videoId")?.takeIf{it.isNotBlank()}?.let(::add)}
+  pacer.logDiagnostic(RequestLane.DISCOVERY_API,"search","SEARCH_VIDEO_IDS extracted="+ids.size)
+  pacer.logDiagnostic(RequestLane.API_METADATA,"videos","METADATA_REQUEST preparing ids="+ids.size)
   return getVideoMetadata(ids)
  }
  suspend fun getChannelTitle(source:String):String{
@@ -85,6 +89,8 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
   val out=mutableListOf<VideoItem>()
   ids.take(50).chunked(50).forEach{chunk->
    val json=get("videos",mapOf("part" to "snippet,contentDetails,statistics","id" to chunk.joinToString(",")))
+   val metadataCount=json.optJSONArray("items")?.length()?:0
+   pacer.logDiagnostic(RequestLane.API_METADATA,"videos","METADATA_RESPONSE items="+metadataCount+" requested="+chunk.size)
    val a=json.optJSONArray("items")?:return@forEach
    for(i in 0 until a.length()){val x=a.getJSONObject(i);val sn=x.getJSONObject("snippet");val st=x.optJSONObject("statistics");val cd=x.optJSONObject("contentDetails")
     val dur=parseDuration(cd?.optString("duration").orEmpty());out+=VideoItem(out.size+1,x.getString("id"),sn.optString("title"),dur.toInt(),emptyList(),channelTitle=sn.optString("channelTitle"),publishedAt=sn.optString("publishedAt"),viewCount=st?.optString("viewCount")?.toLongOrNull(),thumbnailUrl=sn.optJSONObject("thumbnails")?.optJSONObject("medium")?.optString("url").orEmpty(),description=sn.optString("description").takeIf{it.isNotBlank()},durationSeconds=dur,likeCount=st?.optString("likeCount")?.toLongOrNull())
