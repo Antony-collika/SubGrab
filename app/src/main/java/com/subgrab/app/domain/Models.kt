@@ -72,7 +72,7 @@ object YoutubeUrlParser {
         urlStart.findAll(input)
             .map { normalize(it.value) }
             .filter { it.isNotBlank() }
-            .distinctBy { it.lowercase() }
+            .distinct()
             .toList()
 
     fun normalize(url: String): String =
