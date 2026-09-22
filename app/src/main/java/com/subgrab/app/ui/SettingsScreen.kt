@@ -13,10 +13,12 @@ import com.subgrab.app.data.SettingsRepository
 import com.subgrab.app.domain.*
 import kotlinx.coroutines.launch
 @Composable fun SettingsScreen(repository:SettingsRepository,onBack:()->Unit,onDiagnostics:()->Unit={}){
- val scope=rememberCoroutineScope();val stored by repository.settings.collectAsState(initial=AppSettings());var value by remember(stored){mutableStateOf(stored)}
+ val scope=rememberCoroutineScope();val stored by repository.settings.collectAsState(initial=AppSettings());var draft by remember { mutableStateOf<AppSettings?>(null) }; val value=draft ?: stored
+ LaunchedEffect(stored){ if(draft==null) draft=stored }
  fun save(v:AppSettings){
   if(v.subtitleBaseDelayMs<0L||v.apiBaseDelayMs<0L||v.subtitleJitterMinMs<0L||v.subtitleJitterMaxMs<v.subtitleJitterMinMs||v.apiJitterMinMs<0L||v.apiJitterMaxMs<v.apiJitterMinMs||v.subtitleConcurrency<1||v.maxSubtitlesPerTask !in 1..50)return
   value=v
+  draft=v
   scope.launch{repository.update(v)}
  }
  val folderPicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()){uri->
