@@ -64,40 +64,60 @@ data class AppSettings(
     val apiJitterMinMs: Long = 0,
     val apiJitterMaxMs: Long = 0
 )
-object YoutubeUrlParser {
-    private val urlStart = Regex("""(?i)https?://[^\s]*?(?=https?://|\s|$)""")
-    private val trailingPunctuation = Regex("""[.,;:!?…)\]}>'"]+$""")
+data class UrlCandidate(
+    val raw: String,
+    val normalized: String,
+    val start: Int,
+    val end: Int
+)
 
+/** Extract web URL candidates from arbitrary text before applying service-specific parsing. */
+object WebUrlExtractor {
+    private val candidate = Regex(
+        """(?i)(?<![\w@])(?:https?://|www\.)[^\s<>\[\]{}"']+|(?<![\w@])(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?::\d{1,5})?(?:/[^\s<>\[\]{}"']*)?"""
+    )
+    private val trailingPunctuation = Regex("""[.,;:!?…)]}>'"]+$""")
+
+    fun extract(input: String): List<UrlCandidate> = candidate.findAll(input)
+        .mapNotNull { match ->
+            val normalized = match.value
+                .trimStart('(', '[', '{', '<', '"', '\'')
+                .replace(trailingPunctuation, "")
+                .takeIf { it.isNotBlank() }
+                ?: return@mapNotNull null
+            UrlCandidate(match.value, normalized, match.range.first, match.range.last + 1)
+        }
+        .distinctBy { it.start to it.normalized }
+        .toList()
+}
+
+object YoutubeUrlParser {
     fun extractUrls(input: String): List<String> =
-        urlStart.findAll(input)
-            .map { normalize(it.value) }
-            .filter { it.isNotBlank() }
+        WebUrlExtractor.extract(input)
+            .mapNotNull { candidate ->
+                val normalized = normalize(candidate.normalized)
+                if (parse(normalized) != null) canonicalize(normalized) else null
+            }
             .distinct()
-            .toList()
 
     fun normalize(url: String): String =
         url.trim().trimStart('(', '[', '{', '<', '"', '\'')
-            .replace(trailingPunctuation, "")
+            .replace(Regex("""[.,;:!?…)]}>'"]+$"""), "")
 
     fun isValid(url: String): Boolean = parse(url) != null
-
     fun isVideoUrl(url: String): Boolean = parse(url)?.type == Type.VIDEO
-
     fun videoId(url: String): String? = parse(url)?.videoId
-
     fun isPlaylistUrl(url: String): Boolean = parse(url)?.type == Type.PLAYLIST
-
     fun isChannelUrl(url: String): Boolean = parse(url)?.type == Type.CHANNEL
 
     private fun parse(rawUrl: String): Parsed? {
-        val url = normalize(rawUrl)
-        if (url.isBlank()) return null
+        val normalized = normalize(rawUrl)
+        if (normalized.isBlank()) return null
+        val url = if (normalized.contains("://")) normalized else "https://$normalized"
         val uri = runCatching { android.net.Uri.parse(url) }.getOrNull() ?: return null
         val scheme = uri.scheme?.lowercase()
         val host = uri.host?.lowercase()
-        if (scheme !in setOf("http", "https") || host !in setOf("youtube.com", "www.youtube.com", "youtu.be")) {
-            return null
-        }
+        if (scheme !in setOf("http", "https") || !isYoutubeHost(host)) return null
 
         if (host == "youtu.be") {
             val id = uri.pathSegments.firstOrNull()?.takeIf { it.isNotBlank() }
@@ -106,12 +126,10 @@ object YoutubeUrlParser {
 
         val segments = uri.pathSegments.filter { it.isNotBlank() }
         return when {
-            segments.firstOrNull()?.equals("watch", true) == true -> {
+            segments.firstOrNull()?.equals("watch", true) == true ->
                 uri.getQueryParameter("v")?.takeIf { it.isNotBlank() }?.let { Parsed(Type.VIDEO, it) }
-            }
-            segments.firstOrNull()?.equals("playlist", true) == true -> {
+            segments.firstOrNull()?.equals("playlist", true) == true ->
                 uri.getQueryParameter("list")?.takeIf { it.isNotBlank() }?.let { Parsed(Type.PLAYLIST, null) }
-            }
             segments.firstOrNull()?.equals("channel", true) == true &&
                 segments.getOrNull(1).isNullOrBlank().not() -> Parsed(Type.CHANNEL, null)
             segments.firstOrNull()?.equals("c", true) == true &&
@@ -122,10 +140,15 @@ object YoutubeUrlParser {
         }
     }
 
+    private fun isYoutubeHost(host: String?): Boolean =
+        host == "youtu.be" || host == "youtube.com" || host?.endsWith(".youtube.com") == true
+
+    private fun canonicalize(url: String): String =
+        if (url.contains("://")) url else "https://$url"
+
     private enum class Type { VIDEO, PLAYLIST, CHANNEL }
     private data class Parsed(val type: Type, val videoId: String?)
 }
-
 object UrlValidator {
     fun isValid(url: String): Boolean = YoutubeUrlParser.isValid(url)
 }
