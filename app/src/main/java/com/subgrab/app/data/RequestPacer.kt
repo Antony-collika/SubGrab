@@ -94,6 +94,9 @@ class RequestPacer(
         }
     }
 
+    fun governorState(lane: RequestLane) = governor.state(lane)
+    fun governorDelayMs(lane: RequestLane) = governor.delay(lane)
+
     suspend fun estimatedDelayMs(lane: RequestLane): Long {
         val s = settings.current()
         val api = lane == RequestLane.DISCOVERY_API || lane == RequestLane.API_METADATA
