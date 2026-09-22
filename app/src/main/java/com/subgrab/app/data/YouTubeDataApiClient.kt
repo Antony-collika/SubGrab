@@ -47,6 +47,16 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
   val videoIds=buildList<String>{for(i in 0 until a.length()){a.optJSONObject(i)?.optJSONObject("snippet")?.optJSONObject("resourceId")?.optString("videoId")?.takeIf{it.isNotBlank()}?.let{add(it)}}}
   return getVideoMetadata(videoIds)
  }
+ suspend fun getVideoMetadataInOrder(ids:List<String>):List<VideoItem>{
+  val uniqueIds=ids.map(String::trim).filter(String::isNotBlank).distinct().take(50)
+  if(uniqueIds.isEmpty())return emptyList()
+  val fetched=getVideoMetadata(uniqueIds)
+  val byId=fetched.associateBy{it.videoId}
+  require(byId.size==uniqueIds.size) {
+   "Không thể lấy metadata của một hoặc nhiều video trong Collection"
+  }
+  return uniqueIds.mapIndexed{index,id->byId.getValue(id).copy(index=index+1)}
+ }
  suspend fun getVideoMetadata(ids:List<String>):List<VideoItem>{
   if(ids.isEmpty())return emptyList()
   val out=mutableListOf<VideoItem>()
