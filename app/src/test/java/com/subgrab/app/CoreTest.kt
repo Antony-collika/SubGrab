@@ -178,6 +178,25 @@ class CoreTest {
         assertEquals(0L, governor.delay(lane))
     }
 
+    @Test fun governorEscalatesRateLimitDelayButCapsIt() {
+        val governor = RequestGovernor()
+        val lane = RequestLane.SUBTITLE_EXTRACTOR
+        val limited = RequestResult(false, 429, 10, FailureType.HTTP_429)
+
+        repeat(10) { governor.observe(lane, limited) }
+
+        assertEquals(GovernorState.SLOWDOWN, governor.state(lane))
+        assertEquals(10_000L, governor.delay(lane))
+    }
+
+    @Test fun restrictionFailuresHaveOnlyOneRetry() {
+        assertEquals(2, com.subgrab.app.data.RequestPacer.retryLimitFor(FailureType.HTTP_429))
+        assertEquals(2, com.subgrab.app.data.RequestPacer.retryLimitFor(FailureType.BOT_DETECTION))
+        assertEquals(2, com.subgrab.app.data.RequestPacer.retryLimitFor(FailureType.ACCESS_DENIED))
+        assertEquals(3, com.subgrab.app.data.RequestPacer.retryLimitFor(FailureType.TIMEOUT))
+        assertEquals(3, com.subgrab.app.data.RequestPacer.retryLimitFor(FailureType.SERVER_ERROR))
+    }
+
     @Test fun governorDoesNotSlowDownForBenignSubtitleFailures() {
         val governor = RequestGovernor()
         val result = RequestResult(false, 200, 10, FailureType.LANGUAGE_UNAVAILABLE)
