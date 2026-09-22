@@ -367,6 +367,17 @@ private fun DownloadProgressCard(state: DownloadState, vm: DownloadViewModel) {
                         modifier = Modifier.fillMaxWidth()
                     )
                     Text("Đã lưu ${state.saved} file · Bỏ qua ${state.skipped}")
+                    state.logs.takeLast(2).forEach { message ->
+                        Text(
+                            message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (message.contains("YouTube đang giới hạn request")) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = vm::pauseDownload) { Text("Tạm dừng") }
                         OutlinedButton(onClick = vm::cancelDownload) { Text("Hủy") }
