@@ -2,6 +2,11 @@ package com.subgrab.app.data
 import com.subgrab.app.domain.VideoItem
 class ApiDiscoveryClient(private val api:YouTubeDataApiClient):DiscoveryClient{
  override suspend fun discoverPlaylist(source:String)=api.listPlaylistItems(source).take(50)
+ suspend fun discoverPlaylistWithSource(source:String):Pair<com.subgrab.app.domain.Source,List<VideoItem>>{
+  val videos=api.listPlaylistItems(source).take(50)
+  val title=api.getPlaylistTitle(source)
+  return com.subgrab.app.domain.Source(source,source,title,videos.size) to videos
+ }
  override suspend fun discoverKeyword(query:String)=api.searchKeyword(query).take(50)
  override suspend fun discoverVideo(source:String)=api.getVideoMetadata(listOf(videoId(source))).take(50)
  override suspend fun discoverChannel(source:String)=api.listChannelUploads(source).take(50)
