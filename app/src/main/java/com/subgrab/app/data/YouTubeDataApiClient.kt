@@ -24,7 +24,7 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
  }
  suspend fun searchKeyword(query:String):List<VideoItem>{
   val json=get("search",mapOf("part" to "snippet","type" to "video","maxResults" to "50","q" to query))
-  val ids=buildList{val a=json.optJSONArray("items")?:return@buildList;for(i in 0 until a.length())a.optJSONObject(i)?.optString("videoId")?.takeIf{it.isNotBlank()}?.let(::add)}
+  val ids=buildList{val a=json.optJSONArray("items")?:return@buildList;for(i in 0 until a.length())a.optJSONObject(i)?.optJSONObject("id")?.optString("videoId")?.takeIf{it.isNotBlank()}?.let(::add)}
   return getVideoMetadata(ids)
  }
  suspend fun getChannelTitle(source:String):String{
