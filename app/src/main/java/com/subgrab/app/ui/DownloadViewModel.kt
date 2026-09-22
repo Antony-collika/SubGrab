@@ -99,12 +99,12 @@ class DownloadViewModel(
       val clean=keyword.trim()
       _state.value=AnalysisState.Ready(Source("keyword:"+clean,"https://www.youtube.com/results?search_query="+android.net.Uri.encode(clean),clean,v.size),v,clean)
       SubGrabDatabase.get(context).runtimeLogDao().insert(
-       RuntimeLogEntity(System.currentTimeMillis(),"INFO","DIAGNOSTIC",RequestLane.DISCOVERY_API.name,"search","SEARCH_READY videos="+v.size)
+       RuntimeLogEntity(timestamp = System.currentTimeMillis(), level = "INFO", category = "DIAGNOSTIC", lane = RequestLane.DISCOVERY_API.name, operation = "search", message = "SEARCH_READY videos="+v.size)
       )
      }
      .onFailure{
       SubGrabDatabase.get(context).runtimeLogDao().insert(
-       RuntimeLogEntity(System.currentTimeMillis(),"ERROR","DIAGNOSTIC",RequestLane.DISCOVERY_API.name,"search","SEARCH_FAILED "+(it.message?:"unknown"))
+       RuntimeLogEntity(timestamp = System.currentTimeMillis(), level = "ERROR", category = "DIAGNOSTIC", lane = RequestLane.DISCOVERY_API.name, operation = "search", message = "SEARCH_FAILED "+(it.message?:"unknown"))
       )
       _state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)
      }
