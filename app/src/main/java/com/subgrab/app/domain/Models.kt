@@ -114,22 +114,26 @@ object YoutubeUrlParser {
         val normalized = normalize(rawUrl)
         if (normalized.isBlank()) return null
         val url = if (normalized.contains("://")) normalized else "https://$normalized"
-        val uri = runCatching { android.net.Uri.parse(url) }.getOrNull() ?: return null
+        val uri = runCatching { java.net.URI(url) }.getOrNull() ?: return null
         val scheme = uri.scheme?.lowercase()
         val host = uri.host?.lowercase()
         if (scheme !in setOf("http", "https") || !isYoutubeHost(host)) return null
 
+        val segments = uri.path
+            ?.split('/')
+            ?.filter { it.isNotBlank() }
+            ?: emptyList()
+
         if (host == "youtu.be") {
-            val id = uri.pathSegments.firstOrNull()?.takeIf { it.isNotBlank() }
+            val id = segments.firstOrNull()?.takeIf { it.isNotBlank() }
             return id?.let { Parsed(Type.VIDEO, it) }
         }
 
-        val segments = uri.pathSegments.filter { it.isNotBlank() }
         return when {
             segments.firstOrNull()?.equals("watch", true) == true ->
-                uri.getQueryParameter("v")?.takeIf { it.isNotBlank() }?.let { Parsed(Type.VIDEO, it) }
+                queryParameter(uri.rawQuery, "v")?.takeIf { it.isNotBlank() }?.let { Parsed(Type.VIDEO, it) }
             segments.firstOrNull()?.equals("playlist", true) == true ->
-                uri.getQueryParameter("list")?.takeIf { it.isNotBlank() }?.let { Parsed(Type.PLAYLIST, null) }
+                queryParameter(uri.rawQuery, "list")?.takeIf { it.isNotBlank() }?.let { Parsed(Type.PLAYLIST, null) }
             segments.firstOrNull()?.equals("channel", true) == true &&
                 segments.getOrNull(1).isNullOrBlank().not() -> Parsed(Type.CHANNEL, null)
             segments.firstOrNull()?.equals("c", true) == true &&
@@ -142,6 +146,21 @@ object YoutubeUrlParser {
 
     private fun isYoutubeHost(host: String?): Boolean =
         host == "youtu.be" || host == "youtube.com" || host?.endsWith(".youtube.com") == true
+
+    private fun queryParameter(rawQuery: String?, name: String): String? =
+        rawQuery
+            ?.split('&')
+            ?.asSequence()
+            ?.mapNotNull { part ->
+                val separator = part.indexOf('=')
+                val key = if (separator >= 0) part.substring(0, separator) else part
+                if (key != name) return@mapNotNull null
+                if (separator < 0) return@mapNotNull ""
+                runCatching {
+                    java.net.URLDecoder.decode(part.substring(separator + 1), Charsets.UTF_8.name())
+                }.getOrNull()
+            }
+            ?.firstOrNull()
 
     private fun canonicalize(url: String): String =
         if (url.contains("://")) url else "https://$url"
