@@ -76,7 +76,7 @@ object WebUrlExtractor {
     private val candidate = Regex(
         """(?i)(?<![\w@])(?:https?://|www\.)[^\s<>\[\]{}"']+|(?<![\w@])(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?::\d{1,5})?(?:/[^\s<>\[\]{}"']*)?"""
     )
-    private val trailingPunctuation = Regex("""[.,;:!?…)]}>'"]+$""")
+    private val trailingPunctuation = Regex("""[.,;:!?…)\]}>'"]+$""")
 
     fun extract(input: String): List<UrlCandidate> = candidate.findAll(input)
         .mapNotNull { match ->
@@ -102,7 +102,7 @@ object YoutubeUrlParser {
 
     fun normalize(url: String): String =
         url.trim().trimStart('(', '[', '{', '<', '"', '\'')
-            .replace(Regex("""[.,;:!?…)]}>'"]+$"""), "")
+            .replace(Regex("""[.,;:!?…)\]}>'"]+$"""), "")
 
     fun isValid(url: String): Boolean = parse(url) != null
     fun isVideoUrl(url: String): Boolean = parse(url)?.type == Type.VIDEO
