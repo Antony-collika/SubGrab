@@ -70,11 +70,8 @@ class DownloadViewModel(
    val s=settingsRepository.current()
    val result=runCatching{
     when {
-     s.useYouTubeDataApi && YoutubeUrlParser.isPlaylistUrl(url) -> {
-      val v=apiDiscovery.discoverPlaylist(url)
-      val title=runCatching{extractorClient.extractSource(url).getOrThrow().first.title}.getOrDefault("YouTube playlist")
-      Source(url,url,title,v.size) to v
-     }
+     s.useYouTubeDataApi && YoutubeUrlParser.isPlaylistUrl(url) ->
+      apiDiscovery.discoverPlaylistWithSource(url)
      s.useYouTubeDataApi && YoutubeUrlParser.isChannelUrl(url) ->
       apiDiscovery.discoverChannelWithSource(url)
      s.useYouTubeDataApi ->
