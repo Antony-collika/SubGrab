@@ -9,7 +9,6 @@ import com.subgrab.app.domain.VideoItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.MediaFormat
-import org.schabi.newpipe.extractor.channel.ChannelExtractor
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor
 import org.schabi.newpipe.extractor.stream.StreamExtractor
@@ -117,7 +116,7 @@ class NewPipeExtractorClient(
         withContext(Dispatchers.IO) {
             runCatching {
                 val normalizedUrls = urls.map { com.subgrab.app.domain.YoutubeUrlParser.normalize(it) }
-                    .distinctBy { it.lowercase() }
+                    .distinct()
                     .take(50)
                 require(normalizedUrls.isNotEmpty()) { "Không tìm thấy URL video" }
                 require(normalizedUrls.all { com.subgrab.app.domain.YoutubeUrlParser.isVideoUrl(it) }) {
