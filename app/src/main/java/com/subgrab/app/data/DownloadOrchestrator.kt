@@ -131,21 +131,37 @@ class DownloadOrchestrator(
         suspend fun process(video: VideoItem) {
             if (!waitUntilRunnable(video.title)) return
 
-            if (pacer.governorState(RequestLane.SUBTITLE_EXTRACTOR) == com.subgrab.app.domain.GovernorState.SLOWDOWN) {
-                val delayMs = pacer.governorDelayMs(RequestLane.SUBTITLE_EXTRACTOR)
-                log("⏳ YouTube đang giới hạn request — app đang giảm tốc độ (delay " + delayMs + "ms)")
-                val (_, skippedNow, logSnapshot) = progress()
-                publish(
-                    DownloadState.Running(
-                        completed,
-                        selected.size,
-                        "YouTube đang giới hạn request — đang giảm tốc độ",
-                        saved,
-                        skippedNow,
-                        logSnapshot,
-                        null
-                    )
-                )
+            var videoToDownload = video
+            if (!video.subtitleChecked) {
+                val subtitleResult = runCatching {
+                    extractorClient.listSubtitles(video.videoUrl()).getOrThrow()
+                }
+                if (subtitleResult.isFailure) {
+                    val error = subtitleResult.exceptionOrNull()
+                    val failureType = (error as? SubtitleFailure)?.type
+                        ?: FailureClassifier.classify((error as? HttpFailure)?.status, error)
+                    val message = "❌ " + video.title + ": kiểm tra phụ đề thất bại: " + (error?.message ?: "không rõ lỗi")
+                    log(message)
+                    val eta = markCompleted(0, FailureClassifier.benign(failureType))
+                    val (savedNow, skippedNow, logSnapshot) = progress()
+                    publish(DownloadState.Running(completed, selected.size, video.title, savedNow, skippedNow, logSnapshot, eta))
+                    return
+                }
+                val subs = subtitleResult.getOrThrow()
+                if (subs.isEmpty()) {
+                    log("⚠️ " + video.title + ": không tìm thấy phụ đề")
+                    val eta = markCompleted(0, config.skipNoSub)
+                    val (savedNow, skippedNow, logSnapshot) = progress()
+                    publish(DownloadState.Running(completed, selected.size, video.title, savedNow, skippedNow, logSnapshot, eta))
+                    return
+                }
+                videoToDownload = video.copy(availableSubs = subs, subtitleChecked = true)
+            } else if (!video.hasSub) {
+                log("⚠️ " + video.title + ": không có phụ đề")
+                val eta = markCompleted(0, config.skipNoSub)
+                val (savedNow, skippedNow, logSnapshot) = progress()
+                publish(DownloadState.Running(completed, selected.size, video.title, savedNow, skippedNow, logSnapshot, eta))
+                return
             }
 
             val downloadResult = runCatching {
