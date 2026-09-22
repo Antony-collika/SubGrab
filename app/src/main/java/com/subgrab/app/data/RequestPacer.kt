@@ -155,15 +155,7 @@ class RequestPacer(
         )
     }
 
-    private fun maxAttempts(failure: FailureType): Int = when (failure) {
-        // Rate-limit/access signals must not trigger a retry loop. One retry is enough
-        // after the Governor has already entered slowdown.
-        FailureType.HTTP_429,
-        FailureType.HTTP_403,
-        FailureType.BOT_DETECTION,
-        FailureType.ACCESS_DENIED -> RESTRICTION_MAX_ATTEMPTS
-        else -> MAX_ATTEMPTS
-    }
+    private fun maxAttempts(failure: FailureType): Int = retryLimitFor(failure)
 
     private suspend fun logRetry(operation: RequestOperation, attempt: Int, failure: FailureType) {
         database.runtimeLogDao().insert(
@@ -224,10 +216,20 @@ class RequestPacer(
         database.runtimeLogDao().deleteOlderThan(cutoff)
     }
 
-    private companion object {
-        const val MAX_ATTEMPTS = 3
-        const val RESTRICTION_MAX_ATTEMPTS = 2
-        const val RETRY_BASE_DELAY_MS = 1_000L
+    companion object {
+        fun retryLimitFor(failure: FailureType): Int = when (failure) {
+            // Rate-limit/access signals must not trigger a retry loop. One retry is enough
+            // after the Governor has already entered slowdown.
+            FailureType.HTTP_429,
+            FailureType.HTTP_403,
+            FailureType.BOT_DETECTION,
+            FailureType.ACCESS_DENIED -> RESTRICTION_MAX_ATTEMPTS
+            else -> MAX_ATTEMPTS
+        }
+
+        private const val MAX_ATTEMPTS = 3
+        private const val RESTRICTION_MAX_ATTEMPTS = 2
+        private const val RETRY_BASE_DELAY_MS = 1_000L
     }
 }
 
