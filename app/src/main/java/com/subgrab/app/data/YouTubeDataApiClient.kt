@@ -53,6 +53,15 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
   require(uploads.isNotBlank()) { "Không tìm thấy uploads playlist của channel" }
   return listPlaylistItems("https://www.youtube.com/playlist?list=$uploads")
  }
+ suspend fun getPlaylistTitle(source:String):String{
+  val id=Uri.parse(source).getQueryParameter("list")
+   ?: Regex("[?&]list=([^&]+)").find(source)?.groupValues?.get(1)
+   ?: error("Không tìm thấy playlist id")
+  return get("playlists",mapOf("part" to "snippet","id" to id)).optJSONArray("items")?.optJSONObject(0)
+   ?.optJSONObject("snippet")?.optString("title").orEmpty()
+   .ifBlank { error("Không tìm thấy tên playlist") }
+ }
+
  suspend fun listPlaylistItems(source:String):List<VideoItem>{
   val id=Uri.parse(source).getQueryParameter("list")?:Regex("[?&]list=([^&]+)").find(source)?.groupValues?.get(1) ?: error("Không tìm thấy playlist id")
   val json=get("playlistItems",mapOf("part" to "snippet","maxResults" to "50","playlistId" to id))
