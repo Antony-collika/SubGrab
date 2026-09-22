@@ -39,7 +39,14 @@ fun DownloadProgressScreen(state: DownloadState, vm: DownloadViewModel, onDone: 
             is DownloadState.Done -> {
                 Text("Hoàn tất", style = MaterialTheme.typography.titleLarge)
                 Text("Đã lưu " + state.saved + " file · Bỏ qua " + state.skipped)
+                if (state.totalTasks > 1) {
+                    val remainingTasks = state.totalTasks - state.taskIndex
+                    Text("Lượt ${state.taskIndex}/${state.totalTasks} đã hoàn tất. ${if (remainingTasks > 0) "Còn $remainingTasks lượt chưa tải." else "Đã hoàn tất toàn bộ các lượt."}")
+                }
                 DownloadLogList(state.logs)
+                if (state.taskIndex < state.totalTasks) {
+                    Button(onClick = vm::continueNextTask, modifier = Modifier.fillMaxWidth()) { Text("TIẾP TỤC LƯỢT KẾ TIẾP") }
+                }
                 Button(onClick = onDone) { Text("Xem kết quả") }
             }
             is DownloadState.Cancelled -> {
