@@ -65,8 +65,8 @@ data class AppSettings(
     val apiJitterMaxMs: Long = 0
 )
 object YoutubeUrlParser {
-    private val urlStart = Regex("""(?i)https?://[^\\s]*?(?=https?://|\\s|$)""")
-    private val trailingPunctuation = Regex("""[.,;:!?…\\)\\]\\}>'"]+$""")
+    private val urlStart = Regex("""(?i)https?://[^\s]*?(?=https?://|\s|$)""")
+    private val trailingPunctuation = Regex("""[.,;:!?…)\]}>'"]+$""")
 
     fun extractUrls(input: String): List<String> =
         urlStart.findAll(input)
@@ -76,7 +76,7 @@ object YoutubeUrlParser {
             .toList()
 
     fun normalize(url: String): String =
-        url.trim().trimStart('(', '[', '{', '<', '"', ''')
+        url.trim().trimStart('(', '[', '{', '<', '"', '\'')
             .replace(trailingPunctuation, "")
 
     fun isValid(url: String): Boolean = parse(url) != null
