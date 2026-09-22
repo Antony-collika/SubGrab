@@ -142,6 +142,19 @@ class RequestPacer(
         )
     }
 
+    suspend fun logDiagnostic(lane: RequestLane, operation: String, message: String) {
+        database.runtimeLogDao().insert(
+            RuntimeLogEntity(
+                timestamp = System.currentTimeMillis(),
+                level = "INFO",
+                category = "DIAGNOSTIC",
+                lane = lane.name,
+                operation = operation,
+                message = message.take(500)
+            )
+        )
+    }
+
     suspend fun logConfigurationError(operation: RequestOperation, message: String) {
         database.runtimeLogDao().insert(
             RuntimeLogEntity(
