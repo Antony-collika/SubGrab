@@ -324,6 +324,13 @@ private fun SelectVideoScreen(
 
     Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Đã chọn ${selected}/${videos.size} · Tối đa 50 video/lần")
+        val batchLimit = settings.maxSubtitlesPerTask.coerceIn(1, 50)
+        if (selected > batchLimit) {
+            val totalTasks = (selected + batchLimit - 1) / batchLimit
+            Text("Mỗi lượt tải tối đa $batchLimit video. Với $selected video đã chọn, ứng dụng sẽ chia thành $totalTasks lượt; lượt sau chỉ bắt đầu khi bạn bấm \"TIẾP TỤC LƯỢT KẾ TIẾP\".", style = MaterialTheme.typography.bodySmall)
+        } else {
+            Text("Lượt này sẽ tải tối đa $batchLimit video theo giới hạn trong Cài đặt.", style = MaterialTheme.typography.bodySmall)
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { vm.selectAll() }) { Text("Chọn tất cả") }
             OutlinedButton(onClick = { vm.clearSelection() }) { Text("Bỏ chọn") }
