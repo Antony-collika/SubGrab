@@ -11,12 +11,12 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
  private suspend fun get(path:String,params:Map<String,String>):JSONObject=withContext(Dispatchers.IO){
   val key=settings.current().youtubeDataApiKey.trim()
   if(key.isEmpty()) {
-   pacer.logConfigurationError(RequestOperation(if(path=="search" || path=="playlistItems") RequestLane.DISCOVERY_API else RequestLane.API_METADATA, path, "https://www.googleapis.com/youtube/v3/$path"), "YouTube Data API đã bật nhưng API key đang trống")
+   pacer.logConfigurationError(RequestOperation(if(path=="search" || path=="playlistItems" || path=="channels" || path=="playlists") RequestLane.DISCOVERY_API else RequestLane.API_METADATA, path, "https://www.googleapis.com/youtube/v3/$path"), "YouTube Data API đã bật nhưng API key đang trống")
    throw IllegalStateException("YouTube Data API đã bật nhưng API key đang trống")
   }
   val query=(params+("key" to key)).entries.joinToString("&"){Uri.encode(it.key)+"="+Uri.encode(it.value)}
   val safeUrl="https://www.googleapis.com/youtube/v3/$path"
-  pacer.execute(RequestOperation(if(path=="search")RequestLane.DISCOVERY_API else if(path=="playlistItems")RequestLane.DISCOVERY_API else RequestLane.API_METADATA,path,safeUrl)){
+  pacer.execute(RequestOperation(if(path=="search" || path=="playlistItems" || path=="channels" || path=="playlists")RequestLane.DISCOVERY_API else RequestLane.API_METADATA,path,safeUrl)){
    val c=(URL("$safeUrl?$query").openConnection() as HttpURLConnection).apply{requestMethod="GET";connectTimeout=15000;readTimeout=30000;setRequestProperty("Accept","application/json")}
    val code=c.responseCode;val body=(if(code in 200..299)c.inputStream else c.errorStream)?.bufferedReader()?.use{it.readText()}.orEmpty()
    c.disconnect();if(code !in 200..299)throw HttpFailure(code,body.take(500));PacedHttpResult(JSONObject(body),code)
