@@ -11,6 +11,9 @@ class ExtractorDiscoveryClient(
     suspend fun discoverChannelWithSource(source: String): Pair<com.subgrab.app.domain.Source, List<VideoItem>> =
         extractor.extractSource(source).getOrThrow().let { it.first to it.second.take(50) }
 
+    suspend fun discoverVideoCollectionWithSource(sources: List<String>): Pair<com.subgrab.app.domain.Source, List<VideoItem>> =
+        extractor.extractVideoCollection(sources).getOrThrow().let { it.first to it.second.take(50) }
+
     override suspend fun discoverPlaylist(source: String): List<VideoItem> =
         discoverPlaylistWithSource(source).second
 
@@ -21,5 +24,5 @@ class ExtractorDiscoveryClient(
         extractor.extractSource(source).getOrThrow().second.take(50)
 
     override suspend fun discoverChannel(source: String): List<VideoItem> =
-        extractor.extractSource(source).getOrThrow().second.take(50)
+        discoverChannelWithSource(source).second
 }
