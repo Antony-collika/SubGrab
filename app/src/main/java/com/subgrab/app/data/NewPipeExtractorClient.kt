@@ -9,6 +9,7 @@ import com.subgrab.app.domain.VideoItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.MediaFormat
+import org.schabi.newpipe.extractor.channel.ChannelExtractor
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor
 import org.schabi.newpipe.extractor.stream.StreamExtractor
@@ -42,47 +43,100 @@ class NewPipeExtractorClient(
     suspend fun extractSource(url: String): Result<Pair<Source, List<VideoItem>>> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val service = NewPipe.getServiceByUrl(url)
-                val isList = url.contains("playlist") || url.contains("channel") ||
-                    url.contains("/c/") || url.contains("/@") || url.contains("list=")
+                val normalizedUrl = com.subgrab.app.domain.YoutubeUrlParser.normalize(url)
+                val service = NewPipe.getServiceByUrl(normalizedUrl)
 
-                if (isList) {
-                    val extractor = service.getPlaylistExtractor(url)
-                    downloader.withRequestContext(RequestLane.DISCOVERY_EXTRACTOR, "playlist.fetch") {
-                        extractor.fetchPage()
+                when {
+                    com.subgrab.app.domain.YoutubeUrlParser.isChannelUrl(normalizedUrl) -> {
+                        val extractor = service.getChannelExtractor(normalizedUrl)
+                        downloader.withRequestContext(RequestLane.DISCOVERY_EXTRACTOR, "channel.fetch") {
+                            extractor.fetchPage()
+                        }
+                        val streams = extractor.getInitialPage().items
+                            .filterIsInstance<StreamInfoItem>()
+                            .take(50)
+                        val videos = streams.mapIndexed { index, item ->
+                            VideoItem(
+                                index = index + 1,
+                                videoId = youtubeVideoId(item.getUrl()),
+                                title = item.getName(),
+                                durationSec = item.getDuration().toInt(),
+                                availableSubs = emptyList(),
+                                subtitleChecked = false,
+                                channelTitle = runCatching { extractor.getName() }.getOrDefault("")
+                            )
+                        }
+                        Source(normalizedUrl, normalizedUrl, extractor.getName(), videos.size) to videos
                     }
-                    val streams = extractor.getInitialPage().items
-                        .filterIsInstance<StreamInfoItem>()
-                        .take(50)
-                    val videos = streams.mapIndexed { index, item ->
-                        VideoItem(
-                            index = index + 1,
-                            videoId = youtubeVideoId(item.getUrl()),
-                            title = item.getName(),
-                            durationSec = item.getDuration().toInt(),
-                            availableSubs = emptyList(),
-                            subtitleChecked = false
+
+                    com.subgrab.app.domain.YoutubeUrlParser.isPlaylistUrl(normalizedUrl) -> {
+                        val extractor = service.getPlaylistExtractor(normalizedUrl)
+                        downloader.withRequestContext(RequestLane.DISCOVERY_EXTRACTOR, "playlist.fetch") {
+                            extractor.fetchPage()
+                        }
+                        val streams = extractor.getInitialPage().items
+                            .filterIsInstance<StreamInfoItem>()
+                            .take(50)
+                        val videos = streams.mapIndexed { index, item ->
+                            VideoItem(
+                                index = index + 1,
+                                videoId = youtubeVideoId(item.getUrl()),
+                                title = item.getName(),
+                                durationSec = item.getDuration().toInt(),
+                                availableSubs = emptyList(),
+                                subtitleChecked = false
+                            )
+                        }
+                        Source(normalizedUrl, normalizedUrl, extractor.getName(), videos.size) to videos
+                    }
+
+                    else -> {
+                        val extractor = service.getStreamExtractor(normalizedUrl)
+                        downloader.withRequestContext(RequestLane.DISCOVERY_EXTRACTOR, "video.fetch") {
+                            extractor.fetchPage()
+                        }
+                        val id = com.subgrab.app.domain.YoutubeUrlParser.videoId(normalizedUrl)
+                            ?: youtubeVideoId(normalizedUrl)
+                        val title = runCatching { extractor.getName() }.getOrDefault(id)
+                        Source(normalizedUrl, normalizedUrl, title, 1) to listOf(
+                            VideoItem(
+                                index = 1,
+                                videoId = id,
+                                title = title,
+                                durationSec = 0,
+                                availableSubs = emptyList(),
+                                subtitleChecked = false
+                            )
                         )
                     }
-                    Source(url, url, extractor.getName(), videos.size) to videos
-                } else {
-                    val extractor = service.getStreamExtractor(url)
-                    downloader.withRequestContext(RequestLane.DISCOVERY_EXTRACTOR, "video.fetch") {
-                        extractor.fetchPage()
-                    }
-                    val id = youtubeVideoId(url)
-                    val title = runCatching { extractor.getName() }.getOrDefault(id)
-                    Source(url, url, title, 1) to listOf(
-                        VideoItem(
-                            index = 1,
-                            videoId = id,
-                            title = title,
-                            durationSec = 0,
-                            availableSubs = emptyList(),
-                            subtitleChecked = false
-                        )
-                    )
                 }
+            }
+        }
+
+    suspend fun extractVideoCollection(urls: List<String>): Result<Pair<Source, List<VideoItem>>> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val normalizedUrls = urls.map { com.subgrab.app.domain.YoutubeUrlParser.normalize(it) }
+                    .distinctBy { it.lowercase() }
+                    .take(50)
+                require(normalizedUrls.isNotEmpty()) { "Không tìm thấy URL video" }
+                require(normalizedUrls.all { com.subgrab.app.domain.YoutubeUrlParser.isVideoUrl(it) }) {
+                    "Chuỗi nhiều URL chỉ hỗ trợ URL video YouTube"
+                }
+
+                val videos = normalizedUrls.mapIndexed { index, videoUrl ->
+                    val (_, items) = extractSource(videoUrl).getOrThrow()
+                    val video = items.firstOrNull()
+                        ?: error("Không thể lấy video từ URL: $videoUrl")
+                    video.copy(index = index + 1)
+                }
+
+                Source(
+                    id = "collection",
+                    url = normalizedUrls.joinToString("\n"),
+                    title = "Collection",
+                    originalTotalVideos = videos.size
+                ) to videos
             }
         }
 
