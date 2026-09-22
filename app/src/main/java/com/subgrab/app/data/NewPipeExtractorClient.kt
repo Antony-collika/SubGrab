@@ -47,13 +47,20 @@ class NewPipeExtractorClient(
 
                 when {
                     com.subgrab.app.domain.YoutubeUrlParser.isChannelUrl(normalizedUrl) -> {
-                        val extractor = service.getChannelExtractor(normalizedUrl)
+                        val channelExtractor = service.getChannelExtractor(normalizedUrl)
                         downloader.withRequestContext(RequestLane.DISCOVERY_EXTRACTOR, "channel.fetch") {
-                            extractor.fetchPage()
+                            channelExtractor.fetchPage()
                         }
-                        val streams = extractor.getInitialPage().items
+                        val videosTab = channelExtractor.getTabs().firstOrNull()
+                            ?: error("Không tìm thấy tab video của kênh")
+                        val tabExtractor = service.getChannelTabExtractor(videosTab)
+                        downloader.withRequestContext(RequestLane.DISCOVERY_EXTRACTOR, "channel.videos.fetch") {
+                            tabExtractor.fetchPage()
+                        }
+                        val streams = tabExtractor.getInitialPage().items
                             .filterIsInstance<StreamInfoItem>()
                             .take(50)
+                        val channelTitle = runCatching { channelExtractor.getName() }.getOrDefault("")
                         val videos = streams.mapIndexed { index, item ->
                             VideoItem(
                                 index = index + 1,
@@ -62,10 +69,10 @@ class NewPipeExtractorClient(
                                 durationSec = item.getDuration().toInt(),
                                 availableSubs = emptyList(),
                                 subtitleChecked = false,
-                                channelTitle = runCatching { extractor.getName() }.getOrDefault("")
+                                channelTitle = channelTitle
                             )
                         }
-                        Source(normalizedUrl, normalizedUrl, extractor.getName(), videos.size) to videos
+                        Source(normalizedUrl, normalizedUrl, channelTitle, videos.size) to videos
                     }
 
                     com.subgrab.app.domain.YoutubeUrlParser.isPlaylistUrl(normalizedUrl) -> {
