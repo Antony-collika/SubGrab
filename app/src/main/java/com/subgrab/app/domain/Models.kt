@@ -85,7 +85,7 @@ object WebUrlExtractor {
                 .replace(trailingPunctuation, "")
                 .takeIf { it.isNotBlank() }
                 ?: return@mapNotNull null
-            UrlCandidate(match.value, normalized, match.range.first, match.range.last + 1)
+            UrlCandidate(match.value, normalized, match.range.first, match.range.first + normalized.length)
         }
         .distinctBy { it.start to it.normalized }
         .toList()
