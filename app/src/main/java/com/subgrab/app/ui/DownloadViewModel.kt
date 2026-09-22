@@ -88,7 +88,30 @@ class DownloadViewModel(
     .onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích link",url)}
   }
  }
- fun searchKeyword(keyword:String){lastKeyword=keyword;_state.value=AnalysisState.Loading;viewModelScope.launch{val s=settingsRepository.current();if(s.useYouTubeDataApi)runCatching{apiDiscovery.discoverKeyword(keyword)}.onSuccess{v->{val clean=keyword.trim();_state.value=AnalysisState.Ready(Source("keyword:"+clean, "https://www.youtube.com/results?search_query="+android.net.Uri.encode(clean),clean,v.size),v,clean)}}.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)} else runCatching{extractorDiscovery.discoverKeyword(keyword)}.map{v->Source("keyword:"+keyword.trim(),"https://www.youtube.com/results?search_query="+android.net.Uri.encode(keyword.trim()),keyword.trim(),v.size) to v}.onSuccess{(source,v)->_state.value=AnalysisState.Ready(source,v,source.title)}.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)}}}
+ fun searchKeyword(keyword:String){
+  lastKeyword=keyword
+  _state.value=AnalysisState.Loading
+  viewModelScope.launch{
+   val s=settingsRepository.current()
+   if(s.useYouTubeDataApi){
+    runCatching{apiDiscovery.discoverKeyword(keyword)}
+     .onSuccess{v->
+      val clean=keyword.trim()
+      _state.value=AnalysisState.Ready(Source("keyword:"+clean,"https://www.youtube.com/results?search_query="+android.net.Uri.encode(clean),clean,v.size),v,clean)
+      AppRuntimeLog.log(context,RequestLane.DISCOVERY_API,"search","SEARCH_READY videos="+v.size)
+     }
+     .onFailure{
+      AppRuntimeLog.log(context,RequestLane.DISCOVERY_API,"search","SEARCH_FAILED "+(it.message?:"unknown"))
+      _state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)
+     }
+   } else {
+    runCatching{extractorDiscovery.discoverKeyword(keyword)}
+     .map{v->Source("keyword:"+keyword.trim(),"https://www.youtube.com/results?search_query="+android.net.Uri.encode(keyword.trim()),keyword.trim(),v.size) to v}
+     .onSuccess{(source,v)->_state.value=AnalysisState.Ready(source,v,source.title)}
+     .onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)}
+   }
+  }
+ }
  private fun isPlaylist(url:String)=url.contains("playlist",true)||url.contains("list=",true)
  private fun isChannel(url:String)=url.contains("/channel/",true)||url.contains("/c/",true)||url.contains("/@",true)
  fun retryAnalysis(){lastUrl?.let(::analyze)?:lastKeyword?.let(::searchKeyword)};fun resetAnalysis(){_state.value=AnalysisState.Idle}
