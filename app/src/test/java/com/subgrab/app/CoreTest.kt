@@ -67,6 +67,66 @@ class CoreTest {
         assertEquals("Good day.\n", SubtitleFormatter.format(cues, SubtitleTimestampMode.WITHOUT_TIMESTAMP))
     }
 
+    @Test fun extractsMultipleYoutubeUrlsSeparatedByPunctuation() {
+        val input = " https://www.youtube.com/watch?v=abc, https://youtu.be/def. https://www.youtube.com/watch?v=abc "
+        assertEquals(
+            listOf(
+                "https://www.youtube.com/watch?v=abc",
+                "https://youtu.be/def"
+            ),
+            YoutubeUrlParser.extractUrls(input)
+        )
+    }
+
+    @Test fun doesNotLowercaseDistinctVideoIds() {
+        assertEquals(
+            listOf(
+                "https://www.youtube.com/watch?v=ABC",
+                "https://www.youtube.com/watch?v=abc"
+            ),
+            YoutubeUrlParser.extractUrls(
+                "https://www.youtube.com/watch?v=ABC https://www.youtube.com/watch?v=abc"
+            )
+        )
+    }
+
+    @Test fun validatesChannelAndRejectsUnsupportedYoutubePages() {
+        assertTrue(UrlValidator.isValid("https://www.youtube.com/channel/UCdemo"))
+        assertTrue(UrlValidator.isValid("https://www.youtube.com/@demo"))
+        assertFalse(UrlValidator.isValid("https://www.youtube.com/about"))
+    }
+
+    @Test fun collapsesOverlappingDuplicateYoutubeCues() {
+        val cues = SubtitleParser.parseWebVtt(
+            """
+            WEBVTT
+
+            00:00:00.000 --> 00:00:02.000
+            Bạn cần số 9 ảo, gọi cho Messi. Bạn cần
+
+            00:00:01.950 --> 00:00:02.000
+            Bạn cần số 9 ảo, gọi cho Messi. Bạn cần
+
+            00:00:02.000 --> 00:00:04.000
+            số 10, gọi cho Messi. Bạn cần một cầu
+
+            00:00:03.950 --> 00:00:04.000
+            số 10, gọi cho Messi. Bạn cần một cầu
+
+            00:00:04.000 --> 00:00:06.000
+            thủ có thể làm mọi thứ trên hàng công
+            """.trimIndent()
+        )
+        assertEquals(
+            listOf(
+                "Bạn cần số 9 ảo, gọi cho Messi. Bạn cần",
+                "số 10, gọi cho Messi. Bạn cần một cầu",
+                "thủ có thể làm mọi thứ trên hàng công"
+            ),
+            cues.map { it.text }
+        )
+    }
+
     @Test fun taskProgressNeverExceedsLimit() {
         val videos = (1..50).map { VideoItem(it, "$it", "Video $it", 60, listOf(SubtitleLanguage("vi"))) }
         assertEquals(50, videos.size)
