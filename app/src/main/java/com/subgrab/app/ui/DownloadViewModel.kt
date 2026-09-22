@@ -98,10 +98,14 @@ class DownloadViewModel(
      .onSuccess{v->
       val clean=keyword.trim()
       _state.value=AnalysisState.Ready(Source("keyword:"+clean,"https://www.youtube.com/results?search_query="+android.net.Uri.encode(clean),clean,v.size),v,clean)
-      AppRuntimeLog.log(context,RequestLane.DISCOVERY_API,"search","SEARCH_READY videos="+v.size)
+      SubGrabDatabase.get(context).runtimeLogDao().insert(
+       RuntimeLogEntity(System.currentTimeMillis(),"INFO","DIAGNOSTIC",RequestLane.DISCOVERY_API.name,"search","SEARCH_READY videos="+v.size)
+      )
      }
      .onFailure{
-      AppRuntimeLog.log(context,RequestLane.DISCOVERY_API,"search","SEARCH_FAILED "+(it.message?:"unknown"))
+      SubGrabDatabase.get(context).runtimeLogDao().insert(
+       RuntimeLogEntity(System.currentTimeMillis(),"ERROR","DIAGNOSTIC",RequestLane.DISCOVERY_API.name,"search","SEARCH_FAILED "+(it.message?:"unknown"))
+      )
       _state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)
      }
    } else {
