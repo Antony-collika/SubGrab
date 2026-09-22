@@ -47,12 +47,17 @@ object SubtitleNormalizer {
         cues.forEach { cue ->
             val normalized = normalize(cue)
             if (normalized.text.isBlank()) return@forEach
+
             val previous = result.lastOrNull()
-            if (previous != null && previous.text == normalized.text) {
+            if (previous != null &&
+                previous.text == normalized.text &&
+                normalized.startMs <= previous.endMs + 250
+            ) {
                 result[result.lastIndex] = previous.copy(endMs = maxOf(previous.endMs, normalized.endMs))
-            } else {
-                result += normalized
+                return@forEach
             }
+
+            result += normalized
         }
         return result
     }
