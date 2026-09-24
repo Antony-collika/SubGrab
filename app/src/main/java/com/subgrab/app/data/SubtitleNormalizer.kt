@@ -65,4 +65,63 @@ object SubtitleNormalizer {
         }
         return result
     }
+
+    /**
+     * Removes YouTube rolling-caption overlap for plain-text export.
+     *
+     * This is intentionally separate from mergeConsecutive(): timestamped
+     * exports must preserve the original cue text so that cue timing remains
+     * faithful to the source VTT.
+     */
+    fun mergeRollingForText(cues: List<SubtitleCue>): List<SubtitleCue> {
+        if (cues.isEmpty()) return emptyList()
+
+        val result = mutableListOf<SubtitleCue>()
+        cues.forEach { cue ->
+            val normalized = normalize(cue)
+            if (normalized.text.isBlank()) return@forEach
+
+            val previous = result.lastOrNull()
+            if (previous == null) {
+                result += normalized
+                return@forEach
+            }
+
+            val previousLines = previous.text.lines()
+            val currentLines = normalized.text.lines()
+            val overlap = maxLineOverlap(previousLines, currentLines)
+
+            if (overlap == currentLines.size) {
+                // The whole cue is already represented by the preceding cue.
+                // Keep its timing information by extending the previous cue.
+                result[result.lastIndex] = previous.copy(
+                    endMs = maxOf(previous.endMs, normalized.endMs)
+                )
+                return@forEach
+            }
+
+            val remaining = currentLines.drop(overlap).joinToString("\n").trim()
+            if (remaining.isBlank()) {
+                result[result.lastIndex] = previous.copy(
+                    endMs = maxOf(previous.endMs, normalized.endMs)
+                )
+            } else if (overlap > 0) {
+                result += normalized.copy(text = remaining)
+            } else {
+                result += normalized
+            }
+        }
+
+        return result
+    }
+
+    private fun maxLineOverlap(previousLines: List<String>, currentLines: List<String>): Int {
+        val max = minOf(previousLines.size, currentLines.size)
+        for (size in max downTo 1) {
+            if (previousLines.takeLast(size) == currentLines.take(size)) {
+                return size
+            }
+        }
+        return 0
+    }
 }
