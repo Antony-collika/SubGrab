@@ -156,6 +156,53 @@ class CoreTest {
         )
     }
 
+
+    @Test fun removesYoutubeRollingCaptionDuplicatesOnlyWithoutTimestamp() {
+        val cues = SubtitleParser.parseWebVtt(
+            """
+            WEBVTT
+
+            00:00:00.000 --> 00:00:02.000
+            Bạn cần số 9 ảo, gọi cho Messi. Bạn cần
+
+            00:00:02.000 --> 00:00:03.000
+            Bạn cần số 9 ảo, gọi cho Messi. Bạn cần
+
+            00:00:03.000 --> 00:00:04.000
+            số 10, gọi cho Messi. Bạn cần một cầu
+
+            00:00:04.000 --> 00:00:05.000
+            số 10, gọi cho Messi. Bạn cần một cầu
+
+            00:00:05.000 --> 00:00:06.000
+            thủ có thể làm mọi thứ trên hàng công
+
+            00:00:06.000 --> 00:00:07.000
+            thủ có thể làm mọi thứ trên hàng công
+            """.trimIndent()
+        )
+
+        assertEquals(
+            "Bạn cần số 9 ảo, gọi cho Messi. Bạn cần\n" +
+                "số 10, gọi cho Messi. Bạn cần một cầu\n" +
+                "thủ có thể làm mọi thứ trên hàng công\n",
+            SubtitleFormatter.format(cues, SubtitleTimestampMode.WITHOUT_TIMESTAMP)
+        )
+    }
+
+    @Test fun timestampedExportKeepsRollingCueText() {
+        val cues = listOf(
+            SubtitleCue(0, 2000, "A"),
+            SubtitleCue(2000, 3000, "A")
+        )
+
+        assertEquals(
+            "1\n00:00:00,000 --> 00:00:02,000\nA\n\n" +
+                "2\n00:00:02,000 --> 00:00:03,000\nA\n",
+            SubtitleFormatter.format(cues, SubtitleTimestampMode.WITH_TIMESTAMP)
+        )
+    }
+
     @Test fun taskProgressNeverExceedsLimit() {
         val videos = (1..50).map { VideoItem(it, "$it", "Video $it", 60, listOf(SubtitleLanguage("vi"))) }
         assertEquals(50, videos.size)
