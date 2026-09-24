@@ -192,7 +192,7 @@ class CoreTest {
 
     @Test fun timestampedExportKeepsRollingCueText() {
         val cues = listOf(
-            SubtitleCue(0, 2000, "A"),
+            SubtitleCue(0, 1000, "A"),
             SubtitleCue(2000, 3000, "A")
         )
 
