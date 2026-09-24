@@ -6,7 +6,11 @@ import java.util.Locale
 
 object SubtitleFormatter {
     fun format(cues: List<SubtitleCue>, mode: SubtitleTimestampMode): String {
-        val normalized = SubtitleNormalizer.mergeConsecutive(cues)
+        val normalized = if (mode == SubtitleTimestampMode.WITHOUT_TIMESTAMP) {
+            SubtitleNormalizer.mergeRollingForText(cues)
+        } else {
+            SubtitleNormalizer.mergeConsecutive(cues)
+        }
         if (mode == SubtitleTimestampMode.WITHOUT_TIMESTAMP) {
             return normalized.joinToString("\n") { it.text }.trimEnd() + "\n"
         }
