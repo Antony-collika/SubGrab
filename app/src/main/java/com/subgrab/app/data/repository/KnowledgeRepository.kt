@@ -113,11 +113,15 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
     suspend fun getComments(threadId: String) = database.commentDao().getComments(threadId)
 
     private suspend fun saveVideo(metadata: com.subgrab.app.data.NormalizedVideoMetadata, now: Long) {
-        database.videoDao().insert(VideoEntity(metadata.videoId, metadata.channelId, now, now))
-        database.videoDao().updateChannel(metadata.videoId, metadata.channelId, now)
-        metadata.channelId?.takeIf(String::isNotBlank)?.let { channelId ->
-            database.channelDao().insert(ChannelEntity(channelId, metadata.channelName, now, now))
-            database.channelDao().update(channelId, metadata.channelName, now)
+        val existingVideo = database.videoDao().get(metadata.videoId)
+        val effectiveChannelId = metadata.channelId ?: existingVideo?.channelId
+        database.videoDao().insert(VideoEntity(metadata.videoId, effectiveChannelId, now, now))
+        database.videoDao().updateChannel(metadata.videoId, effectiveChannelId, now)
+        effectiveChannelId?.takeIf(String::isNotBlank)?.let { channelId ->
+            val existingChannel = database.channelDao().get(channelId)
+            val effectiveName = metadata.channelName ?: existingChannel?.name
+            database.channelDao().insert(ChannelEntity(channelId, effectiveName, now, now))
+            database.channelDao().update(channelId, effectiveName, now)
         }
     }
 
@@ -138,7 +142,8 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
     }
 
     private fun playlistIdFrom(url: String): String? =
-        Regex("[?&]list=([^&]+)").find(url)?.groupValues?.get(1)?.takeIf(String::isNotBlank)
+        com.subgrab.app.domain.YoutubeUrlParser.isPlaylistUrl(url)
+            .let { isPlaylist -> if (isPlaylist) Regex("[?&]list=([^&]+)").find(url)?.groupValues?.get(1)?.takeIf(String::isNotBlank) else null }
 
     private fun channelIdFrom(url: String): String? =
         Regex("/channel/([^/?#]+)", RegexOption.IGNORE_CASE).find(url)?.groupValues?.get(1)
