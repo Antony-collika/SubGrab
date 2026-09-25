@@ -86,6 +86,7 @@ jobs:
   instrumentation:
     # Use the standard x64 runner because the Android emulator package is not published for the ARM64 Linux host image.
     # The Google APIs x86_64 system image provides ARM64 native-bridge support for ARM64 APKs.
+    runs-on: ubuntu-latest
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
     steps:
