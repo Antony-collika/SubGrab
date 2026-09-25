@@ -363,6 +363,7 @@ private fun SelectVideoScreen(
 
 @Composable
 private fun DownloadProgressCard(state: DownloadState, vm: DownloadViewModel) {
+    val context = LocalContext.current
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             when (state) {
@@ -400,6 +401,11 @@ private fun DownloadProgressCard(state: DownloadState, vm: DownloadViewModel) {
                 is DownloadState.Done -> {
                     Text("Hoàn tất task: ${state.saved} file, bỏ qua ${state.skipped}", color = MaterialTheme.colorScheme.primary)
                     state.logs.takeLast(8).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    state.outputRelativePath?.let { path ->
+                        Button(onClick = { openDownloadFolder(context, path) }, modifier = Modifier.fillMaxWidth()) {
+                            Text("XEM KẾT QUẢ")
+                        }
+                    }
                     if (state.taskIndex < state.totalTasks) { Button(onClick = vm::continueNextTask, modifier = Modifier.fillMaxWidth()) { Text("TIẾP TỤC TASK KẾ TIẾP") } }
                 }
                 is DownloadState.Cancelled -> {
@@ -476,6 +482,20 @@ private fun DebugLogScreen(onBack: () -> Unit) {
             }
         }
     }
+}
+
+private fun openDownloadFolder(context: Context, relativePath: String) {
+    val cleanPath = relativePath.replace("\\", "/").trim('/')
+    val documentId = "primary:" + if (cleanPath.startsWith("Download/", ignoreCase = true)) cleanPath else "Download/$cleanPath"
+    val initialUri = DocumentsContract.buildDocumentUri(
+        "com.android.externalstorage.documents",
+        documentId
+    )
+    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+        putExtra(DocumentsContract.EXTRA_INITIAL_URI, initialUri)
+    }
+    runCatching { context.startActivity(intent) }
+        .onFailure { context.startActivity(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)) }
 }
 
 private fun copyDebugLog(context: Context) {
