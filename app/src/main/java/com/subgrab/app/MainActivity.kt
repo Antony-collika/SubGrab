@@ -490,9 +490,9 @@ private fun openDownloadFolder(context: Context, relativePath: String) {
     val cleanPath = relativePath.replace("\\", "/").trim('/')
     val documentId = "primary:" + if (cleanPath.startsWith("Download/", ignoreCase = true)) cleanPath else "Download/$cleanPath"
 
-    // This is a real document URI for the published folder, not a tree-picker URI.
-    // ACTION_OPEN_DOCUMENT_TREE is intentionally not used: that action is a picker.
-    val folderUri = DocumentsContract.buildDocumentUri(
+    // Use the target folder as a tree-document URI only for ACTION_VIEW.
+    // ACTION_OPEN_DOCUMENT_TREE is not used, so this is navigation, not a picker.
+    val folderUri = DocumentsContract.buildTreeDocumentUri(
         "com.android.externalstorage.documents",
         documentId
     )
