@@ -84,8 +84,8 @@ jobs:
             --generate-notes
 
   instrumentation:
-    # The app/test APK is arm64-only, so use an ARM64 GitHub runner for the ARM64 emulator.
-    runs-on: ubuntu-24.04-arm
+    # Use the standard x64 runner because the Android emulator package is not published for the ARM64 Linux host image.
+    # The Google APIs x86_64 system image provides ARM64 native-bridge support for ARM64 APKs.
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
     steps:
@@ -106,14 +106,14 @@ jobs:
       - name: Install Android SDK packages
         run: |
           sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "emulator" "system-images;android-35;google_apis;arm64-v8a"
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "emulator" "system-images;android-35;google_apis;x86_64"
 
       - name: Run instrumentation tests on ARM64 emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
           target: google_apis
-          arch: arm64-v8a
+          arch: x86_64
           profile: pixel_2
           emulator-options: -no-window -no-audio -no-boot-anim
           disable-animations: true
