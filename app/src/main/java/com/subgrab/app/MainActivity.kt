@@ -175,7 +175,7 @@ fun SubGrabApp() {
                 )
             }
             composable("progress") {
-                DownloadProgressScreen(downloadState, vm, onDone = { navController.popBackStack("results", false) }, Modifier.fillMaxSize())
+                DownloadProgressScreen(downloadState, vm, onDone = { navController.popBackStack("results", false) }, onOpenResult = { path -> openDownloadFolder(context, path) }, Modifier.fillMaxSize())
             }
             composable("history") {
                 val scope = rememberCoroutineScope()
