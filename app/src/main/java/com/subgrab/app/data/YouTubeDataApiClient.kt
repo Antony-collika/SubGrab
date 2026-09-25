@@ -8,15 +8,16 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class YouTubeDataApiClient(private val settings:SettingsRepository,private val pacer:RequestPacer){
- private suspend fun get(path:String,params:Map<String,String>):JSONObject=withContext(Dispatchers.IO){
+ private suspend fun get(path:String,params:Map<String,String>,lane:RequestLane?=null):JSONObject=withContext(Dispatchers.IO){
   val key=settings.current().youtubeDataApiKey.trim()
   if(key.isEmpty()) {
-   pacer.logConfigurationError(RequestOperation(if(path=="search" || path=="playlistItems" || path=="channels" || path=="playlists") RequestLane.DISCOVERY_API else RequestLane.API_METADATA, path, "https://www.googleapis.com/youtube/v3/$path"), "YouTube Data API đã bật nhưng API key đang trống")
+   pacer.logConfigurationError(RequestOperation(lane ?: if(path=="search" || path=="playlistItems" || path=="channels" || path=="playlists") RequestLane.DISCOVERY_API else RequestLane.API_METADATA, path, "https://www.googleapis.com/youtube/v3/$path"), "YouTube Data API đã bật nhưng API key đang trống")
    throw IllegalStateException("YouTube Data API đã bật nhưng API key đang trống")
   }
   val query=(params+("key" to key)).entries.joinToString("&"){Uri.encode(it.key)+"="+Uri.encode(it.value)}
   val safeUrl="https://www.googleapis.com/youtube/v3/$path"
-  pacer.execute(RequestOperation(if(path=="search" || path=="playlistItems" || path=="channels" || path=="playlists")RequestLane.DISCOVERY_API else RequestLane.API_METADATA,path,safeUrl)){
+  val requestLane=lane ?: if(path=="search" || path=="playlistItems" || path=="channels" || path=="playlists") RequestLane.DISCOVERY_API else RequestLane.API_METADATA
+  pacer.execute(RequestOperation(requestLane,path,safeUrl)){
    val c=(URL("$safeUrl?$query").openConnection() as HttpURLConnection).apply{requestMethod="GET";connectTimeout=15000;readTimeout=30000;setRequestProperty("Accept","application/json")}
    val code=c.responseCode;val body=(if(code in 200..299)c.inputStream else c.errorStream)?.bufferedReader()?.use{it.readText()}.orEmpty()
    c.disconnect();if(code !in 200..299)throw HttpFailure(code,body.take(500));PacedHttpResult(JSONObject(body),code)
@@ -87,16 +88,34 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
  suspend fun getVideoMetadata(ids:List<String>):List<VideoItem>{
   if(ids.isEmpty())return emptyList()
   val out=mutableListOf<VideoItem>()
-  ids.take(50).chunked(50).forEach{chunk->
+  ids.map(String::trim).filter(String::isNotBlank).distinct().take(50).chunked(50).forEach{chunk->
    val json=get("videos",mapOf("part" to "snippet,contentDetails,statistics","id" to chunk.joinToString(",")))
    val metadataCount=json.optJSONArray("items")?.length()?:0
    pacer.logDiagnostic(RequestLane.API_METADATA,"videos","METADATA_RESPONSE items="+metadataCount+" requested="+chunk.size)
    val a=json.optJSONArray("items")?:return@forEach
-   for(i in 0 until a.length()){val x=a.getJSONObject(i);val sn=x.getJSONObject("snippet");val st=x.optJSONObject("statistics");val cd=x.optJSONObject("contentDetails")
-    val dur=parseDuration(cd?.optString("duration").orEmpty());out+=VideoItem(out.size+1,x.getString("id"),sn.optString("title"),dur.toInt(),emptyList(),channelTitle=sn.optString("channelTitle"),publishedAt=sn.optString("publishedAt"),viewCount=st?.optString("viewCount")?.toLongOrNull(),thumbnailUrl=sn.optJSONObject("thumbnails")?.optJSONObject("medium")?.optString("url").orEmpty(),description=sn.optString("description").takeIf{it.isNotBlank()},durationSeconds=dur,likeCount=st?.optString("likeCount")?.toLongOrNull())
+   for(i in 0 until a.length()){
+    val x=a.getJSONObject(i);val sn=x.getJSONObject("snippet");val st=x.optJSONObject("statistics");val cd=x.optJSONObject("contentDetails")
+    val dur=parseDuration(cd?.optString("duration").orEmpty())
+    val tags=buildList{val tagsArray=sn.optJSONArray("tags");if(tagsArray!=null)for(j in 0 until tagsArray.length())tagsArray.optString(j).takeIf{it.isNotBlank()}?.let(::add)}
+    val topics=buildList{val topicsArray=sn.optJSONArray("topicIds");if(topicsArray!=null)for(j in 0 until topicsArray.length())topicsArray.optString(j).takeIf{it.isNotBlank()}?.let(::add)}
+    out+=VideoItem(out.size+1,x.getString("id"),sn.optString("title"),dur.toInt(),emptyList(),channelTitle=sn.optString("channelTitle"),publishedAt=sn.optString("publishedAt"),viewCount=st?.optString("viewCount")?.toLongOrNull(),thumbnailUrl=sn.optJSONObject("thumbnails")?.optJSONObject("medium")?.optString("url").orEmpty(),description=sn.optString("description").takeIf{it.isNotBlank()},durationSeconds=dur,likeCount=st?.optString("likeCount")?.toLongOrNull(),channelId=sn.optString("channelId").takeIf{it.isNotBlank()},commentCount=st?.optString("commentCount")?.toLongOrNull(),tags=tags,category=sn.optString("categoryId").takeIf{it.isNotBlank()},topic=topics)
    }
   }
-  return out.take(50)
+  val channelIds=out.mapNotNull{it.channelId}.distinct()
+  val subscribers=getSubscriberCounts(channelIds)
+  return out.map{it.copy(subscriberCount=it.channelId?.let(subscribers::get))}.take(50)
+ }
+ private suspend fun getSubscriberCounts(channelIds:List<String>):Map<String,Long?>{
+  if(channelIds.isEmpty()) return emptyMap()
+  val json=get("channels",mapOf("part" to "statistics","id" to channelIds.joinToString(",")),RequestLane.API_METADATA)
+  val a=json.optJSONArray("items") ?: return emptyMap()
+  return buildMap{
+   for(i in 0 until a.length()){
+    val item=a.optJSONObject(i) ?: continue
+    val id=item.optString("id").takeIf{it.isNotBlank()} ?: continue
+    put(id,item.optJSONObject("statistics")?.optString("subscriberCount")?.toLongOrNull())
+   }
+  }
  }
  private fun parseDuration(v:String):Long=Regex("PT(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?").matchEntire(v)?.let{m->(m.groupValues[1].toLongOrNull()?:0)*3600+(m.groupValues[2].toLongOrNull()?:0)*60+(m.groupValues[3].toLongOrNull()?:0)}?:0
 }
