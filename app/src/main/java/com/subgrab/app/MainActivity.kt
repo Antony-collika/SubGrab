@@ -489,29 +489,23 @@ private fun DebugLogScreen(onBack: () -> Unit) {
 private fun openDownloadFolder(context: Context, relativePath: String) {
     val cleanPath = relativePath.replace("\\", "/").trim('/')
     val documentId = "primary:" + if (cleanPath.startsWith("Download/", ignoreCase = true)) cleanPath else "Download/$cleanPath"
-    val folderUri = DocumentsContract.buildTreeDocumentUri(
+
+    // This is a real document URI for the published folder, not a tree-picker URI.
+    // ACTION_OPEN_DOCUMENT_TREE is intentionally not used: that action is a picker.
+    val folderUri = DocumentsContract.buildDocumentUri(
         "com.android.externalstorage.documents",
         documentId
     )
 
-    val viewIntent = Intent(Intent.ACTION_VIEW, folderUri).apply {
+    val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+        data = folderUri
+        type = DocumentsContract.Document.MIME_TYPE_DIR
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
 
-    val openedDirectly = runCatching {
+    runCatching {
         context.startActivity(viewIntent)
-        true
-    }.getOrDefault(false)
-
-    if (!openedDirectly) {
-        val pickerIntent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-            putExtra(DocumentsContract.EXTRA_INITIAL_URI, folderUri)
-        }
-        runCatching { context.startActivity(pickerIntent) }
-            .onFailure {
-                context.startActivity(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE))
-            }
     }
 }
 
