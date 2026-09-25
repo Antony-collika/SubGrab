@@ -18,9 +18,19 @@ android { namespace = "com.subgrab.app"; compileSdk = 35
     buildFeatures { compose = true }
     flavorDimensions += "abi"
     productFlavors { create("arm64") { dimension = "abi"; ndk { abiFilters += "arm64-v8a" } } }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("RELEASE_KEYSTORE_PATH") ?: "release.keystore")
+            storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+            keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
