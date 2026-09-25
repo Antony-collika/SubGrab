@@ -67,8 +67,11 @@ interface SearchDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertMemberships(refs: List<SearchSessionVideoCrossRef>)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertDocument(entity: VideoSearchEntity)
+    @Query("DELETE FROM video_search WHERE videoId = :videoId")
+    suspend fun deleteDocument(videoId: String)
+
+    @Insert
+    suspend fun insertDocument(entity: VideoSearchEntity)
 
     @Query("SELECT videoId FROM video_search WHERE video_search MATCH :query LIMIT :limit")
     suspend fun searchVideoIds(query: String, limit: Int): List<String>
