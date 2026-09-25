@@ -192,6 +192,7 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             else -> -1L
         })
         .putString(KEY_MESSAGE, (this as? DownloadState.Error)?.message.orEmpty())
+        .putString(KEY_OUTPUT_RELATIVE_PATH, (this as? DownloadState.Done)?.outputRelativePath.orEmpty())
         .putStringArray(KEY_LOGS, logsForWorkData())
         .build()
 
@@ -271,6 +272,7 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         const val KEY_ETA = "eta_seconds"
         const val KEY_MESSAGE = "message"
         const val KEY_LOGS = "logs"
+        const val KEY_OUTPUT_RELATIVE_PATH = "output_relative_path"
         private const val MAX_WORK_LOGS = 8
         private const val MAX_WORK_LOG_CHARS = 180
         private const val CHANNEL = "subgrab_download"
