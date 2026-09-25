@@ -85,7 +85,8 @@ jobs:
 
 
   instrumentation:
-    runs-on: ubuntu-latest
+    # The app/test APK is arm64-only, so use an ARM64 GitHub runner for the ARM64 emulator.
+    runs-on: ubuntu-24.04-arm
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
     steps:
