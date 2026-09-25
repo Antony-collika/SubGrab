@@ -134,10 +134,11 @@ class DownloadViewModel(
   val taskIndex=data.getInt(DownloadWorker.KEY_TASK_INDEX,1);val totalTasks=data.getInt(DownloadWorker.KEY_TOTAL_TASKS,1)
   val saved=data.getInt(DownloadWorker.KEY_SAVED,0);val skipped=data.getInt(DownloadWorker.KEY_SKIPPED,0);val eta=data.getLong(DownloadWorker.KEY_ETA, -1L).takeIf{it>=0}
   val logs=data.getStringArray(DownloadWorker.KEY_LOGS)?.toList().orEmpty()
+  val outputRelativePath=data.getString(DownloadWorker.KEY_OUTPUT_RELATIVE_PATH)?.takeIf{it.isNotBlank()}
   return when(data.getString(DownloadWorker.KEY_STATE)){
    "running"->DownloadState.Running(current,total,title,saved,skipped,logs,eta,taskIndex,totalTasks)
    "paused"->DownloadState.Paused(current,total,logs,eta,taskIndex,totalTasks)
-   "done"->DownloadState.Done(saved,skipped,logs,taskIndex,totalTasks)
+   "done"->DownloadState.Done(saved,skipped,logs,outputRelativePath,taskIndex,totalTasks)
    "cancelled"->DownloadState.Cancelled(saved,logs,taskIndex,totalTasks)
    "error"->DownloadState.Error(saved,skipped,data.getString(DownloadWorker.KEY_MESSAGE).orEmpty(),logs,taskIndex,totalTasks)
    else->DownloadState.Idle
