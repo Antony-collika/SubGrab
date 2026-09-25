@@ -500,8 +500,12 @@ private fun openDownloadFolder(context: Context, relativePath: String) {
     val viewIntent = Intent(Intent.ACTION_VIEW).apply {
         data = folderUri
         type = DocumentsContract.Document.MIME_TYPE_DIR
+        // File managers commonly keep their current folder/activity instance alive.
+        // Start this navigation as a new document so a previous folder (A) cannot
+        // win over the newly requested folder (B).
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
+        addFlags(Intent.FLAG_ACTIVITY_GRANT_READ_URI_PERMISSION)
     }
 
     runCatching {
