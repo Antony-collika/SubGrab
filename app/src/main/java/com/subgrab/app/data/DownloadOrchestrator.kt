@@ -39,7 +39,7 @@ sealed interface DownloadState {
         val taskIndex: Int = 1,
         val totalTasks: Int = 1
     ) : DownloadState
-    data class Done(val saved: Int, val skipped: Int, val logs: List<String>, val taskIndex: Int = 1, val totalTasks: Int = 1) : DownloadState
+    data class Done(val saved: Int, val skipped: Int, val logs: List<String>, val outputRelativePath: String? = null, val taskIndex: Int = 1, val totalTasks: Int = 1) : DownloadState
     data class Cancelled(val saved: Int, val logs: List<String>, val taskIndex: Int = 1, val totalTasks: Int = 1) : DownloadState
     data class Error(
         val saved: Int,
@@ -233,7 +233,7 @@ class DownloadOrchestrator(
                     sourceUrl = source.url, total = selected.size, status = "DONE", logs = finalLogs
                 )
             )
-            publish(DownloadState.Done(savedNow, skippedNow, finalLogs))
+            publish(DownloadState.Done(savedNow, skippedNow, finalLogs, relativePath))
         } catch (error: Throwable) {
             if (error is CancellationException) {
                 database.runtimeLogDao().insert(
