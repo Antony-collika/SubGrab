@@ -175,7 +175,7 @@ fun SubGrabApp() {
                 )
             }
             composable("progress") {
-                DownloadProgressScreen(downloadState, vm, onDone = { navController.popBackStack("results", false) }, onOpenResult = { path -> openDownloadFolder(context, path) }, Modifier.fillMaxSize())
+                DownloadProgressScreen(downloadState, vm, onDone = { navController.popBackStack("results", false) }, onOpenFileManager = { openDownloadFolder(context) }, Modifier.fillMaxSize())
             }
             composable("history") {
                 val scope = rememberCoroutineScope()
@@ -403,10 +403,8 @@ private fun DownloadProgressCard(state: DownloadState, vm: DownloadViewModel) {
                 is DownloadState.Done -> {
                     Text("Hoàn tất task: ${state.saved} file, bỏ qua ${state.skipped}", color = MaterialTheme.colorScheme.primary)
                     state.logs.takeLast(8).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
-                    state.outputRelativePath?.let { path ->
-                        Button(onClick = { openDownloadFolder(context, path) }, modifier = Modifier.fillMaxWidth()) {
-                            Text("XEM KẾT QUẢ")
-                        }
+                    Button(onClick = { openDownloadFolder(context) }, modifier = Modifier.fillMaxWidth()) {
+                        Text("MỞ FILE MANAGER")
                     }
                     if (state.taskIndex < state.totalTasks) { Button(onClick = vm::continueNextTask, modifier = Modifier.fillMaxWidth()) { Text("TIẾP TỤC TASK KẾ TIẾP") } }
                 }
@@ -486,23 +484,15 @@ private fun DebugLogScreen(onBack: () -> Unit) {
     }
 }
 
-private fun openDownloadFolder(context: Context, relativePath: String) {
-    val cleanPath = relativePath.replace("\\", "/").trim('/')
-    val documentId = "primary:" + if (cleanPath.startsWith("Download/", ignoreCase = true)) cleanPath else "Download/$cleanPath"
-
-    // Use the target folder as a tree-document URI only for ACTION_VIEW.
-    // ACTION_OPEN_DOCUMENT_TREE is not used, so this is navigation, not a picker.
+private fun openDownloadFolder(context: Context) {
     val folderUri = DocumentsContract.buildTreeDocumentUri(
         "com.android.externalstorage.documents",
-        documentId
+        "primary:Download"
     )
 
     val viewIntent = Intent(Intent.ACTION_VIEW).apply {
         data = folderUri
         type = DocumentsContract.Document.MIME_TYPE_DIR
-        // File managers commonly keep their current folder/activity instance alive.
-        // Start this navigation as a new document so a previous folder (A) cannot
-        // win over the newly requested folder (B).
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
