@@ -16,7 +16,8 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
             normalized.forEachIndexed { index, metadata ->
                 saveVideo(metadata, now)
                 database.metadataSnapshotDao().insert(metadata.toSnapshot(now))
-                database.searchDao().upsertDocument(metadata.toSearchDocument())
+                database.searchDao().deleteDocument(metadata.videoId)
+                database.searchDao().insertDocument(metadata.toSearchDocument())
             }
             persistContext(source, normalized, now)
             normalized.forEach { metadata ->
