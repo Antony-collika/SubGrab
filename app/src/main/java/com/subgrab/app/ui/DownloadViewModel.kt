@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.*
 import com.subgrab.app.data.*
+import com.subgrab.app.data.repository.KnowledgeRepository
 import com.subgrab.app.domain.*
 import com.subgrab.app.service.DownloadWorker
 import kotlinx.coroutines.flow.*
@@ -21,6 +22,7 @@ class DownloadViewModel(
  private val apiDiscovery:ApiDiscoveryClient,
  private val extractorDiscovery:ExtractorDiscoveryClient,
  private val settingsRepository:SettingsRepository,
+ private val knowledgeRepository:KnowledgeRepository,
  private val orchestrator:DownloadOrchestrator?=null
 ):ViewModel(){
  private val _state=MutableStateFlow<AnalysisState>(AnalysisState.Idle);val state:StateFlow<AnalysisState> = _state.asStateFlow()
@@ -53,8 +55,11 @@ class DownloadViewModel(
      if(s.useYouTubeDataApi) apiDiscovery.discoverVideoCollectionWithSource(urls)
      else extractorDiscovery.discoverVideoCollectionWithSource(urls)
     }
-    result.onSuccess{(source,v)->_state.value=AnalysisState.Ready(source,v,source.title)}
-     .onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích chuỗi URL",input)}
+    result.onSuccess{(source,v)->
+    runCatching { knowledgeRepository.saveAnalysis(source,v,"ANALYZE_URL") }
+     .onSuccess { _state.value=AnalysisState.Ready(source,v,source.title) }
+     .onFailure { _state.value=AnalysisState.Error(it.message?:"Không thể lưu dữ liệu phân tích",input) }
+   }.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích chuỗi URL",input)}
    }
    return
   }
@@ -84,8 +89,11 @@ class DownloadViewModel(
       extractorClient.extractSource(url).getOrThrow()
     }
    }
-   result.onSuccess{(source,v)->_state.value=AnalysisState.Ready(source,v,source.title)}
-    .onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích link",url)}
+   result.onSuccess{(source,v)->
+    runCatching { knowledgeRepository.saveAnalysis(source,v,"ANALYZE_URL") }
+     .onSuccess { _state.value=AnalysisState.Ready(source,v,source.title) }
+     .onFailure { _state.value=AnalysisState.Error(it.message?:"Không thể lưu dữ liệu phân tích",url) }
+   }.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích link",url)}
   }
  }
  fun searchKeyword(keyword:String){
@@ -97,7 +105,10 @@ class DownloadViewModel(
     runCatching{apiDiscovery.discoverKeyword(keyword)}
      .onSuccess{v->
       val clean=keyword.trim()
-      _state.value=AnalysisState.Ready(Source("keyword:"+clean,"https://www.youtube.com/results?search_query="+android.net.Uri.encode(clean),clean,v.size),v,clean)
+      val source=Source("keyword:"+clean,"https://www.youtube.com/results?search_query="+android.net.Uri.encode(clean),clean,v.size)
+      runCatching { knowledgeRepository.saveKeywordSearch(clean,source,v) }
+       .onSuccess { _state.value=AnalysisState.Ready(source,v,clean) }
+       .onFailure { _state.value=AnalysisState.Error(it.message?:"Không thể lưu kết quả tìm kiếm",null) }
       SubGrabDatabase.get(context).runtimeLogDao().insert(
        RuntimeLogEntity(timestamp = System.currentTimeMillis(), level = "INFO", category = "DIAGNOSTIC", lane = RequestLane.DISCOVERY_API.name, operation = "search", message = "SEARCH_READY videos="+v.size)
       )
@@ -111,7 +122,11 @@ class DownloadViewModel(
    } else {
     runCatching{extractorDiscovery.discoverKeyword(keyword)}
      .map{v->Source("keyword:"+keyword.trim(),"https://www.youtube.com/results?search_query="+android.net.Uri.encode(keyword.trim()),keyword.trim(),v.size) to v}
-     .onSuccess{(source,v)->_state.value=AnalysisState.Ready(source,v,source.title)}
+     .onSuccess{(source,v)->
+      runCatching { knowledgeRepository.saveKeywordSearch(keyword.trim(),source,v) }
+       .onSuccess { _state.value=AnalysisState.Ready(source,v,source.title) }
+       .onFailure { _state.value=AnalysisState.Error(it.message?:"Không thể lưu kết quả tìm kiếm",null) }
+     }
      .onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)}
    }
   }
@@ -125,6 +140,7 @@ class DownloadViewModel(
  fun updateFolder(folder:String){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(folder=folder)}
  fun startDownload(settings:AppSettings,onEnqueued:()->Unit={}){val c=_state.value as? AnalysisState.Ready?:return;viewModelScope.launch{
   DownloadWorker.enqueueBatch(context,c.source,c.videos,c.folder,settings.toDownloadConfig())
+  runCatching { knowledgeRepository.recordDownloadActivity(c.videos.filter { it.isSelected }, c.source.id) }
   onEnqueued()
  }}
  fun pauseDownload(){viewModelScope.launch{control.pause()}};fun resumeDownload(){viewModelScope.launch{control.resume()}};fun cancelDownload(){viewModelScope.launch{control.cancel()}}
