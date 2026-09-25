@@ -3,6 +3,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.subgrab.app.data.*
+import com.subgrab.app.data.repository.KnowledgeRepository
 
 class DownloadViewModelFactory(context:Context):ViewModelProvider.Factory{
  private val appContext=context.applicationContext
@@ -16,9 +17,10 @@ class DownloadViewModelFactory(context:Context):ViewModelProvider.Factory{
  private val apiDiscovery=ApiDiscoveryClient(api)
  private val extractorDiscovery=ExtractorDiscoveryClient(extractor)
  private val history=HistoryRepository(appContext)
+ private val knowledgeRepository=KnowledgeRepository(database)
  private val control=DownloadControlStore(appContext)
  private val subtitle=SubtitleDownloader(extractor,downloader)
  private val orchestrator=DownloadOrchestrator(extractor,subtitle,FileStorage(appContext),history,control,database,pacer)
  @Suppress("UNCHECKED_CAST")
- override fun <T:ViewModel> create(modelClass:Class<T>):T=DownloadViewModel(appContext,extractor,apiDiscovery,extractorDiscovery,settings,orchestrator) as T
+ override fun <T:ViewModel> create(modelClass:Class<T>):T=DownloadViewModel(appContext,extractor,apiDiscovery,extractorDiscovery,settings,knowledgeRepository,orchestrator) as T
 }
