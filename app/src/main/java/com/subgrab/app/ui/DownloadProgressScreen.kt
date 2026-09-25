@@ -10,7 +10,7 @@ import androidx.compose.ui.unit.dp
 import com.subgrab.app.data.DownloadState
 
 @Composable
-fun DownloadProgressScreen(state: DownloadState, vm: DownloadViewModel, onDone: () -> Unit, onOpenResult: (String) -> Unit, modifier: Modifier = Modifier) {
+fun DownloadProgressScreen(state: DownloadState, vm: DownloadViewModel, onDone: () -> Unit, onOpenFileManager: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("Tiến độ tải", style = MaterialTheme.typography.headlineSmall)
         when (state) {
@@ -47,9 +47,7 @@ fun DownloadProgressScreen(state: DownloadState, vm: DownloadViewModel, onDone: 
                 if (state.taskIndex < state.totalTasks) {
                     Button(onClick = vm::continueNextTask, modifier = Modifier.fillMaxWidth()) { Text("TIẾP TỤC LƯỢT KẾ TIẾP") }
                 }
-                state.outputRelativePath?.let { path ->
-                    Button(onClick = { onOpenResult(path) }) { Text("Xem kết quả") }
-                }
+                Button(onClick = onOpenFileManager) { Text("Mở File manager") }
             }
             is DownloadState.Cancelled -> {
                 Text("Đã hủy", style = MaterialTheme.typography.titleLarge)
