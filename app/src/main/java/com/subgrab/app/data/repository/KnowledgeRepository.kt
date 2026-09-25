@@ -140,8 +140,10 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
         }
         val channelId = normalized.firstOrNull()?.channelId ?: channelIdFrom(source.url)
         if (channelId != null) {
-            database.channelDao().insert(ChannelEntity(channelId, normalized.firstOrNull()?.channelName, now, now))
-            database.channelDao().update(channelId, normalized.firstOrNull()?.channelName, now)
+            val name = normalized.firstOrNull()?.channelName
+                ?: source.title.takeIf { com.subgrab.app.domain.YoutubeUrlParser.isChannelUrl(source.url) }
+            database.channelDao().insert(ChannelEntity(channelId, name, now, now))
+            database.channelDao().update(channelId, name, now)
         }
     }
 
