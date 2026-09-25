@@ -18,6 +18,9 @@ interface VideoDao {
 
     @Query("SELECT * FROM videos ORDER BY updatedAt DESC LIMIT :limit OFFSET :offset")
     suspend fun getPage(limit: Int, offset: Int): List<VideoEntity>
+
+    @Query("SELECT * FROM videos WHERE channelId = :channelId ORDER BY updatedAt DESC LIMIT :limit OFFSET :offset")
+    suspend fun getByChannel(channelId: String, limit: Int, offset: Int)
 }
 
 @Dao
@@ -78,6 +81,9 @@ interface SearchDao {
 
     @Query("SELECT * FROM search_sessions WHERE id = :id LIMIT 1")
     suspend fun getSession(id: String): SearchSessionEntity?
+
+    @Query("SELECT * FROM search_session_video WHERE searchSessionId = :sessionId ORDER BY position")
+    suspend fun getSessionVideos(sessionId: String): List<SearchSessionVideoCrossRef>
 }
 
 @Dao
