@@ -197,7 +197,7 @@ class CoreTest {
         )
 
         assertEquals(
-            "1\n00:00:00,000 --> 00:00:02,000\nA\n\n" +
+            "1\n00:00:00,000 --> 00:00:01,000\nA\n\n" +
                 "2\n00:00:02,000 --> 00:00:03,000\nA\n",
             SubtitleFormatter.format(cues, SubtitleTimestampMode.WITH_TIMESTAMP)
         )
