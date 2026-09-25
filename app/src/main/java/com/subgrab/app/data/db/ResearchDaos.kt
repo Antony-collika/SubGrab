@@ -20,7 +20,7 @@ interface VideoDao {
     suspend fun getPage(limit: Int, offset: Int): List<VideoEntity>
 
     @Query("SELECT * FROM videos WHERE channelId = :channelId ORDER BY updatedAt DESC LIMIT :limit OFFSET :offset")
-    suspend fun getByChannel(channelId: String, limit: Int, offset: Int)
+    suspend fun getByChannel(channelId: String, limit: Int, offset: Int): List<VideoEntity>
 }
 
 @Dao
