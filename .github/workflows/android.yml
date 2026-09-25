@@ -83,7 +83,6 @@ jobs:
             --title "SubGrab $GITHUB_REF_NAME" \
             --generate-notes
 
-
   instrumentation:
     # The app/test APK is arm64-only, so use an ARM64 GitHub runner for the ARM64 emulator.
     runs-on: ubuntu-24.04-arm
@@ -101,6 +100,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: ''
 
       - name: Install Android SDK packages
         run: |
