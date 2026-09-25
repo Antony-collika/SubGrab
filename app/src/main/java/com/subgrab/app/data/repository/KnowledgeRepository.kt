@@ -2,6 +2,7 @@ package com.subgrab.app.data.repository
 
 import androidx.room.withTransaction
 import com.subgrab.app.data.MetadataNormalizer
+import com.subgrab.app.data.SubGrabDatabase
 import com.subgrab.app.data.db.*
 import com.subgrab.app.domain.Source
 import com.subgrab.app.domain.VideoItem
