@@ -505,7 +505,7 @@ private fun openDownloadFolder(context: Context, relativePath: String) {
         // win over the newly requested folder (B).
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
-        addFlags(Intent.FLAG_ACTIVITY_GRANT_READ_URI_PERMISSION)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
 
     runCatching {
