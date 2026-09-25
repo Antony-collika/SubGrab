@@ -28,7 +28,13 @@ data class VideoItem(
     val thumbnailUrl: String = "",
     val description: String? = null,
     val durationSeconds: Long? = null,
-    val likeCount: Long? = null
+    val likeCount: Long? = null,
+    val channelId: String? = null,
+    val subscriberCount: Long? = null,
+    val commentCount: Long? = null,
+    val tags: List<String> = emptyList(),
+    val category: String? = null,
+    val topic: List<String> = emptyList()
 ) {
     val hasSub get() = availableSubs.isNotEmpty()
     val canSelect get() = !subtitleChecked || hasSub
