@@ -49,6 +49,7 @@ data class ResearchFilters(
     val descriptionContains: String = "",
     val tagsContains: String = "",
     val categoryContains: String = "",
+    val topicContains: String = "",
     val channelContains: String = "",
     val minSubscribers: Long? = null,
     val maxSubscribers: Long? = null,
