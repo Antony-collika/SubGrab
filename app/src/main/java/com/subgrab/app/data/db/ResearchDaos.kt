@@ -82,6 +82,9 @@ interface SearchDao {
     @Query("SELECT * FROM search_sessions WHERE id = :id LIMIT 1")
     suspend fun getSession(id: String): SearchSessionEntity?
 
+    @Query("SELECT * FROM search_sessions WHERE query = :query ORDER BY fetchedAt DESC LIMIT 1")
+    suspend fun getLatestSession(query: String): SearchSessionEntity?
+
     @Query("SELECT * FROM search_session_video WHERE searchSessionId = :sessionId ORDER BY position")
     suspend fun getSessionVideos(sessionId: String): List<SearchSessionVideoCrossRef>
 }
