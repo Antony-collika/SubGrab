@@ -112,6 +112,12 @@ interface CommentDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertComments(entities: List<CommentEntity>)
 
+    @Query("DELETE FROM comments WHERE videoId = :videoId")
+    suspend fun deleteComments(videoId: String)
+
+    @Query("DELETE FROM comment_threads WHERE videoId = :videoId")
+    suspend fun deleteThreads(videoId: String)
+
     @Query("SELECT * FROM comment_threads WHERE videoId = :videoId ORDER BY fetchedAt DESC")
     suspend fun getThreads(videoId: String): List<CommentThreadEntity>
 
