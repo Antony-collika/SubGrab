@@ -163,6 +163,9 @@ private fun ResearchFilterDialog(initial: ResearchFilters, onDismiss: () -> Unit
     var publishedTo by remember { mutableStateOf(initial.publishedTo?.let(::formatDate).orEmpty()) }
     var fetchedFrom by remember { mutableStateOf(initial.fetchedFrom?.let(::formatDate).orEmpty()) }
     var fetchedTo by remember { mutableStateOf(initial.fetchedTo?.let(::formatDate).orEmpty()) }
+    var searchActivity by remember { mutableStateOf("SEARCH" in initial.activityTypes) }
+    var analyzeActivity by remember { mutableStateOf("ANALYZE_URL" in initial.activityTypes) }
+    var viewActivity by remember { mutableStateOf("VIEW_VIDEO" in initial.activityTypes) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Advanced Filter") },
