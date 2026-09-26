@@ -90,7 +90,7 @@ class SubtitleDownloader(
                 SubtitleTimestampMode.WITHOUT_TIMESTAMP
             )
             knowledgeRepository?.saveTranscript(videoId, cleanText, roomTrack.getLanguageTag())
-            cleanText
+            roomTrack.getLanguageTag()
         }
     }
 
