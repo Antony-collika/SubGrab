@@ -75,7 +75,7 @@ class ResearchRepository(private val database: SubGrabDatabase) {
             }
         }
 
-        val where = if (conditions.isEmpty()) "" else " WHERE " + conditions.joinToString(" AND ")
+        val where = if (conditions.isEmpty()) "" else " AND " + conditions.joinToString(" AND ")
         val base = baseSql() + where + " GROUP BY m.videoId"
         val count = database.researchQueryDao().countResults(
             SimpleSQLiteQuery("SELECT COUNT(*) FROM (" + base + ")", args.toTypedArray())
