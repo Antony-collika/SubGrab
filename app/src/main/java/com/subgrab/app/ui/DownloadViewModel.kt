@@ -36,7 +36,7 @@ class DownloadViewModel(
   }?:DownloadState.Idle
  }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),DownloadState.Idle)
  private var lastUrl:String?=null;private var lastKeyword:String?=null
- fun analyze(input:String){
+ fun analyze(input:String, forceRefresh:Boolean=false){
   lastUrl=input
   val urls=YoutubeUrlParser.extractUrls(input)
   if(urls.isEmpty()){
@@ -56,7 +56,7 @@ class DownloadViewModel(
      else extractorDiscovery.discoverVideoCollectionWithSource(urls)
     }
     result.onSuccess{(source,v)->
-    val persistenceError=runCatching { knowledgeRepository.saveAnalysis(source,v,"ANALYZE_URL",s.metadataCacheHours) }.exceptionOrNull()
+    val persistenceError=runCatching { knowledgeRepository.saveAnalysis(source,v,"ANALYZE_URL",s.metadataCacheHours,forceRefresh) }.exceptionOrNull()
     _state.value=AnalysisState.Ready(source,v,source.title,persistenceError?.let { "Phân tích thành công nhưng chưa lưu được dữ liệu vào database: ${it.message?:"lỗi không xác định"}" })
    }.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích chuỗi URL",input)}
    }
@@ -94,7 +94,7 @@ class DownloadViewModel(
    }.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích link",url)}
   }
  }
- fun searchKeyword(keyword:String){
+ fun searchKeyword(keyword:String, forceRefresh:Boolean=false){
   lastKeyword=keyword
   _state.value=AnalysisState.Loading
   viewModelScope.launch{
@@ -104,7 +104,7 @@ class DownloadViewModel(
      .onSuccess{v->
       val clean=keyword.trim()
       val source=Source("keyword:"+clean,"https://www.youtube.com/results?search_query="+android.net.Uri.encode(clean),clean,v.size)
-      val persistenceError=runCatching { knowledgeRepository.saveKeywordSearch(clean,source,v,s.metadataCacheHours) }.exceptionOrNull()
+      val persistenceError=runCatching { knowledgeRepository.saveKeywordSearch(clean,source,v,s.metadataCacheHours,forceRefresh) }.exceptionOrNull()
       _state.value=AnalysisState.Ready(source,v,clean,persistenceError?.let { "Tìm kiếm thành công nhưng chưa lưu được dữ liệu vào database: ${it.message?:"lỗi không xác định"}" })
       SubGrabDatabase.get(context).runtimeLogDao().insert(
        RuntimeLogEntity(timestamp = System.currentTimeMillis(), level = "INFO", category = "DIAGNOSTIC", lane = RequestLane.DISCOVERY_API.name, operation = "search", message = "SEARCH_READY videos="+v.size)
@@ -120,7 +120,7 @@ class DownloadViewModel(
     runCatching{extractorDiscovery.discoverKeyword(keyword)}
      .map{v->Source("keyword:"+keyword.trim(),"https://www.youtube.com/results?search_query="+android.net.Uri.encode(keyword.trim()),keyword.trim(),v.size) to v}
      .onSuccess{(source,v)->
-      val persistenceError=runCatching { knowledgeRepository.saveKeywordSearch(keyword.trim(),source,v,s.metadataCacheHours) }.exceptionOrNull()
+      val persistenceError=runCatching { knowledgeRepository.saveKeywordSearch(keyword.trim(),source,v,s.metadataCacheHours,forceRefresh) }.exceptionOrNull()
       _state.value=AnalysisState.Ready(source,v,source.title,persistenceError?.let { "Tìm kiếm thành công nhưng chưa lưu được dữ liệu vào database: ${it.message?:"lỗi không xác định"}" })
      }
      .onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)}
@@ -129,7 +129,8 @@ class DownloadViewModel(
  }
  private fun isPlaylist(url:String)=url.contains("playlist",true)||url.contains("list=",true)
  private fun isChannel(url:String)=url.contains("/channel/",true)||url.contains("/c/",true)||url.contains("/@",true)
- fun retryAnalysis(){lastUrl?.let(::analyze)?:lastKeyword?.let(::searchKeyword)};fun resetAnalysis(){_state.value=AnalysisState.Idle}
+ fun retryAnalysis(){lastUrl?.let(::analyze)?:lastKeyword?.let(::searchKeyword)}
+ fun refreshMetadata(){lastUrl?.let{analyze(it,true)}?:lastKeyword?.let{searchKeyword(it,true)}};fun resetAnalysis(){_state.value=AnalysisState.Idle}
  fun toggle(index:Int){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(videos=c.videos.map{if(it.index==index&&(it.isSelected||c.videos.count{v->v.isSelected}<50)&&it.canSelect)it.copy(isSelected=!it.isSelected)else it})}
  fun selectAll(){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(videos=c.videos.map{if(it.canSelect)it.copy(isSelected=true)else it})}
  fun clearSelection(){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(videos=c.videos.map{it.copy(isSelected=false)})}
