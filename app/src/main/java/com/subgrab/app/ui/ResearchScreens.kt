@@ -64,7 +64,7 @@ fun ResearchSearchScreen(viewModel: ResearchSearchViewModel, sessionId: String?,
                          onDownloadSelected: (List<VideoSearchResult>) -> Unit = {}, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsState()
     var filterOpen by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(sessionId) { if (!sessionId.isNullOrBlank()) viewModel.loadSession(sessionId) }
+    LaunchedEffect(sessionId) { if (!sessionId.isNullOrBlank()) viewModel.loadSession(sessionId) else viewModel.reset() }
     Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Tìm kiếm dữ liệu", style = MaterialTheme.typography.headlineSmall)
         OutlinedTextField(state.query, viewModel::updateQuery, label = { Text("Từ khóa") },
