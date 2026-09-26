@@ -8,6 +8,7 @@ class ApiDiscoveryClient(private val api:YouTubeDataApiClient):DiscoveryClient{
   return com.subgrab.app.domain.Source(source,source,title,videos.size) to videos
  }
  override suspend fun discoverKeyword(query:String)=api.searchKeyword(query).take(50)
+ suspend fun fetchComments(videoId:String)=api.fetchCommentThreads(videoId)
  override suspend fun discoverVideo(source:String)=api.getVideoMetadata(listOf(videoId(source))).take(50)
  override suspend fun discoverChannel(source:String)=api.listChannelUploads(source).take(50)
  suspend fun discoverChannelWithSource(source:String):Pair<com.subgrab.app.domain.Source,List<VideoItem>>{
