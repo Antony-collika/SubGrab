@@ -34,6 +34,7 @@ import com.subgrab.app.data.RequestPacer
 import com.subgrab.app.data.SettingsRepository
 import com.subgrab.app.data.SubGrabDatabase
 import com.subgrab.app.data.SubtitleDownloader
+import com.subgrab.app.data.repository.KnowledgeRepository
 import kotlinx.coroutines.CancellationException
 import androidx.work.await
 import java.util.concurrent.TimeUnit
@@ -96,7 +97,7 @@ class DownloadWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             taskId?.let(taskStore::delete)
             return Result.failure(failureData("Không thể khởi tạo bộ tải phụ đề"))
         }
-        val subtitleDownloader = SubtitleDownloader(extractorClient, downloader)
+        val subtitleDownloader = SubtitleDownloader(extractorClient, downloader, KnowledgeRepository(database))
         val orchestrator = DownloadOrchestrator(
             extractorClient,
             subtitleDownloader,
