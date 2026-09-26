@@ -38,6 +38,7 @@ import androidx.navigation.compose.rememberNavController
 import com.subgrab.app.data.DebugLog
 import com.subgrab.app.data.DownloadState
 import com.subgrab.app.data.SettingsRepository
+import com.subgrab.app.data.repository.KnowledgeRepository
 import com.subgrab.app.data.SubGrabDatabase
 import com.subgrab.app.data.HistoryRepository
 import com.subgrab.app.ui.DownloadProgressScreen
@@ -57,6 +58,7 @@ import com.subgrab.app.ui.ResearchSearchScreen
 import com.subgrab.app.ui.ResearchSearchViewModel
 import com.subgrab.app.ui.VideoDetailScreen
 import com.subgrab.app.ui.VideoDetailViewModel
+import com.subgrab.app.service.DownloadWorker
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -101,10 +103,12 @@ fun SubGrabApp() {
     val researchSearchVm: ResearchSearchViewModel = viewModel(factory = researchFactory)
     val videoDetailVm: VideoDetailViewModel = viewModel(factory = researchFactory)
     val settings by settingsRepo.settings.collectAsState(initial = AppSettings())
+    val knowledgeRepository = remember(context) { KnowledgeRepository(SubGrabDatabase.get(context)) }
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val route = backStackEntry?.destination?.route ?: "home"
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(state) {
         val currentState = state
@@ -223,6 +227,39 @@ fun SubGrabApp() {
                     viewModel = researchSearchVm,
                     sessionId = null,
                     onOpenDetail = { id -> navController.navigate("video-detail/" + id) },
+                    onDownloadSelected = { selected ->
+                        val videos = selected.mapIndexed { index, v ->
+                            VideoItem(
+                                index = index + 1,
+                                videoId = v.videoId,
+                                title = v.title,
+                                durationSec = (v.durationSeconds ?: 0L).toInt(),
+                                availableSubs = emptyList(),
+                                channelTitle = v.channelName.orEmpty(),
+                                publishedAt = v.publishedAt.orEmpty(),
+                                viewCount = v.viewCount,
+                                thumbnailUrl = v.thumbnail.orEmpty(),
+                                description = v.description,
+                                durationSeconds = v.durationSeconds,
+                                likeCount = v.likeCount,
+                                channelId = v.channelId,
+                                subscriberCount = v.subscriberCount,
+                                commentCount = v.commentCount,
+                                tags = v.tags.split(" ").filter(String::isNotBlank),
+                                category = v.category,
+                                topic = v.topic.split(" ").filter(String::isNotBlank)
+                            )
+                        }
+                        DownloadWorker.enqueueBatch(
+                            context,
+                            Source("research-selection", "research", "Research selection", videos.size),
+                            videos,
+                            "Research",
+                            settings.toDownloadConfig()
+                        )
+                        scope.launch { knowledgeRepository.recordDownloadActivity(videos, "research-selection") }
+                        navController.navigate("progress")
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -231,6 +268,19 @@ fun SubGrabApp() {
                     viewModel = researchSearchVm,
                     sessionId = entry.arguments?.getString("sessionId"),
                     onOpenDetail = { id -> navController.navigate("video-detail/" + id) },
+                    onDownloadSelected = { selected ->
+                        val videos = selected.mapIndexed { index, v ->
+                            VideoItem(index + 1, v.videoId, v.title, (v.durationSeconds ?: 0L).toInt(), emptyList(),
+                                false, false, v.channelName.orEmpty(), v.publishedAt.orEmpty(), v.viewCount,
+                                v.thumbnail.orEmpty(), v.description, v.durationSeconds, v.likeCount, v.channelId,
+                                v.subscriberCount, v.commentCount, v.tags.split(" ").filter(String::isNotBlank),
+                                v.category, v.topic.split(" ").filter(String::isNotBlank))
+                        }
+                        DownloadWorker.enqueueBatch(context, Source("research-selection", "research", "Research selection", videos.size),
+                            videos, "Research", settings.toDownloadConfig())
+                        scope.launch { knowledgeRepository.recordDownloadActivity(videos, "research-selection") }
+                        navController.navigate("progress")
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
             }
