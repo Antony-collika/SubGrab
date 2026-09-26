@@ -53,7 +53,7 @@ class ResearchRepositoryQueryTest {
     fun ftsQueryWorksInsideDynamicResearchSearch() = runBlocking {
         seedAnalysis()
 
-        val (rows, count) = researchRepository.search("LLMs")
+        val (rows, count) = researchRepository.search("Deep Dive")
 
         assertEquals(1, count)
         assertEquals(listOf("video-1"), rows.map { it.videoId })
@@ -64,7 +64,7 @@ class ResearchRepositoryQueryTest {
         seedAnalysis()
 
         val (rows, count) = researchRepository.search(
-            "LLMs",
+            "Stable Diffusion",
             ResearchFilters(playlistContains = "LLMs Research")
         )
 
@@ -98,7 +98,7 @@ class ResearchRepositoryQueryTest {
         seedAnalysis()
 
         val (rows, count) = researchRepository.search(
-            query = "LLMs",
+            query = "Deep Dive",
             filters = ResearchFilters(
                 activityTypes = setOf("ANALYZE_URL"),
                 activityFrom = 1L,
