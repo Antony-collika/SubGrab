@@ -19,12 +19,10 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
         val normalized = videos.distinctBy { it.videoId }.map(MetadataNormalizer::normalize)
         val now = System.currentTimeMillis()
         database.withTransaction {
-            normalized.forEachIndexed { index, metadata ->
+            normalized.forEachIndexed { _, metadata ->
                 saveVideo(metadata, now)
                 if (forceRefresh || shouldRefreshMetadata(metadata.videoId, now, metadataCacheHours)) {
-                    if (forceRefresh || shouldRefreshMetadata(metadata.videoId, now, metadataCacheHours)) {
                     database.metadataSnapshotDao().insert(metadata.toSnapshot(now))
-                }
                 }
                 database.searchDao().deleteDocument(metadata.videoId)
                 database.searchDao().insertDocument(metadata.toSearchDocument())
@@ -62,9 +60,11 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
         val sessionId = UUID.randomUUID().toString()
         database.withTransaction {
             database.searchDao().insertSession(SearchSessionEntity(sessionId, cleanQuery, now))
-            normalized.forEachIndexed { index, metadata ->
+            normalized.forEachIndexed { _, metadata ->
                 saveVideo(metadata, now)
-                database.metadataSnapshotDao().insert(metadata.toSnapshot(now))
+                if (forceRefresh || shouldRefreshMetadata(metadata.videoId, now, metadataCacheHours)) {
+                    database.metadataSnapshotDao().insert(metadata.toSnapshot(now))
+                }
                 database.searchDao().deleteDocument(metadata.videoId)
                 database.searchDao().insertDocument(metadata.toSearchDocument())
             }
