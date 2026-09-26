@@ -68,7 +68,8 @@ data class AppSettings(
     val apiDelayMode: String = "NONE",
     val apiBaseDelayMs: Long = 0,
     val apiJitterMinMs: Long = 0,
-    val apiJitterMaxMs: Long = 0
+    val apiJitterMaxMs: Long = 0,
+    val metadataCacheHours: Long = 24
 )
 data class UrlCandidate(
     val raw: String,
