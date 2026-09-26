@@ -41,6 +41,7 @@ abstract class SubGrabDatabase : RoomDatabase() {
     abstract fun userActivityDao(): UserActivityDao
     abstract fun transcriptDao(): TranscriptDao
     abstract fun commentDao(): CommentDao
+    abstract fun researchQueryDao(): ResearchQueryDao
 
     companion object {
         private const val DB_NAME = "subgrab_runtime.db"
