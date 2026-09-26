@@ -261,10 +261,16 @@ fun VideoDetailScreen(viewModel: VideoDetailViewModel, videoId: String, modifier
         item { Text("Comments", style = MaterialTheme.typography.titleMedium) }
         if (state.commentThreads.isEmpty()) item { Text("Chưa có comments.") }
         items(state.commentThreads) { thread ->
+            val replies by produceState<List<com.subgrab.app.data.db.CommentEntity>>(emptyList(), thread.threadId) {
+                value = viewModel.comments(thread.threadId)
+            }
             Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(12.dp)) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(thread.topLevelComment.orEmpty())
                     Text(thread.replyCount.toString() + " replies", style = MaterialTheme.typography.labelSmall)
+                    replies.filter { it.parentCommentId != null }.forEach { reply ->
+                        Text("↳ " + reply.author.orEmpty() + ": " + reply.text, style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             }
         }
