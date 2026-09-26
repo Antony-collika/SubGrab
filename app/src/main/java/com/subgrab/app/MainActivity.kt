@@ -40,7 +40,6 @@ import com.subgrab.app.data.DownloadState
 import com.subgrab.app.data.SettingsRepository
 import com.subgrab.app.data.SubGrabDatabase
 import com.subgrab.app.data.HistoryRepository
-import com.subgrab.app.data.SubGrabDatabase
 import com.subgrab.app.ui.DownloadProgressScreen
 import com.subgrab.app.ui.HistoryScreen
 import com.subgrab.app.ui.HistoryDetailScreen
