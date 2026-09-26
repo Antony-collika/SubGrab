@@ -104,6 +104,53 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
         )
     }
 
+ 
+    suspend fun saveTranscript(videoId: String, content: String, language: String) {
+        database.transcriptDao().upsert(
+            TranscriptEntity(videoId, content, language, System.currentTimeMillis(), "SUCCESS", null)
+        )
+    }
+
+    suspend fun saveComments(videoId: String, threads: List<com.subgrab.app.data.FetchedCommentThread>) {
+        val now = System.currentTimeMillis()
+        database.withTransaction {
+            database.commentDao().deleteComments(videoId)
+            database.commentDao().deleteThreads(videoId)
+            threads.forEach { thread ->
+                database.commentDao().upsertThread(
+                    CommentThreadEntity(
+                        threadId = thread.threadId,
+                        videoId = videoId,
+                        topLevelCommentId = thread.topLevel.id,
+                        topLevelComment = thread.topLevel.text,
+                        replyCount = thread.replyCount,
+                        fetchedAt = now,
+                        fetchState = "SUCCESS",
+                        errorMessage = null
+                    )
+                )
+                val comments = buildList {
+                    add(thread.topLevel.toEntity(now))
+                    thread.replies.forEach { add(it.toEntity(now)) }
+                }.distinctBy { it.commentId }
+                database.commentDao().upsertComments(comments)
+            }
+        }
+    }
+
+    private fun com.subgrab.app.data.FetchedComment.toEntity(now: Long) = CommentEntity(
+        commentId = id,
+        threadId = threadId,
+        videoId = videoId,
+        parentCommentId = parentId,
+        text = text,
+        author = author,
+        likeCount = likeCount,
+        publishedAt = publishedAt,
+        updatedAt = updatedAt,
+        fetchedAt = now
+    )
+
     suspend fun getVideo(videoId: String) = database.videoDao().get(videoId)
     suspend fun getLatestSnapshot(videoId: String) = database.metadataSnapshotDao().latest(videoId)
     suspend fun getSnapshotHistory(videoId: String) = database.metadataSnapshotDao().history(videoId)
