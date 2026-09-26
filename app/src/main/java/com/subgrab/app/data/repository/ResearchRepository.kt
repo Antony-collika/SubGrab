@@ -44,7 +44,7 @@ class ResearchRepository(private val database: SubGrabDatabase) {
         addLike(conditions, args, "m.topic", filters.topicContains)
         addLike(conditions, args, "m.channelName", filters.channelContains)
         if (filters.playlistContains.isNotBlank()) {
-            conditions += "EXISTS (SELECT 1 FROM playlist_video pvf JOIN playlists pf ON pf.playlistId = pvf.playlistId WHERE pvf.videoId = m.videoId AND LOWER(pf.title) LIKE LOWER(?))"
+            conditions += "m.videoId IN (SELECT pvf.videoId FROM playlist_video pvf JOIN playlists pf ON pf.playlistId = pvf.playlistId WHERE LOWER(pf.title) LIKE LOWER(?))"
             args += "%" + filters.playlistContains.trim() + "%"
         }
         filters.minSubscribers?.let { conditions += "COALESCE(m.subscriberCount, 0) >= ?"; args += it }
