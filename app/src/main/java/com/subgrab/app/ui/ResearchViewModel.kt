@@ -30,15 +30,36 @@ class ResearchViewModel(
     private val _commentsState = MutableStateFlow<ResearchFetchState>(ResearchFetchState.Idle)
     val commentsState: StateFlow<ResearchFetchState> = _commentsState.asStateFlow()
 
-    fun fetchTranscript(videoId: String) {
+    fun fetchTranscript(
+        videoId: String,
+        language: String? = null,
+        format: com.subgrab.app.domain.OutputFormat = com.subgrab.app.domain.OutputFormat.TXT,
+        forceRefresh: Boolean = false
+    ) {
         _transcriptState.value = ResearchFetchState.Loading
         viewModelScope.launch {
             val current = settings.current()
-            subtitleDownloader.fetchAndPersistTranscript(videoId, current.languages, current.preferManualSub)
-                .onSuccess { language -> _transcriptState.value = ResearchFetchState.Success("Đã lưu transcript ($language)") }
+            subtitleDownloader.fetchAndPersistTranscript(
+                videoId = videoId,
+                languages = current.languages,
+                preferManual = current.preferManualSub,
+                requestedLanguage = language,
+                requestedFormat = format,
+                forceRefresh = forceRefresh
+            )
+                .onSuccess { actualLanguage ->
+                    val prefix = if (forceRefresh) "Đã làm mới transcript" else "Đã lấy transcript"
+                    _transcriptState.value = ResearchFetchState.Success("$prefix ($actualLanguage)")
+                }
                 .onFailure { _transcriptState.value = ResearchFetchState.Error(it.message ?: "Không thể tải transcript") }
         }
     }
+
+    fun refreshTranscript(
+        videoId: String,
+        language: String? = null,
+        format: com.subgrab.app.domain.OutputFormat = com.subgrab.app.domain.OutputFormat.TXT
+    ) = fetchTranscript(videoId, language, format, forceRefresh = true)
 
     fun fetchComments(videoId: String) {
         _commentsState.value = ResearchFetchState.Loading
