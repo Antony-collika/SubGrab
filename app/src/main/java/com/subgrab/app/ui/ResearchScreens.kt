@@ -1,0 +1,230 @@
+package com.subgrab.app.ui
+
+import android.content.Intent
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import com.subgrab.app.data.export.ResearchExport
+import com.subgrab.app.domain.*
+import java.time.LocalDate
+import java.time.ZoneId
+import java.text.DateFormat
+import java.util.Date
+
+@Composable
+fun ResearchHistoryScreen(state: ResearchHistoryState, onLoadMore: () -> Unit, onOpenVideo: (String) -> Unit,
+                          onOpenSession: (String) -> Unit, onSearch: () -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Lịch sử nghiên cứu", style = MaterialTheme.typography.headlineSmall)
+            TextButton(onClick = onSearch) { Text("Tìm kiếm") }
+        }
+        Text("Activity Timeline", style = MaterialTheme.typography.titleMedium)
+        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        if (state.items.isEmpty() && !state.loading) Text("Chưa có hoạt động nghiên cứu.")
+        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(state.items, key = { it.id }) { item ->
+                Card(Modifier.fillMaxWidth().clickable {
+                    item.searchSessionId?.let(onOpenSession) ?: item.videoId?.let(onOpenVideo)
+                }) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(activityLabel(item), style = MaterialTheme.typography.titleMedium)
+                        item.title?.let { Text(it) }
+                        item.query?.let { Text("Từ khóa: " + it, style = MaterialTheme.typography.bodySmall) }
+                        item.channelName?.let { Text("Kênh: " + it, style = MaterialTheme.typography.bodySmall) }
+                        Text(DateFormat.getDateTimeInstance().format(Date(item.timestamp)), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+            if (state.hasMore) item {
+                OutlinedButton(onClick = onLoadMore, enabled = !state.loading, modifier = Modifier.fillMaxWidth()) { Text("Tải thêm") }
+            }
+        }
+        if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+    }
+}
+private fun activityLabel(item: ResearchActivityItem): String = when (item.type) {
+    "SEARCH" -> "Tìm kiếm"
+    "ANALYZE_URL" -> "Phân tích URL"
+    "VIEW_VIDEO" -> "Đã xem video"
+    "DOWNLOAD_SUBTITLE" -> "Tải phụ đề"
+    else -> item.type
+}
+
+@Composable
+fun ResearchSearchScreen(viewModel: ResearchSearchViewModel, sessionId: String?, onOpenDetail: (String) -> Unit,
+                         modifier: Modifier = Modifier) {
+    val state by viewModel.state.collectAsState()
+    var filterOpen by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(sessionId) { if (!sessionId.isNullOrBlank()) viewModel.loadSession(sessionId) }
+    Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Tìm kiếm dữ liệu", style = MaterialTheme.typography.headlineSmall)
+        OutlinedTextField(state.query, viewModel::updateQuery, label = { Text("Từ khóa") },
+            modifier = Modifier.fillMaxWidth(), singleLine = true)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = viewModel::search, modifier = Modifier.weight(1f)) { Text("Tìm trong History") }
+            OutlinedButton(onClick = { filterOpen = true }, modifier = Modifier.weight(1f)) { Text("Bộ lọc") }
+        }
+        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        ResearchResultsContent(state, viewModel, onOpenDetail, Modifier.weight(1f))
+    }
+    if (filterOpen) ResearchFilterDialog(state.filters, { filterOpen = false }) {
+        viewModel.updateFilters(it); filterOpen = false; viewModel.search()
+    }
+}
+
+@Composable
+private fun ResearchResultsContent(state: SearchState, viewModel: ResearchSearchViewModel, onOpenDetail: (String) -> Unit,
+                                   modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(state.resultCount.toString() + " kết quả")
+            Row {
+                TextButton(onClick = viewModel::selectAllVisible) { Text("Chọn tất cả") }
+                TextButton(onClick = viewModel::clearSelection) { Text("Bỏ chọn") }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            TextButton(onClick = { viewModel.search() }) { Text("Làm mới") }
+            TextButton(onClick = {
+                if (state.selectedResults.isNotEmpty()) {
+                    val body = ResearchExport.markdown(state.selectedResults)
+                    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                        type = "text/markdown"; putExtra(Intent.EXTRA_TEXT, body)
+                    }, "Xuất Markdown"))
+                }
+            }) { Text("Xuất MD") }
+            TextButton(onClick = {
+                if (state.selectedResults.isNotEmpty()) {
+                    val body = ResearchExport.json(state.selectedResults)
+                    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                        type = "application/json"; putExtra(Intent.EXTRA_TEXT, body)
+                    }, "Xuất JSON"))
+                }
+            }) { Text("Xuất JSON") }
+            TextButton(onClick = {
+                if (state.selectedResults.isNotEmpty()) {
+                    val body = ResearchExport.csv(state.selectedResults)
+                    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                        type = "text/csv"; putExtra(Intent.EXTRA_TEXT, body)
+                    }, "Xuất CSV"))
+                }
+            }) { Text("Xuất CSV") }
+        }
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(state.results, key = { it.videoId }) { result ->
+                Card(Modifier.fillMaxWidth().clickable { onOpenDetail(result.videoId) }) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(result.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                            Checkbox(result.videoId in state.selectedVideos, { viewModel.toggleSelection(result.videoId) })
+                        }
+                        Text(result.channelName.orEmpty(), style = MaterialTheme.typography.bodySmall)
+                        Text("Views: " + (result.viewCount ?: 0) + " · Likes: " + (result.likeCount ?: 0) +
+                            " · Comments: " + (result.commentCount ?: 0), style = MaterialTheme.typography.bodySmall)
+                        result.playlistTitles?.takeIf { it.isNotBlank() }?.let { Text("Playlist: " + it, style = MaterialTheme.typography.labelSmall) }
+                    }
+                }
+            }
+            if (state.hasMore) item {
+                OutlinedButton(onClick = viewModel::loadMore, enabled = !state.loading, modifier = Modifier.fillMaxWidth()) { Text("Tải thêm") }
+            }
+        }
+        if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+    }
+}
+
+@Composable
+private fun ResearchFilterDialog(initial: ResearchFilters, onDismiss: () -> Unit, onApply: (ResearchFilters) -> Unit) {
+    var title by remember { mutableStateOf(initial.titleContains) }
+    var channel by remember { mutableStateOf(initial.channelContains) }
+    var tags by remember { mutableStateOf(initial.tagsContains) }
+    var playlist by remember { mutableStateOf(initial.playlistContains) }
+    var keyword by remember { mutableStateOf(initial.searchKeywordContext) }
+    var minViews by remember { mutableStateOf(initial.minViews?.toString().orEmpty()) }
+    var maxViews by remember { mutableStateOf(initial.maxViews?.toString().orEmpty()) }
+    var minLikes by remember { mutableStateOf(initial.minLikes?.toString().orEmpty()) }
+    var maxLikes by remember { mutableStateOf(initial.maxLikes?.toString().orEmpty()) }
+    var minComments by remember { mutableStateOf(initial.minComments?.toString().orEmpty()) }
+    var maxComments by remember { mutableStateOf(initial.maxComments?.toString().orEmpty()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Advanced Filter") },
+        text = {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                item { FilterField("Tiêu đề", title) { title = it } }
+                item { FilterField("Kênh", channel) { channel = it } }
+                item { FilterField("Tags", tags) { tags = it } }
+                item { FilterField("Playlist", playlist) { playlist = it } }
+                item { FilterField("SearchSession keyword", keyword) { keyword = it } }
+                item { FilterPair("Views", minViews, maxViews, { minViews = it }, { maxViews = it }) }
+                item { FilterPair("Likes", minLikes, maxLikes, { minLikes = it }, { maxLikes = it }) }
+                item { FilterPair("Comments", minComments, maxComments, { minComments = it }, { maxComments = it }) }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onApply(initial.copy(titleContains = title, channelContains = channel, tagsContains = tags,
+                    playlistContains = playlist, searchKeywordContext = keyword,
+                    minViews = minViews.toLongOrNull(), maxViews = maxViews.toLongOrNull(),
+                    minLikes = minLikes.toLongOrNull(), maxLikes = maxLikes.toLongOrNull(),
+                    minComments = minComments.toLongOrNull(), maxComments = maxComments.toLongOrNull()))
+            }) { Text("Áp dụng") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Hủy") } }
+    )
+}
+@Composable private fun FilterField(label: String, value: String, onChange: (String) -> Unit) {
+    OutlinedTextField(value, onChange, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+}
+@Composable private fun FilterPair(label: String, first: String, second: String, onFirst: (String) -> Unit, onSecond: (String) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(first, onFirst, label = { Text(label + " từ") }, modifier = Modifier.weight(1f), singleLine = true)
+        OutlinedTextField(second, onSecond, label = { Text("đến") }, modifier = Modifier.weight(1f), singleLine = true)
+    }
+}
+
+@Composable
+fun VideoDetailScreen(viewModel: VideoDetailViewModel, videoId: String, modifier: Modifier = Modifier) {
+    val state by viewModel.state.collectAsState()
+    LaunchedEffect(videoId) { viewModel.load(videoId) }
+    LazyColumn(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        state.error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
+        state.result?.let { result ->
+            item { Text(result.title, style = MaterialTheme.typography.headlineSmall) }
+            item { Text("Kênh: " + result.channelName.orEmpty()) }
+            item { Text("Views: " + (result.viewCount ?: 0) + " · Likes: " + (result.likeCount ?: 0) + " · Comments: " + (result.commentCount ?: 0)) }
+            result.description?.let { item { Text(it) } }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { viewModel.refreshTranscript(videoId) }) { Text("Làm mới transcript") }
+                    OutlinedButton(onClick = { viewModel.refreshComments(videoId) }) { Text("Làm mới comments") }
+                }
+            }
+        }
+        item { Text("Metadata history", style = MaterialTheme.typography.titleMedium) }
+        items(state.snapshotHistory.take(10)) { snapshot ->
+            Text(DateFormat.getDateTimeInstance().format(Date(snapshot.fetchedAt)) + " · " + snapshot.title,
+                style = MaterialTheme.typography.bodySmall)
+        }
+        item { Text("Transcript", style = MaterialTheme.typography.titleMedium) }
+        item { Text(state.transcript?.content ?: "Chưa có transcript.") }
+        item { Text("Comments", style = MaterialTheme.typography.titleMedium) }
+        if (state.commentThreads.isEmpty()) item { Text("Chưa có comments.") }
+        items(state.commentThreads) { thread ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp)) {
+                    Text(thread.topLevelComment.orEmpty())
+                    Text(thread.replyCount.toString() + " replies", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
+}
