@@ -238,15 +238,17 @@ fun SubGrabApp() {
                                 availableSubs = emptyList()
                             )
                         }
-                        DownloadWorker.enqueueBatch(
-                            context,
-                            Source("research-selection", "research", "Research selection", videos.size),
-                            videos,
-                            "Research",
-                            settings.toDownloadConfig()
-                        )
-                        scope.launch { knowledgeRepository.recordDownloadActivity(videos, "research-selection") }
-                        navController.navigate("progress")
+                        scope.launch {
+                            DownloadWorker.enqueueBatch(
+                                context,
+                                Source("research-selection", "research", "Research selection", videos.size),
+                                videos,
+                                "Research",
+                                settings.toResearchDownloadConfig()
+                            )
+                            knowledgeRepository.recordDownloadActivity(videos, "research-selection")
+                            navController.navigate("progress")
+                        }
                     },
                     modifier = Modifier.fillMaxSize()
                 )
@@ -266,10 +268,17 @@ fun SubGrabApp() {
                                 availableSubs = emptyList()
                             )
                         }
-                        DownloadWorker.enqueueBatch(context, Source("research-selection", "research", "Research selection", videos.size),
-                            videos, "Research", settings.toDownloadConfig())
-                        scope.launch { knowledgeRepository.recordDownloadActivity(videos, "research-selection") }
-                        navController.navigate("progress")
+                        scope.launch {
+                            DownloadWorker.enqueueBatch(
+                                context,
+                                Source("research-selection", "research", "Research selection", videos.size),
+                                videos,
+                                "Research",
+                                settings.toResearchDownloadConfig()
+                            )
+                            knowledgeRepository.recordDownloadActivity(videos, "research-selection")
+                            navController.navigate("progress")
+                        }
                     },
                     modifier = Modifier.fillMaxSize()
                 )
@@ -603,3 +612,13 @@ private fun copyDebugLog(context: Context) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     clipboard.setPrimaryClip(ClipData.newPlainText("SubGrab debug log", DebugLog.text()))
 }
+
+
+private fun AppSettings.toResearchDownloadConfig() =
+    com.subgrab.app.domain.DownloadConfig(
+        languages = languages,
+        formats = formats,
+        preferManual = preferManualSub,
+        skipNoSub = skipNoSub,
+        outputDir = outputDir
+    )
