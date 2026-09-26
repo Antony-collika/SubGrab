@@ -207,7 +207,7 @@ class DownloadOrchestrator(
                     history.add(
                         DownloadHistoryEntry(
                             System.currentTimeMillis(), source.title, dir.name, savedNow, skippedNow,
-                            sourceUrl = source.url, total = selected.size, status = "CANCELLED", logs = finalLogs
+                            sourceUrl = source.url, total = selected.size, status = "CANCELLED", logs = finalLogs, videoIds = selected.map { it.videoId }
                         )
                     )
                 }
@@ -230,7 +230,7 @@ class DownloadOrchestrator(
             history.add(
                 DownloadHistoryEntry(
                     System.currentTimeMillis(), source.title, dir.name, savedNow, skippedNow,
-                    sourceUrl = source.url, total = selected.size, status = "DONE", logs = finalLogs
+                    sourceUrl = source.url, total = selected.size, status = "DONE", logs = finalLogs, videoIds = selected.map { it.videoId }
                 )
             )
             publish(DownloadState.Done(savedNow, skippedNow, finalLogs, relativePath))
@@ -266,7 +266,7 @@ class DownloadOrchestrator(
                 history.add(
                     DownloadHistoryEntry(
                         System.currentTimeMillis(), source.title, dir.name, savedNow, skippedNow,
-                        sourceUrl = source.url, total = selected.size, status = "ERROR", logs = errorLogs
+                        sourceUrl = source.url, total = selected.size, status = "ERROR", logs = errorLogs, videoIds = selected.map { it.videoId }
                     )
                 )
             }
