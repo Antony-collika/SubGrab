@@ -198,7 +198,7 @@ private fun ResearchFilterDialog(initial: ResearchFilters, onDismiss: () -> Unit
         confirmButton = {
             TextButton(onClick = {
                 onApply(initial.copy(titleContains = title, descriptionContains = description, channelContains = channel, tagsContains = tags,
-                    playlistContains = playlist, categoryContains = category, searchKeywordContext = keyword,
+                    playlistContains = playlist, categoryContains = category, topicContains = category, searchKeywordContext = keyword,
                     minSubscribers = minSubscribers.toLongOrNull(), maxSubscribers = maxSubscribers.toLongOrNull(),
                     minViews = minViews.toLongOrNull(), maxViews = maxViews.toLongOrNull(),
                     minLikes = minLikes.toLongOrNull(), maxLikes = maxLikes.toLongOrNull(),
