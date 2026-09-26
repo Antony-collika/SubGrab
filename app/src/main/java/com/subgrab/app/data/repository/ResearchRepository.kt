@@ -88,6 +88,8 @@ class ResearchRepository(private val database: SubGrabDatabase) {
         return rows to count
     }
 
+    suspend fun getSearchSession(sessionId: String) = database.searchDao().getSession(sessionId)
+
     suspend fun getSessionResults(sessionId: String, page: Int = 0, pageSize: Int = 50): Pair<List<VideoSearchResult>, Int> {
         val base = """
             SELECT m.videoId AS videoId, m.title AS title, m.description AS description,
