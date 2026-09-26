@@ -92,7 +92,7 @@ class DownloadViewModel(
     }
    }
    result.onSuccess{(source,v)->
-    val persistenceError=runCatching { knowledgeRepository.saveAnalysis(source,v,"ANALYZE_URL") }.exceptionOrNull()
+    val persistenceError=runCatching { knowledgeRepository.saveAnalysis(source,v,"ANALYZE_URL",s.metadataCacheHours,forceRefresh) }.exceptionOrNull()
     _state.value=AnalysisState.Ready(source,v,source.title,persistenceError?.let { "Phân tích thành công nhưng chưa lưu được dữ liệu vào database: ${it.message?:"lỗi không xác định"}" })
    }.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích link",url)}
   }
