@@ -9,13 +9,23 @@ import com.subgrab.app.domain.VideoItem
 import java.util.UUID
 
 class KnowledgeRepository(private val database: SubGrabDatabase) {
-    suspend fun saveAnalysis(source: Source, videos: List<VideoItem>, activityType: String = "ANALYZE_URL") {
+    suspend fun saveAnalysis(
+        source: Source,
+        videos: List<VideoItem>,
+        activityType: String = "ANALYZE_URL",
+        metadataCacheHours: Long = 24,
+        forceRefresh: Boolean = false
+    ) {
         val normalized = videos.distinctBy { it.videoId }.map(MetadataNormalizer::normalize)
         val now = System.currentTimeMillis()
         database.withTransaction {
             normalized.forEachIndexed { index, metadata ->
                 saveVideo(metadata, now)
-                database.metadataSnapshotDao().insert(metadata.toSnapshot(now))
+                if (forceRefresh || shouldRefreshMetadata(metadata.videoId, now, metadataCacheHours)) {
+                    if (forceRefresh || shouldRefreshMetadata(metadata.videoId, now, metadataCacheHours)) {
+                    database.metadataSnapshotDao().insert(metadata.toSnapshot(now))
+                }
+                }
                 database.searchDao().deleteDocument(metadata.videoId)
                 database.searchDao().insertDocument(metadata.toSearchDocument())
             }
@@ -38,7 +48,13 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
         }
     }
 
-    suspend fun saveKeywordSearch(query: String, source: Source, videos: List<VideoItem>): String {
+    suspend fun saveKeywordSearch(
+        query: String,
+        source: Source,
+        videos: List<VideoItem>,
+        metadataCacheHours: Long = 24,
+        forceRefresh: Boolean = false
+    ): String {
         val cleanQuery = query.trim()
         require(cleanQuery.isNotBlank())
         val normalized = videos.distinctBy { it.videoId }.map(MetadataNormalizer::normalize)
@@ -167,6 +183,13 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
     suspend fun getTranscript(videoId: String) = database.transcriptDao().get(videoId)
     suspend fun getCommentThreads(videoId: String) = database.commentDao().getThreads(videoId)
     suspend fun getComments(threadId: String) = database.commentDao().getComments(threadId)
+
+    private suspend fun shouldRefreshMetadata(videoId: String, now: Long, cacheHours: Long): Boolean {
+        if (cacheHours <= 0L) return true
+        val latest = database.metadataSnapshotDao().latest(videoId) ?: return true
+        val ttlMs = cacheHours.coerceAtMost(Long.MAX_VALUE / (60L * 60L * 1000L)) * 60L * 60L * 1000L
+        return now - latest.fetchedAt >= ttlMs
+    }
 
     private suspend fun saveVideo(metadata: com.subgrab.app.data.NormalizedVideoMetadata, now: Long) {
         val existingVideo = database.videoDao().get(metadata.videoId)
