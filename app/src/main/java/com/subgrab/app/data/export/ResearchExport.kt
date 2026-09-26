@@ -58,6 +58,6 @@ object ResearchExport {
         }
     }
 
-    private fun csvCell(value: String): String = """ + value.replace(""", """").replace("\n", " ").replace("\r", " ") + """
+    private fun csvCell(value: String): String = 34.toChar() + value.replace(34.toChar().toString(), 34.toChar().toString() + 34.toChar()).replace("\n", " ").replace("\r", " ") + 34.toChar()
     private fun mdCell(value: String?): String = value.orEmpty().replace("|", "\\|").replace("\n", " ").replace("\r", " ")
 }
