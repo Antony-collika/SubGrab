@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 sealed interface AnalysisState{
  data object Idle:AnalysisState
  data object Loading:AnalysisState
- data class Ready(val source:Source,val videos:List<VideoItem>,val folder:String):AnalysisState
+ data class Ready(val source:Source,val videos:List<VideoItem>,val folder:String,val persistenceWarning:String?=null):AnalysisState
  data class Error(val message:String,val retryUrl:String?=null):AnalysisState
 }
 class DownloadViewModel(
@@ -56,9 +56,8 @@ class DownloadViewModel(
      else extractorDiscovery.discoverVideoCollectionWithSource(urls)
     }
     result.onSuccess{(source,v)->
-    runCatching { knowledgeRepository.saveAnalysis(source,v,"ANALYZE_URL") }
-     .onSuccess { _state.value=AnalysisState.Ready(source,v,source.title) }
-     .onFailure { _state.value=AnalysisState.Error(it.message?:"Không thể lưu dữ liệu phân tích",input) }
+    val persistenceError=runCatching { knowledgeRepository.saveAnalysis(source,v,"ANALYZE_URL") }.exceptionOrNull()
+    _state.value=AnalysisState.Ready(source,v,source.title,persistenceError?.let { "Phân tích thành công nhưng chưa lưu được dữ liệu vào database: ${it.message?:"lỗi không xác định"}" })
    }.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích chuỗi URL",input)}
    }
    return
@@ -90,9 +89,8 @@ class DownloadViewModel(
     }
    }
    result.onSuccess{(source,v)->
-    runCatching { knowledgeRepository.saveAnalysis(source,v,"ANALYZE_URL") }
-     .onSuccess { _state.value=AnalysisState.Ready(source,v,source.title) }
-     .onFailure { _state.value=AnalysisState.Error(it.message?:"Không thể lưu dữ liệu phân tích",url) }
+    val persistenceError=runCatching { knowledgeRepository.saveAnalysis(source,v,"ANALYZE_URL") }.exceptionOrNull()
+    _state.value=AnalysisState.Ready(source,v,source.title,persistenceError?.let { "Phân tích thành công nhưng chưa lưu được dữ liệu vào database: ${it.message?:"lỗi không xác định"}" })
    }.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích link",url)}
   }
  }
@@ -106,9 +104,8 @@ class DownloadViewModel(
      .onSuccess{v->
       val clean=keyword.trim()
       val source=Source("keyword:"+clean,"https://www.youtube.com/results?search_query="+android.net.Uri.encode(clean),clean,v.size)
-      runCatching { knowledgeRepository.saveKeywordSearch(clean,source,v) }
-       .onSuccess { _state.value=AnalysisState.Ready(source,v,clean) }
-       .onFailure { _state.value=AnalysisState.Error(it.message?:"Không thể lưu kết quả tìm kiếm",null) }
+      val persistenceError=runCatching { knowledgeRepository.saveKeywordSearch(clean,source,v) }.exceptionOrNull()
+      _state.value=AnalysisState.Ready(source,v,clean,persistenceError?.let { "Tìm kiếm thành công nhưng chưa lưu được dữ liệu vào database: ${it.message?:"lỗi không xác định"}" })
       SubGrabDatabase.get(context).runtimeLogDao().insert(
        RuntimeLogEntity(timestamp = System.currentTimeMillis(), level = "INFO", category = "DIAGNOSTIC", lane = RequestLane.DISCOVERY_API.name, operation = "search", message = "SEARCH_READY videos="+v.size)
       )
@@ -123,9 +120,8 @@ class DownloadViewModel(
     runCatching{extractorDiscovery.discoverKeyword(keyword)}
      .map{v->Source("keyword:"+keyword.trim(),"https://www.youtube.com/results?search_query="+android.net.Uri.encode(keyword.trim()),keyword.trim(),v.size) to v}
      .onSuccess{(source,v)->
-      runCatching { knowledgeRepository.saveKeywordSearch(keyword.trim(),source,v) }
-       .onSuccess { _state.value=AnalysisState.Ready(source,v,source.title) }
-       .onFailure { _state.value=AnalysisState.Error(it.message?:"Không thể lưu kết quả tìm kiếm",null) }
+      val persistenceError=runCatching { knowledgeRepository.saveKeywordSearch(keyword.trim(),source,v) }.exceptionOrNull()
+      _state.value=AnalysisState.Ready(source,v,source.title,persistenceError?.let { "Tìm kiếm thành công nhưng chưa lưu được dữ liệu vào database: ${it.message?:"lỗi không xác định"}" })
      }
      .onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)}
    }
