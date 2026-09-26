@@ -1,35 +1,53 @@
 package com.subgrab.app.data.export
 
 import com.subgrab.app.domain.VideoSearchResult
-import org.json.JSONArray
-import org.json.JSONObject
 
 object ResearchExport {
-    fun json(results: List<VideoSearchResult>): String {
-        val array = JSONArray()
-        results.forEach { v ->
-            array.put(JSONObject()
-                .put("videoId", v.videoId)
-                .put("title", v.title)
-                .put("description", v.description)
-                .put("channelId", v.channelId)
-                .put("channelName", v.channelName)
-                .put("thumbnail", v.thumbnail)
-                .put("publishedAt", v.publishedAt)
-                .put("fetchedAt", v.fetchedAt)
-                .put("durationSeconds", v.durationSeconds)
-                .put("subscriberCount", v.subscriberCount)
-                .put("viewCount", v.viewCount)
-                .put("likeCount", v.likeCount)
-                .put("commentCount", v.commentCount)
-                .put("tags", v.tags)
-                .put("category", v.category)
-                .put("topic", v.topic)
-                .put("playlistTitles", v.playlistTitles)
-                .put("searchKeywords", v.searchKeywords))
+    fun json(results: List<VideoSearchResult>): String = buildString {
+        appendLine("[")
+        results.forEachIndexed { index, v ->
+            appendLine("  {")
+            appendLine("    \"videoId\": " + jsonString(v.videoId) + ",")
+            appendLine("    \"title\": " + jsonString(v.title) + ",")
+            appendLine("    \"description\": " + jsonString(v.description) + ",")
+            appendLine("    \"channelId\": " + jsonString(v.channelId) + ",")
+            appendLine("    \"channelName\": " + jsonString(v.channelName) + ",")
+            appendLine("    \"thumbnail\": " + jsonString(v.thumbnail) + ",")
+            appendLine("    \"publishedAt\": " + jsonString(v.publishedAt) + ",")
+            appendLine("    \"fetchedAt\": " + v.fetchedAt + ",")
+            appendLine("    \"durationSeconds\": " + jsonNumber(v.durationSeconds) + ",")
+            appendLine("    \"subscriberCount\": " + jsonNumber(v.subscriberCount) + ",")
+            appendLine("    \"viewCount\": " + jsonNumber(v.viewCount) + ",")
+            appendLine("    \"likeCount\": " + jsonNumber(v.likeCount) + ",")
+            appendLine("    \"commentCount\": " + jsonNumber(v.commentCount) + ",")
+            appendLine("    \"tags\": " + jsonString(v.tags) + ",")
+            appendLine("    \"category\": " + jsonString(v.category) + ",")
+            appendLine("    \"topic\": " + jsonString(v.topic) + ",")
+            appendLine("    \"playlistTitles\": " + jsonString(v.playlistTitles) + ",")
+            appendLine("    \"searchKeywords\": " + jsonString(v.searchKeywords))
+            append("  }")
+            if (index < results.lastIndex) append(",")
+            appendLine()
         }
-        return array.toString(2)
+        append("]")
     }
+
+    private fun jsonNumber(value: Long?): String = value?.toString() ?: "null"
+
+    private fun jsonString(value: String?): String =
+        value?.let {
+            "\"" + it
+                .replace("\\\\", "\\\\\\\\")
+                .replace("\"", "\\\\"")
+                .replace("\\b", "\\\\b")
+                .replace("\\u000C", "\\\\f")
+                .replace("\\n", "\\\\n")
+                .replace("\\r", "\\\\r")
+                .replace("\\t", "\\\\t")
+                .replace(Regex("[\\u0000-\\u001F]")) { match ->
+                    "\\\\u%04x".format(match.value[0].code)
+                } + "\""
+        } ?: "null"
 
     fun csv(results: List<VideoSearchResult>): String {
         val header = listOf("videoId","title","channelName","publishedAt","fetchedAt","durationSeconds","subscriberCount","viewCount","likeCount","commentCount","category","tags","topic","playlistTitles","searchKeywords")
