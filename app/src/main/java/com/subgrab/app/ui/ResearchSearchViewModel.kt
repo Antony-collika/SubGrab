@@ -66,6 +66,7 @@ class ResearchSearchViewModel(private val repository: ResearchRepository) : View
                     val merged = if (replace) rows else current.results + rows
                     _state.value = current.copy(
                         results = merged,
+                        selectedVideos = if (replace) emptySet() else current.selectedVideos,
                         resultCount = count,
                         loading = false,
                         error = null,
