@@ -33,8 +33,9 @@ class ResearchRepository(private val database: SubGrabDatabase) {
         val args = mutableListOf<Any>()
         val conditions = mutableListOf<String>()
         if (query.trim().isNotBlank()) {
-            conditions += "video_search MATCH ?"
+            conditions += "(video_search MATCH ? OR LOWER(COALESCE(playlistTitles, '')) LIKE LOWER(?))"
             args += ftsQuery(query)
+            args += "%" + query.trim() + "%"
         }
         addLike(conditions, args, "m.title", filters.titleContains)
         addLike(conditions, args, "m.description", filters.descriptionContains)
