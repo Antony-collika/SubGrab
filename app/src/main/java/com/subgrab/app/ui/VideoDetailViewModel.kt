@@ -33,6 +33,7 @@ class VideoDetailViewModel(
     val state: StateFlow<VideoDetailState> = _state.asStateFlow()
 
     fun load(videoId: String) {
+        viewModelScope.launch { repository.recordView(videoId) }
         _state.value = _state.value.copy(loading = true, error = null)
         viewModelScope.launch {
             runCatching {
