@@ -7,6 +7,25 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
+data class FetchedComment(
+    val id: String,
+    val threadId: String,
+    val videoId: String,
+    val parentId: String?,
+    val text: String,
+    val author: String?,
+    val likeCount: Long?,
+    val publishedAt: String?,
+    val updatedAt: String?
+)
+data class FetchedCommentThread(
+    val threadId: String,
+    val videoId: String,
+    val topLevel: FetchedComment,
+    val replyCount: Int,
+    val replies: List<FetchedComment>
+)
+
 class YouTubeDataApiClient(private val settings:SettingsRepository,private val pacer:RequestPacer){
  private suspend fun get(path:String,params:Map<String,String>,lane:RequestLane?=null):JSONObject=withContext(Dispatchers.IO){
   val key=settings.current().youtubeDataApiKey.trim()
@@ -116,6 +135,71 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
     put(id,item.optJSONObject("statistics")?.optString("subscriberCount")?.toLongOrNull())
    }
   }
+ }
+
+ suspend fun fetchCommentThreads(videoId: String): List<FetchedCommentThread> {
+  val threads = mutableListOf<FetchedCommentThread>()
+  var pageToken: String? = null
+  do {
+   val params = mutableMapOf("part" to "snippet,replies", "videoId" to videoId, "maxResults" to "100", "textFormat" to "plainText")
+   pageToken?.let { params["pageToken"] = it }
+   val json = get("commentThreads", params, RequestLane.API_METADATA)
+   val items = json.optJSONArray("items") ?: org.json.JSONArray()
+   for (i in 0 until items.length()) {
+    val item = items.optJSONObject(i) ?: continue
+    val threadId = item.optString("id").takeIf { it.isNotBlank() } ?: continue
+    val snippet = item.optJSONObject("snippet") ?: continue
+    val video = snippet.optString("videoId").ifBlank { videoId }
+    val top = snippet.optJSONObject("topLevelComment") ?: continue
+    val topSnippet = top.optJSONObject("snippet") ?: continue
+    val topComment = FetchedComment(
+     id = top.optString("id"),
+     threadId = threadId,
+     videoId = video,
+     parentId = topSnippet.optString("parentId").takeIf { it.isNotBlank() },
+     text = topSnippet.optString("textDisplay"),
+     author = topSnippet.optString("authorDisplayName").takeIf { it.isNotBlank() },
+     likeCount = topSnippet.optLong("likeCount").takeIf { topSnippet.has("likeCount") },
+     publishedAt = topSnippet.optString("publishedAt").takeIf { it.isNotBlank() },
+     updatedAt = topSnippet.optString("updatedAt").takeIf { it.isNotBlank() }
+    )
+    val replies = mutableListOf<FetchedComment>()
+    val inline = item.optJSONObject("replies")?.optJSONArray("comments")
+    if (inline != null) for (j in 0 until inline.length()) {
+     inline.optJSONObject(j)?.let { replies += parseComment(it, threadId, video) }
+    }
+    if (replies.size < snippet.optInt("totalReplyCount", replies.size)) {
+     replies.clear()
+     var replyPage: String? = null
+     do {
+      val replyParams = mutableMapOf("part" to "snippet", "parentId" to top.optString("id"), "maxResults" to "100", "textFormat" to "plainText")
+      replyPage?.let { replyParams["pageToken"] = it }
+      val replyJson = get("comments", replyParams, RequestLane.API_METADATA)
+      val replyItems = replyJson.optJSONArray("items") ?: org.json.JSONArray()
+      for (j in 0 until replyItems.length()) replyItems.optJSONObject(j)?.let { replies += parseComment(it, threadId, video) }
+      replyPage = replyJson.optString("nextPageToken").takeIf { it.isNotBlank() }
+     } while (replyPage != null)
+    }
+    threads += FetchedCommentThread(threadId, video, topComment, snippet.optInt("totalReplyCount", replies.size), replies.distinctBy { it.id })
+   }
+   pageToken = json.optString("nextPageToken").takeIf { it.isNotBlank() }
+  } while (pageToken != null)
+  return threads
+ }
+
+ private fun parseComment(json: JSONObject, threadId: String, videoId: String): FetchedComment {
+  val snippet = json.optJSONObject("snippet") ?: JSONObject()
+  return FetchedComment(
+   id = json.optString("id"),
+   threadId = threadId,
+   videoId = videoId,
+   parentId = snippet.optString("parentId").takeIf { it.isNotBlank() },
+   text = snippet.optString("textDisplay"),
+   author = snippet.optString("authorDisplayName").takeIf { it.isNotBlank() },
+   likeCount = snippet.optLong("likeCount").takeIf { snippet.has("likeCount") },
+   publishedAt = snippet.optString("publishedAt").takeIf { it.isNotBlank() },
+   updatedAt = snippet.optString("updatedAt").takeIf { it.isNotBlank() }
+  )
  }
  private fun parseDuration(v:String):Long=Regex("PT(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?").matchEntire(v)?.let{m->(m.groupValues[1].toLongOrNull()?:0)*3600+(m.groupValues[2].toLongOrNull()?:0)*60+(m.groupValues[3].toLongOrNull()?:0)}?:0
 }
