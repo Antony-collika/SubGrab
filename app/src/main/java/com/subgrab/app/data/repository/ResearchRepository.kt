@@ -142,12 +142,15 @@ class ResearchRepository(private val database: SubGrabDatabase) {
             m.channelId AS channelId, m.channelName AS channelName, m.thumbnail AS thumbnail,
             m.publishedAt AS publishedAt, m.fetchedAt AS fetchedAt, m.durationSeconds AS durationSeconds,
             m.subscriberCount AS subscriberCount, m.viewCount AS viewCount, m.likeCount AS likeCount,
-            m.commentCount AS commentCount, s.tags AS tags, s.category AS category, s.topic AS topic,
+            m.commentCount AS commentCount,
+            (SELECT vs.tags FROM video_search vs WHERE vs.videoId = m.videoId LIMIT 1) AS tags,
+            (SELECT vs.category FROM video_search vs WHERE vs.videoId = m.videoId LIMIT 1) AS category,
+            (SELECT vs.topic FROM video_search vs WHERE vs.videoId = m.videoId LIMIT 1) AS topic,
             (SELECT group_concat(DISTINCT p.title) FROM playlist_video pv JOIN playlists p ON p.playlistId = pv.playlistId WHERE pv.videoId = m.videoId) AS playlistTitles,
             (SELECT group_concat(DISTINCT ss.query) FROM search_session_video ssv JOIN search_sessions ss ON ss.id = ssv.searchSessionId WHERE ssv.videoId = m.videoId) AS searchKeywords
         FROM video_metadata_snapshots m
-        JOIN video_search s ON s.videoId = m.videoId
         WHERE m.id = (SELECT ms.id FROM video_metadata_snapshots ms WHERE ms.videoId = m.videoId ORDER BY ms.fetchedAt DESC LIMIT 1)
+          AND EXISTS (SELECT 1 FROM video_search vs_index WHERE vs_index.videoId = m.videoId)
     """.trimIndent()
 
     private fun addLike(conditions: MutableList<String>, args: MutableList<Any>, column: String, value: String) {
