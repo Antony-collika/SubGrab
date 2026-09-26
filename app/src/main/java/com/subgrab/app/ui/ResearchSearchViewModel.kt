@@ -17,6 +17,7 @@ class ResearchSearchViewModel(private val repository: ResearchRepository) : View
     val state: StateFlow<SearchState> = _state.asStateFlow()
 
     fun updateQuery(query: String) { _state.value = _state.value.copy(query = query, error = null) }
+    fun reset() { _state.value = SearchState() }
     fun updateFilters(filters: ResearchFilters) { _state.value = _state.value.copy(filters = filters, error = null) }
     fun updateSort(sort: ResearchSort) { _state.value = _state.value.copy(sort = sort, error = null) }
 
@@ -47,9 +48,10 @@ class ResearchSearchViewModel(private val repository: ResearchRepository) : View
     fun loadSession(sessionId: String) {
         _state.value = _state.value.copy(loading = true, error = null, page = 0)
         viewModelScope.launch {
-            runCatching { repository.getSessionResults(sessionId, 0, pageSize) }
-                .onSuccess { (rows, count) ->
-                    _state.value = _state.value.copy(results = rows, resultCount = count, loading = false, hasMore = rows.size < count, page = 0)
+            runCatching { repository.getSearchSession(sessionId) to repository.getSessionResults(sessionId, 0, pageSize) }
+                .onSuccess { (session, result) ->
+                    val (rows, count) = result
+                    _state.value = _state.value.copy(query = session?.query.orEmpty(), results = rows, resultCount = count, loading = false, hasMore = rows.size < count, page = 0)
                 }
                 .onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Không thể mở kết quả đã lưu") }
         }
