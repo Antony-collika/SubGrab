@@ -15,6 +15,7 @@ import com.subgrab.app.data.export.ResearchExport
 import com.subgrab.app.domain.*
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.Instant
 import java.text.DateFormat
 import java.util.Date
 
@@ -150,12 +151,18 @@ private fun ResearchFilterDialog(initial: ResearchFilters, onDismiss: () -> Unit
     var tags by remember { mutableStateOf(initial.tagsContains) }
     var playlist by remember { mutableStateOf(initial.playlistContains) }
     var keyword by remember { mutableStateOf(initial.searchKeywordContext) }
+    var minSubscribers by remember { mutableStateOf(initial.minSubscribers?.toString().orEmpty()) }
+    var maxSubscribers by remember { mutableStateOf(initial.maxSubscribers?.toString().orEmpty()) }
     var minViews by remember { mutableStateOf(initial.minViews?.toString().orEmpty()) }
     var maxViews by remember { mutableStateOf(initial.maxViews?.toString().orEmpty()) }
     var minLikes by remember { mutableStateOf(initial.minLikes?.toString().orEmpty()) }
     var maxLikes by remember { mutableStateOf(initial.maxLikes?.toString().orEmpty()) }
     var minComments by remember { mutableStateOf(initial.minComments?.toString().orEmpty()) }
     var maxComments by remember { mutableStateOf(initial.maxComments?.toString().orEmpty()) }
+    var publishedFrom by remember { mutableStateOf(initial.publishedFrom?.let(::formatDate).orEmpty()) }
+    var publishedTo by remember { mutableStateOf(initial.publishedTo?.let(::formatDate).orEmpty()) }
+    var fetchedFrom by remember { mutableStateOf(initial.fetchedFrom?.let(::formatDate).orEmpty()) }
+    var fetchedTo by remember { mutableStateOf(initial.fetchedTo?.let(::formatDate).orEmpty()) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Advanced Filter") },
@@ -166,23 +173,44 @@ private fun ResearchFilterDialog(initial: ResearchFilters, onDismiss: () -> Unit
                 item { FilterField("Tags", tags) { tags = it } }
                 item { FilterField("Playlist", playlist) { playlist = it } }
                 item { FilterField("SearchSession keyword", keyword) { keyword = it } }
+                item { FilterPair("Subscribers", minSubscribers, maxSubscribers, { minSubscribers = it }, { maxSubscribers = it }) }
                 item { FilterPair("Views", minViews, maxViews, { minViews = it }, { maxViews = it }) }
                 item { FilterPair("Likes", minLikes, maxLikes, { minLikes = it }, { maxLikes = it }) }
                 item { FilterPair("Comments", minComments, maxComments, { minComments = it }, { maxComments = it }) }
+                item { FilterPair("Published yyyy-MM-dd", publishedFrom, publishedTo, { publishedFrom = it }, { publishedTo = it }) }
+                item { FilterPair("Fetched yyyy-MM-dd", fetchedFrom, fetchedTo, { fetchedFrom = it }, { fetchedTo = it }) }
+                item { Row { Checkbox(searchActivity, { searchActivity = it }); Text("Đã tìm kiếm") } }
+                item { Row { Checkbox(analyzeActivity, { analyzeActivity = it }); Text("Đã phân tích") } }
+                item { Row { Checkbox(viewActivity, { viewActivity = it }); Text("Đã xem") } }
             }
         },
         confirmButton = {
             TextButton(onClick = {
                 onApply(initial.copy(titleContains = title, channelContains = channel, tagsContains = tags,
                     playlistContains = playlist, searchKeywordContext = keyword,
+                    minSubscribers = minSubscribers.toLongOrNull(), maxSubscribers = maxSubscribers.toLongOrNull(),
                     minViews = minViews.toLongOrNull(), maxViews = maxViews.toLongOrNull(),
                     minLikes = minLikes.toLongOrNull(), maxLikes = maxLikes.toLongOrNull(),
-                    minComments = minComments.toLongOrNull(), maxComments = maxComments.toLongOrNull()))
+                    minComments = minComments.toLongOrNull(), maxComments = maxComments.toLongOrNull(),
+                    publishedFrom = parseDate(publishedFrom), publishedTo = parseDate(publishedTo, true),
+                    fetchedFrom = parseDate(fetchedFrom), fetchedTo = parseDate(fetchedTo, true),
+                    activityTypes = buildSet { if (searchActivity) add("SEARCH"); if (analyzeActivity) add("ANALYZE_URL"); if (viewActivity) add("VIEW_VIDEO") }
+                ))
             }) { Text("Áp dụng") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Hủy") } }
     )
 }
+private fun parseDate(value: String, end: Boolean = false): Long? = runCatching {
+    val date = LocalDate.parse(value)
+    val instant = if (end) date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()
+        else date.atStartOfDay(ZoneId.systemDefault()).toInstant()
+    instant.toEpochMilli() - if (end) 1 else 0
+}.getOrNull()
+
+private fun formatDate(value: Long): String =
+    LocalDate.ofInstant(Instant.ofEpochMilli(value), ZoneId.systemDefault()).toString()
+
 @Composable private fun FilterField(label: String, value: String, onChange: (String) -> Unit) {
     OutlinedTextField(value, onChange, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
 }
