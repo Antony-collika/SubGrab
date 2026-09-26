@@ -40,6 +40,7 @@ class ResearchRepository(private val database: SubGrabDatabase) {
         addLike(conditions, args, "m.description", filters.descriptionContains)
         addLike(conditions, args, "m.tags", filters.tagsContains)
         addLike(conditions, args, "m.category", filters.categoryContains)
+        addLike(conditions, args, "m.topic", filters.topicContains)
         addLike(conditions, args, "m.channelName", filters.channelContains)
         addLike(conditions, args, "playlistTitles", filters.playlistContains)
         filters.minSubscribers?.let { conditions += "COALESCE(m.subscriberCount, 0) >= ?"; args += it }
