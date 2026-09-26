@@ -58,7 +58,7 @@ class SubtitleDownloader(
                     files += write(outputDir, "$base.txt", cleanText)
                 }
                 if (track === roomTrack) {
-                    knowledgeRepository?.saveTranscript(video.videoId, cleanText, language)
+                    runCatching { knowledgeRepository?.saveTranscript(video.videoId, cleanText, language) }
                 }
             }
             files
