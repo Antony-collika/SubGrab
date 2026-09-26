@@ -60,7 +60,7 @@ private fun activityLabel(item: ResearchActivityItem): String = when (item.type)
 
 @Composable
 fun ResearchSearchScreen(viewModel: ResearchSearchViewModel, sessionId: String?, onOpenDetail: (String) -> Unit,
-                         modifier: Modifier = Modifier) {
+                         onDownloadSelected: (List<VideoSearchResult>) -> Unit = {}, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsState()
     var filterOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(sessionId) { if (!sessionId.isNullOrBlank()) viewModel.loadSession(sessionId) }
@@ -73,7 +73,7 @@ fun ResearchSearchScreen(viewModel: ResearchSearchViewModel, sessionId: String?,
             OutlinedButton(onClick = { filterOpen = true }, modifier = Modifier.weight(1f)) { Text("Bộ lọc") }
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        ResearchResultsContent(state, viewModel, onOpenDetail, Modifier.weight(1f))
+        ResearchResultsContent(state, viewModel, onOpenDetail, onDownloadSelected, Modifier.weight(1f))
     }
     if (filterOpen) ResearchFilterDialog(state.filters, { filterOpen = false }) {
         viewModel.updateFilters(it); filterOpen = false; viewModel.search()
@@ -82,7 +82,7 @@ fun ResearchSearchScreen(viewModel: ResearchSearchViewModel, sessionId: String?,
 
 @Composable
 private fun ResearchResultsContent(state: SearchState, viewModel: ResearchSearchViewModel, onOpenDetail: (String) -> Unit,
-                                   modifier: Modifier = Modifier) {
+                                   onDownloadSelected: (List<VideoSearchResult>) -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -94,25 +94,26 @@ private fun ResearchResultsContent(state: SearchState, viewModel: ResearchSearch
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             TextButton(onClick = { viewModel.search() }) { Text("Làm mới") }
+            TextButton(onClick = { if (state.selectedResults.isNotEmpty()) onDownloadSelected(state.selectedResults) }) { Text("Tải phụ đề") }
             TextButton(onClick = {
-                if (state.selectedResults.isNotEmpty()) {
-                    val body = ResearchExport.markdown(state.selectedResults)
+                if (state.results.isNotEmpty()) {
+                    val body = ResearchExport.markdown(if (state.selectedResults.isNotEmpty()) state.selectedResults else state.results)
                     context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
                         type = "text/markdown"; putExtra(Intent.EXTRA_TEXT, body)
                     }, "Xuất Markdown"))
                 }
             }) { Text("Xuất MD") }
             TextButton(onClick = {
-                if (state.selectedResults.isNotEmpty()) {
-                    val body = ResearchExport.json(state.selectedResults)
+                if (state.results.isNotEmpty()) {
+                    val body = ResearchExport.json(if (state.selectedResults.isNotEmpty()) state.selectedResults else state.results)
                     context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
                         type = "application/json"; putExtra(Intent.EXTRA_TEXT, body)
                     }, "Xuất JSON"))
                 }
             }) { Text("Xuất JSON") }
             TextButton(onClick = {
-                if (state.selectedResults.isNotEmpty()) {
-                    val body = ResearchExport.csv(state.selectedResults)
+                if (state.results.isNotEmpty()) {
+                    val body = ResearchExport.csv(if (state.selectedResults.isNotEmpty()) state.selectedResults else state.results)
                     context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
                         type = "text/csv"; putExtra(Intent.EXTRA_TEXT, body)
                     }, "Xuất CSV"))
