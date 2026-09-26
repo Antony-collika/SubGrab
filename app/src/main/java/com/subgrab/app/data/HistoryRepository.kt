@@ -21,7 +21,8 @@ data class DownloadHistoryEntry(
     val sourceUrl: String = "",
     val total: Int = 0,
     val status: String = "DONE",
-    val logs: List<String> = emptyList()
+    val logs: List<String> = emptyList(),
+    val videoIds: List<String> = emptyList()
 )
 
 private val Context.historyStore by preferencesDataStore("subgrab_history")
@@ -58,7 +59,8 @@ class HistoryRepository(private val context: Context) {
         entry.title,
         entry.folder,
         entry.sourceUrl,
-        entry.logs.joinToString("\u001e")
+        entry.logs.joinToString("\u001e"),
+        entry.videoIds.joinToString(",")
     ).joinToString("|") { Base64.encodeToString(it.toByteArray(Charsets.UTF_8), Base64.NO_WRAP) }
 
     private fun decode(raw: String): DownloadHistoryEntry? {
@@ -84,7 +86,8 @@ class HistoryRepository(private val context: Context) {
                     title = parts[6].decodeBase64(),
                     folder = parts[7].decodeBase64(),
                     sourceUrl = parts[8].decodeBase64(),
-                    logs = parts[9].decodeBase64().split("\u001e").filter(String::isNotBlank)
+                    logs = parts[9].decodeBase64().split("\u001e").filter(String::isNotBlank),
+                    videoIds = parts.getOrNull(10)?.decodeBase64()?.split(",")?.filter(String::isNotBlank).orEmpty()
                 )
             }
         }.getOrNull()
