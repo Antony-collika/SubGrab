@@ -43,6 +43,9 @@ interface PlaylistDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertCrossRefs(refs: List<PlaylistVideoCrossRef>)
 
+    @Query("SELECT * FROM playlists WHERE playlistId = :playlistId LIMIT 1")
+    suspend fun get(playlistId: String): PlaylistEntity?
+
     @Query("UPDATE playlists SET channelId = :channelId, title = :title, updatedAt = :updatedAt WHERE playlistId = :playlistId")
     suspend fun update(playlistId: String, channelId: String?, title: String, updatedAt: Long)
 
