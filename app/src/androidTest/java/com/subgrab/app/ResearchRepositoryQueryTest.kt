@@ -175,7 +175,7 @@ class ResearchRepositoryQueryTest {
                 id = "video:seed",
                 url = "https://www.youtube.com/watch?v=video-1",
                 title = "Seed",
-                count = 3
+                originalTotalVideos = 3
             ),
             videos
         )
@@ -185,7 +185,7 @@ class ResearchRepositoryQueryTest {
                 id = "playlist:seed",
                 url = "https://www.youtube.com/playlist?list=playlist-1",
                 title = "LLMs Research",
-                count = 2
+                originalTotalVideos = 2
             ),
             videos.take(2)
         )
