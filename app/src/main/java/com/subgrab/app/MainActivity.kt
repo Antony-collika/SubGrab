@@ -235,20 +235,7 @@ fun SubGrabApp() {
                                 videoId = v.videoId,
                                 title = v.title,
                                 durationSec = (v.durationSeconds ?: 0L).toInt(),
-                                availableSubs = emptyList(),
-                                channelTitle = v.channelName.orEmpty(),
-                                publishedAt = v.publishedAt.orEmpty(),
-                                viewCount = v.viewCount,
-                                thumbnailUrl = v.thumbnail.orEmpty(),
-                                description = v.description,
-                                durationSeconds = v.durationSeconds,
-                                likeCount = v.likeCount,
-                                channelId = v.channelId,
-                                subscriberCount = v.subscriberCount,
-                                commentCount = v.commentCount,
-                                tags = v.tags.split(" ").filter(String::isNotBlank),
-                                category = v.category,
-                                topic = v.topic.split(" ").filter(String::isNotBlank)
+                                availableSubs = emptyList()
                             )
                         }
                         DownloadWorker.enqueueBatch(
@@ -271,11 +258,13 @@ fun SubGrabApp() {
                     onOpenDetail = { id -> navController.navigate("video-detail/" + id) },
                     onDownloadSelected = { selected ->
                         val videos = selected.mapIndexed { index, v ->
-                            VideoItem(index + 1, v.videoId, v.title, (v.durationSeconds ?: 0L).toInt(), emptyList(),
-                                false, false, v.channelName.orEmpty(), v.publishedAt.orEmpty(), v.viewCount,
-                                v.thumbnail.orEmpty(), v.description, v.durationSeconds, v.likeCount, v.channelId,
-                                v.subscriberCount, v.commentCount, v.tags.split(" ").filter(String::isNotBlank),
-                                v.category, v.topic.split(" ").filter(String::isNotBlank))
+                            VideoItem(
+                                index = index + 1,
+                                videoId = v.videoId,
+                                title = v.title,
+                                durationSec = (v.durationSeconds ?: 0L).toInt(),
+                                availableSubs = emptyList()
+                            )
                         }
                         DownloadWorker.enqueueBatch(context, Source("research-selection", "research", "Research selection", videos.size),
                             videos, "Research", settings.toDownloadConfig())
