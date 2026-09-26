@@ -148,6 +148,7 @@ private fun ResearchResultsContent(state: SearchState, viewModel: ResearchSearch
 @Composable
 private fun ResearchFilterDialog(initial: ResearchFilters, onDismiss: () -> Unit, onApply: (ResearchFilters) -> Unit) {
     var title by remember { mutableStateOf(initial.titleContains) }
+    var description by remember { mutableStateOf(initial.descriptionContains) }
     var channel by remember { mutableStateOf(initial.channelContains) }
     var tags by remember { mutableStateOf(initial.tagsContains) }
     var category by remember { mutableStateOf(initial.categoryContains) }
@@ -176,6 +177,7 @@ private fun ResearchFilterDialog(initial: ResearchFilters, onDismiss: () -> Unit
         text = {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 item { FilterField("Tiêu đề", title) { title = it } }
+                item { FilterField("Mô tả", description) { description = it } }
                 item { FilterField("Kênh", channel) { channel = it } }
                 item { FilterField("Tags", tags) { tags = it } }
                 item { FilterField("Category / topic", category) { category = it } }
@@ -195,7 +197,7 @@ private fun ResearchFilterDialog(initial: ResearchFilters, onDismiss: () -> Unit
         },
         confirmButton = {
             TextButton(onClick = {
-                onApply(initial.copy(titleContains = title, channelContains = channel, tagsContains = tags,
+                onApply(initial.copy(titleContains = title, descriptionContains = description, channelContains = channel, tagsContains = tags,
                     playlistContains = playlist, categoryContains = category, searchKeywordContext = keyword,
                     minSubscribers = minSubscribers.toLongOrNull(), maxSubscribers = maxSubscribers.toLongOrNull(),
                     minViews = minViews.toLongOrNull(), maxViews = maxViews.toLongOrNull(),
