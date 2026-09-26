@@ -43,6 +43,7 @@ class SettingsRepository(private val context: Context) {
         require(value.subtitleJitterMinMs >= 0 && value.subtitleJitterMaxMs >= value.subtitleJitterMinMs)
         require(value.apiJitterMinMs >= 0 && value.apiJitterMaxMs >= value.apiJitterMinMs)
         require(value.subtitleConcurrency >= 1 && value.maxSubtitlesPerTask in 1..50)
+        require(value.metadataCacheHours >= 0)
         context.settingsStore.edit { p ->
             p[Keys.languages]=value.languages.joinToString(","); p[Keys.formats]=value.formats.joinToString(","){it.name}
             p[Keys.outputDir]=value.outputDir; p[Keys.preferManual]=value.preferManualSub; p[Keys.skipNoSub]=value.skipNoSub
