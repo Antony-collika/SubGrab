@@ -33,7 +33,7 @@ class ResearchRepository(private val database: SubGrabDatabase) {
         val args = mutableListOf<Any>()
         val conditions = mutableListOf<String>()
         if (query.trim().isNotBlank()) {
-            conditions += "(m.videoId IN (SELECT vs.videoId FROM video_search vs WHERE video_search MATCH ?) OR EXISTS (SELECT 1 FROM playlist_video pvq JOIN playlists pq ON pq.playlistId = pvq.playlistId WHERE pvq.videoId = m.videoId AND LOWER(pq.title) LIKE LOWER(?)))"
+            conditions += "(m.videoId IN (SELECT vs.videoId FROM video_search vs WHERE vs MATCH ?) OR EXISTS (SELECT 1 FROM playlist_video pvq JOIN playlists pq ON pq.playlistId = pvq.playlistId WHERE pvq.videoId = m.videoId AND LOWER(pq.title) LIKE LOWER(?)))"
             args += ftsQuery(query)
             args += "%" + query.trim() + "%"
         }
