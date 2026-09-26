@@ -95,6 +95,7 @@ private fun ResearchResultsContent(state: SearchState, viewModel: ResearchSearch
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             TextButton(onClick = { viewModel.search() }) { Text("Làm mới") }
+            TextButton(onClick = { viewModel.updateSort(nextSort(state.sort)); viewModel.search() }) { Text("Sắp xếp: " + state.sort.label) }
             TextButton(onClick = { if (state.selectedResults.isNotEmpty()) onDownloadSelected(state.selectedResults) }) { Text("Tải phụ đề") }
             TextButton(onClick = {
                 if (state.results.isNotEmpty()) {
@@ -260,4 +261,15 @@ fun VideoDetailScreen(viewModel: VideoDetailViewModel, videoId: String, modifier
             }
         }
     }
+}
+
+private fun nextSort(sort: ResearchSort): ResearchSort = when (sort) {
+    ResearchSort.PUBLISHED_DESC -> ResearchSort.FETCHED_DESC
+    ResearchSort.FETCHED_DESC -> ResearchSort.VIEWS_DESC
+    ResearchSort.VIEWS_DESC -> ResearchSort.LIKES_DESC
+    ResearchSort.LIKES_DESC -> ResearchSort.COMMENTS_DESC
+    ResearchSort.COMMENTS_DESC -> ResearchSort.DURATION_DESC
+    ResearchSort.DURATION_DESC -> ResearchSort.TITLE_ASC
+    ResearchSort.TITLE_ASC -> ResearchSort.CHANNEL_ASC
+    ResearchSort.CHANNEL_ASC -> ResearchSort.PUBLISHED_DESC
 }
