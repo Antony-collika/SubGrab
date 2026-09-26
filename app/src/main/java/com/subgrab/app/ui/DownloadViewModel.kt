@@ -72,7 +72,10 @@ class DownloadViewModel(
   _state.value=AnalysisState.Loading
   viewModelScope.launch{
    val s=settingsRepository.current()
-   val result=runCatching{
+   val cached = if (!forceRefresh) {
+    knowledgeRepository.getFreshCachedAnalysis(url, s.metadataCacheHours)
+   } else null
+   val result = cached?.let { Result.success(it) } ?: runCatching{
     when {
      s.useYouTubeDataApi && YoutubeUrlParser.isPlaylistUrl(url) ->
       apiDiscovery.discoverPlaylistWithSource(url)
@@ -100,10 +103,15 @@ class DownloadViewModel(
   viewModelScope.launch{
    val s=settingsRepository.current()
    if(s.useYouTubeDataApi){
-    runCatching{apiDiscovery.discoverKeyword(keyword)}
-     .onSuccess{v->
+    val cached = if (!forceRefresh) knowledgeRepository.getFreshCachedSearch(keyword, s.metadataCacheHours) else null
+    (cached?.let { Result.success(it) } ?: runCatching {
+      apiDiscovery.discoverKeyword(keyword).let { v ->
+       val clean = keyword.trim()
+       Source("keyword:"+clean,"https://www.youtube.com/results?search_query="+android.net.Uri.encode(clean),clean,v.size) to v
+      }
+    })
+     .onSuccess{(source,v)->
       val clean=keyword.trim()
-      val source=Source("keyword:"+clean,"https://www.youtube.com/results?search_query="+android.net.Uri.encode(clean),clean,v.size)
       val persistenceError=runCatching { knowledgeRepository.saveKeywordSearch(clean,source,v,s.metadataCacheHours,forceRefresh) }.exceptionOrNull()
       _state.value=AnalysisState.Ready(source,v,clean,persistenceError?.let { "Tìm kiếm thành công nhưng chưa lưu được dữ liệu vào database: ${it.message?:"lỗi không xác định"}" })
       SubGrabDatabase.get(context).runtimeLogDao().insert(
