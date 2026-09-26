@@ -106,14 +106,19 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
 
  
     suspend fun saveTranscript(videoId: String, content: String, language: String) {
-        database.transcriptDao().upsert(
-            TranscriptEntity(videoId, content, language, System.currentTimeMillis(), "SUCCESS", null)
-        )
+        val now = System.currentTimeMillis()
+        database.withTransaction {
+            database.videoDao().insert(VideoEntity(videoId, null, now, now))
+            database.transcriptDao().upsert(
+            TranscriptEntity(videoId, content, language, now, "SUCCESS", null)
+            )
+        }
     }
 
     suspend fun saveComments(videoId: String, threads: List<com.subgrab.app.data.FetchedCommentThread>) {
         val now = System.currentTimeMillis()
         database.withTransaction {
+            database.videoDao().insert(VideoEntity(videoId, null, now, now))
             database.commentDao().deleteComments(videoId)
             database.commentDao().deleteThreads(videoId)
             threads.forEach { thread ->
