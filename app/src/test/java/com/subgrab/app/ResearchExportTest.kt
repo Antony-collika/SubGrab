@@ -29,12 +29,12 @@ class ResearchExportTest {
 
     @Test fun json_contains_current_snapshot_fields() {
         val output = ResearchExport.json(listOf(result))
-        assertTrue(output.contains(""videoId":"abc""))
-        assertTrue(output.contains(""title":"A, B""))
+        assertTrue(output.contains("\"videoId\":\"abc\""))
+        assertTrue(output.contains("\"title\":\"A, B\""))
     }
 
     @Test fun csv_quotes_commas() {
         val output = ResearchExport.csv(listOf(result))
-        assertTrue(output.contains(""A, B""))
+        assertTrue(output.contains("\"A, B\""))
     }
 }
