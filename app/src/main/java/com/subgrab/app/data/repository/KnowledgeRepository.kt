@@ -121,13 +121,21 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
     }
 
  
-    suspend fun saveTranscript(videoId: String, content: String, language: String) {
+    suspend fun saveTranscript(
+        videoId: String,
+        content: String,
+        language: String,
+        overwrite: Boolean = false
+    ) {
         val now = System.currentTimeMillis()
         database.withTransaction {
             database.videoDao().insert(VideoEntity(videoId, null, now, now))
-            database.transcriptDao().upsert(
-            TranscriptEntity(videoId, content, language, now, "SUCCESS", null)
-            )
+            val existing = database.transcriptDao().get(videoId)
+            if (existing == null || overwrite) {
+                database.transcriptDao().upsert(
+                    TranscriptEntity(videoId, content, language, now, "SUCCESS", null)
+                )
+            }
         }
     }
 
