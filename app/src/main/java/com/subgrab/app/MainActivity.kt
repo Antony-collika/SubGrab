@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -39,6 +40,7 @@ import com.subgrab.app.data.DownloadState
 import com.subgrab.app.data.SettingsRepository
 import com.subgrab.app.data.SubGrabDatabase
 import com.subgrab.app.data.HistoryRepository
+import com.subgrab.app.data.SubGrabDatabase
 import com.subgrab.app.ui.DownloadProgressScreen
 import com.subgrab.app.ui.HistoryScreen
 import com.subgrab.app.ui.HistoryDetailScreen
@@ -49,6 +51,13 @@ import com.subgrab.app.ui.DownloadViewModel
 import com.subgrab.app.ui.DownloadViewModelFactory
 import com.subgrab.app.ui.SettingsScreen
 import com.subgrab.app.ui.DiagnosticsScreen
+import com.subgrab.app.ui.ResearchFeatureViewModelFactory
+import com.subgrab.app.ui.ResearchHistoryScreen
+import com.subgrab.app.ui.ResearchHistoryViewModel
+import com.subgrab.app.ui.ResearchSearchScreen
+import com.subgrab.app.ui.ResearchSearchViewModel
+import com.subgrab.app.ui.VideoDetailScreen
+import com.subgrab.app.ui.VideoDetailViewModel
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -88,6 +97,10 @@ fun SubGrabApp() {
     val downloadState by vm.downloadState.collectAsState()
     val settingsRepo = remember(context) { SettingsRepository(context) }
     val historyRepo = remember(context) { HistoryRepository(context) }
+    val researchFactory = remember(context) { ResearchFeatureViewModelFactory(context) }
+    val researchHistoryVm: ResearchHistoryViewModel = viewModel(factory = researchFactory)
+    val researchSearchVm: ResearchSearchViewModel = viewModel(factory = researchFactory)
+    val videoDetailVm: VideoDetailViewModel = viewModel(factory = researchFactory)
     val settings by settingsRepo.settings.collectAsState(initial = AppSettings())
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -121,6 +134,10 @@ fun SubGrabApp() {
         "diagnostics" -> "Diagnostics"
         "progress" -> "Tiến độ tải"
         "history" -> "Lịch sử tải"
+        "research-history" -> "Lịch sử nghiên cứu"
+        "research-search" -> "Tìm kiếm dữ liệu"
+        "research-search/{sessionId}" -> "Kết quả tìm kiếm đã lưu"
+        "video-detail/{videoId}" -> "Chi tiết video"
         else -> if (route.startsWith("history/")) "Chi tiết tải" else "SubGrab"
     }
 
@@ -138,6 +155,9 @@ fun SubGrabApp() {
                 },
                 actions = {
                     if (route == "home") {
+                        IconButton(onClick = { navController.navigate("research-history") }) {
+                            Icon(Icons.Default.Search, contentDescription = "Lịch sử nghiên cứu")
+                        }
                         IconButton(onClick = { navController.navigate("history") }) {
                             Icon(Icons.Default.History, contentDescription = "Lịch sử tải")
                         }
@@ -187,6 +207,40 @@ fun SubGrabApp() {
             composable("history/{id}") { entry ->
                 val id = entry.arguments?.getString("id").orEmpty()
                 HistoryDetailScreen(historyRepo, id, goBack, Modifier.fillMaxSize())
+            }
+            composable("research-history") {
+                val researchState by researchHistoryVm.state.collectAsState()
+                ResearchHistoryScreen(
+                    state = researchState,
+                    onLoadMore = researchHistoryVm::loadMore,
+                    onOpenVideo = { id -> navController.navigate("video-detail/" + id) },
+                    onOpenSession = { id -> navController.navigate("research-search/" + id) },
+                    onSearch = { navController.navigate("research-search") },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            composable("research-search") {
+                ResearchSearchScreen(
+                    viewModel = researchSearchVm,
+                    sessionId = null,
+                    onOpenDetail = { id -> navController.navigate("video-detail/" + id) },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            composable("research-search/{sessionId}") { entry ->
+                ResearchSearchScreen(
+                    viewModel = researchSearchVm,
+                    sessionId = entry.arguments?.getString("sessionId"),
+                    onOpenDetail = { id -> navController.navigate("video-detail/" + id) },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            composable("video-detail/{videoId}") { entry ->
+                VideoDetailScreen(
+                    viewModel = videoDetailVm,
+                    videoId = entry.arguments?.getString("videoId").orEmpty(),
+                    modifier = Modifier.fillMaxSize()
+                )
             }
             composable("settings") {
                 SettingsScreen(settingsRepo, goBack, onDiagnostics = { navController.navigate("diagnostics") })
