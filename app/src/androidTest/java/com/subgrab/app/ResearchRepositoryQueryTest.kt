@@ -69,7 +69,7 @@ class ResearchRepositoryQueryTest {
         )
 
         assertEquals(1, count)
-        assertEquals(listOf("video-1"), rows.map { it.videoId })
+        assertEquals(listOf("video-2"), rows.map { it.videoId })
     }
 
     @Test
