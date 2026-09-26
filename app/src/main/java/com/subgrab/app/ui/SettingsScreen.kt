@@ -88,6 +88,15 @@ fun SettingsScreen(repository: SettingsRepository, onBack: () -> Unit, onDiagnos
         HorizontalDivider()
         Button(onClick = onDiagnostics, modifier = Modifier.fillMaxWidth()) { Text("DIAGNOSTICS") }
 
+        Text("Cache metadata", style = MaterialTheme.typography.titleMedium)
+        NumberField("Thời gian cache metadata (giờ)", value.metadataCacheHours) {
+            save(value.copy(metadataCacheHours = it.coerceAtLeast(0L)))
+        }
+        Text(
+            "0 = luôn làm mới; mặc định 24 giờ. Transcript được lưu lâu dài trong Room.",
+            style = MaterialTheme.typography.bodySmall
+        )
+
         Text("YouTube Data API", style = MaterialTheme.typography.titleMedium)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Bật API")
