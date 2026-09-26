@@ -102,34 +102,29 @@ class DownloadViewModel(
   _state.value=AnalysisState.Loading
   viewModelScope.launch{
    val s=settingsRepository.current()
-   if(s.useYouTubeDataApi){
-    val cached = if (!forceRefresh) knowledgeRepository.getFreshCachedSearch(keyword, s.metadataCacheHours) else null
-    (cached?.let { Result.success(it) } ?: runCatching {
-      apiDiscovery.discoverKeyword(keyword).let { v ->
-       val clean = keyword.trim()
-       Source("keyword:"+clean,"https://www.youtube.com/results?search_query="+android.net.Uri.encode(clean),clean,v.size) to v
-      }
-    })
+   val cached = if (!forceRefresh) knowledgeRepository.getFreshCachedSearch(keyword, s.metadataCacheHours) else null
+   if(cached != null){
+    val (source,v)=cached
+    val persistenceError=runCatching { knowledgeRepository.saveKeywordSearch(keyword.trim(),source,v,s.metadataCacheHours,forceRefresh) }.exceptionOrNull()
+    _state.value=AnalysisState.Ready(source,v,source.title,persistenceError?.let { "Tìm kiếm thành công nhưng chưa lưu được dữ liệu vào database: " + (it.message ?: "lỗi không xác định") })
+   } else if(s.useYouTubeDataApi){
+    runCatching{apiDiscovery.discoverKeyword(keyword)}
+     .map{v->
+      val clean=keyword.trim()
+      Source("keyword:"+clean,"https://www.youtube.com/results?search_query="+android.net.Uri.encode(clean),clean,v.size) to v
+     }
      .onSuccess{(source,v)->
       val clean=keyword.trim()
       val persistenceError=runCatching { knowledgeRepository.saveKeywordSearch(clean,source,v,s.metadataCacheHours,forceRefresh) }.exceptionOrNull()
-      _state.value=AnalysisState.Ready(source,v,clean,persistenceError?.let { "Tìm kiếm thành công nhưng chưa lưu được dữ liệu vào database: ${it.message?:"lỗi không xác định"}" })
-      SubGrabDatabase.get(context).runtimeLogDao().insert(
-       RuntimeLogEntity(timestamp = System.currentTimeMillis(), level = "INFO", category = "DIAGNOSTIC", lane = RequestLane.DISCOVERY_API.name, operation = "search", message = "SEARCH_READY videos="+v.size)
-      )
+      _state.value=AnalysisState.Ready(source,v,clean,persistenceError?.let { "Tìm kiếm thành công nhưng chưa lưu được dữ liệu vào database: " + (it.message ?: "lỗi không xác định") })
      }
-     .onFailure{
-      SubGrabDatabase.get(context).runtimeLogDao().insert(
-       RuntimeLogEntity(timestamp = System.currentTimeMillis(), level = "ERROR", category = "DIAGNOSTIC", lane = RequestLane.DISCOVERY_API.name, operation = "search", message = "SEARCH_FAILED "+(it.message?:"unknown"))
-      )
-      _state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)
-     }
+     .onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)}
    } else {
     runCatching{extractorDiscovery.discoverKeyword(keyword)}
      .map{v->Source("keyword:"+keyword.trim(),"https://www.youtube.com/results?search_query="+android.net.Uri.encode(keyword.trim()),keyword.trim(),v.size) to v}
      .onSuccess{(source,v)->
       val persistenceError=runCatching { knowledgeRepository.saveKeywordSearch(keyword.trim(),source,v,s.metadataCacheHours,forceRefresh) }.exceptionOrNull()
-      _state.value=AnalysisState.Ready(source,v,source.title,persistenceError?.let { "Tìm kiếm thành công nhưng chưa lưu được dữ liệu vào database: ${it.message?:"lỗi không xác định"}" })
+      _state.value=AnalysisState.Ready(source,v,source.title,persistenceError?.let { "Tìm kiếm thành công nhưng chưa lưu được dữ liệu vào database: " + (it.message ?: "lỗi không xác định") })
      }
      .onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)}
    }
