@@ -63,14 +63,29 @@ class DataFoundationInstrumentedTest {
     }
 
     @Test
-    fun repeatedAnalyzeKeepsBothSnapshotsForSameVideo() {
+    fun repeatedAnalyzeWithinCacheWindowKeepsSingleSnapshot() {
         val video = VideoItem(1, "video-1", "Research video", 60, emptyList())
         val source = Source("video", "https://www.youtube.com/watch?v=video-1", "Research video", 1)
 
         kotlinx.coroutines.runBlocking {
             repository.saveAnalysis(source, listOf(video))
             repository.saveAnalysis(source, listOf(video.copy(viewCount = 200L)))
+            assertEquals(1, repository.getSnapshotHistory("video-1").size)
+            repository.saveAnalysis(source, listOf(video.copy(viewCount = 300L)), metadataCacheHours = 24, forceRefresh = true)
             assertEquals(2, repository.getSnapshotHistory("video-1").size)
+        }
+    }
+
+    @Test
+    fun transcriptIsStoredOnceAndDoesNotOverwriteDifferentLanguage() {
+        val video = VideoItem(1, "video-1", "Transcript video", 60, emptyList())
+        kotlinx.coroutines.runBlocking {
+            repository.saveTranscript("video-1", "hello", "en")
+            repository.saveTranscript("video-1", "xin chao", "vi")
+            assertEquals("hello", repository.getTranscript("video-1")?.content)
+            assertEquals("en", repository.getTranscript("video-1")?.language)
+            repository.saveTranscript("video-1", "hello refreshed", "en", overwrite = true)
+            assertEquals("hello refreshed", repository.getTranscript("video-1")?.content)
         }
     }
 
