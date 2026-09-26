@@ -2,6 +2,8 @@ package com.subgrab.app.data.repository
 
 import androidx.sqlite.db.SimpleSQLiteQuery
 import com.subgrab.app.data.SubGrabDatabase
+import com.subgrab.app.data.db.UserActivityEntity
+import java.util.UUID
 import com.subgrab.app.domain.ResearchActivityItem
 import com.subgrab.app.domain.ResearchFilters
 import com.subgrab.app.domain.ResearchSort
@@ -113,6 +115,12 @@ class ResearchRepository(private val database: SubGrabDatabase) {
                 arrayOf(sessionId, pageSizeSafe, page.coerceAtLeast(0) * pageSizeSafe))
         )
         return rows to count
+    }
+
+    suspend fun recordView(videoId: String) {
+        database.userActivityDao().insert(
+            UserActivityEntity(UUID.randomUUID().toString(), "VIEW_VIDEO", System.currentTimeMillis(), videoId, null, null, null, null, "RESEARCH")
+        )
     }
 
     suspend fun getVideo(videoId: String) = database.videoDao().get(videoId)
