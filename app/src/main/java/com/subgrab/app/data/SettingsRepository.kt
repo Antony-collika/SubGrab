@@ -20,6 +20,7 @@ class SettingsRepository(private val context: Context) {
         val subtitleConcurrency = intPreferencesKey("subtitle_concurrency"); val maxSubtitlesPerTask = intPreferencesKey("max_subtitles_per_task")
         val apiDelayMode = stringPreferencesKey("api_delay_mode"); val apiBase = longPreferencesKey("api_base_delay_ms")
         val apiJitterMin = longPreferencesKey("api_jitter_min_ms"); val apiJitterMax = longPreferencesKey("api_jitter_max_ms")
+        val metadataCacheHours = longPreferencesKey("metadata_cache_hours")
     }
     val settings: Flow<AppSettings> = context.settingsStore.data.map { p ->
         AppSettings(
@@ -32,7 +33,8 @@ class SettingsRepository(private val context: Context) {
             subtitleJitterMinMs=(p[Keys.subtitleJitterMin] ?: 0).coerceAtLeast(0), subtitleJitterMaxMs=(p[Keys.subtitleJitterMax] ?: 0).coerceAtLeast(0),
             subtitleConcurrency=(p[Keys.subtitleConcurrency] ?: 1).coerceAtLeast(1), maxSubtitlesPerTask=(p[Keys.maxSubtitlesPerTask] ?: 10).coerceIn(1, 50),
             apiDelayMode=p[Keys.apiDelayMode] ?: "NONE", apiBaseDelayMs=(p[Keys.apiBase] ?: 0).coerceAtLeast(0),
-            apiJitterMinMs=(p[Keys.apiJitterMin] ?: 0).coerceAtLeast(0), apiJitterMaxMs=(p[Keys.apiJitterMax] ?: 0).coerceAtLeast(0)
+            apiJitterMinMs=(p[Keys.apiJitterMin] ?: 0).coerceAtLeast(0), apiJitterMaxMs=(p[Keys.apiJitterMax] ?: 0).coerceAtLeast(0),
+            metadataCacheHours=(p[Keys.metadataCacheHours] ?: 24).coerceAtLeast(0)
         )
     }
     suspend fun current(): AppSettings = settings.first()
@@ -47,7 +49,7 @@ class SettingsRepository(private val context: Context) {
             p[Keys.timestampMode]=value.timestampMode.name; p[Keys.useApi]=value.useYouTubeDataApi; p[Keys.apiKey]=value.youtubeDataApiKey
             p[Keys.subtitleDelayMode]=value.subtitleDelayMode; p[Keys.subtitleBase]=value.subtitleBaseDelayMs
             p[Keys.subtitleJitterMin]=value.subtitleJitterMinMs; p[Keys.subtitleJitterMax]=value.subtitleJitterMaxMs; p[Keys.subtitleConcurrency]=value.subtitleConcurrency; p[Keys.maxSubtitlesPerTask]=value.maxSubtitlesPerTask
-            p[Keys.apiDelayMode]=value.apiDelayMode; p[Keys.apiBase]=value.apiBaseDelayMs; p[Keys.apiJitterMin]=value.apiJitterMinMs; p[Keys.apiJitterMax]=value.apiJitterMaxMs
+            p[Keys.apiDelayMode]=value.apiDelayMode; p[Keys.apiBase]=value.apiBaseDelayMs; p[Keys.apiJitterMin]=value.apiJitterMinMs; p[Keys.apiJitterMax]=value.apiJitterMaxMs; p[Keys.metadataCacheHours]=value.metadataCacheHours
         }
     }
 }
