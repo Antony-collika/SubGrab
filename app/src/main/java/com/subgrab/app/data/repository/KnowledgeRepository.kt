@@ -180,6 +180,82 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
         fetchedAt = now
     )
 
+    suspend fun getFreshCachedAnalysis(sourceUrl: String, cacheHours: Long): Pair<Source, List<VideoItem>>? {
+        if (cacheHours <= 0L) return null
+        val ids = when {
+            com.subgrab.app.domain.YoutubeUrlParser.isVideoUrl(sourceUrl) ->
+                listOf(com.subgrab.app.domain.YoutubeUrlParser.videoId(sourceUrl) ?: return null)
+            com.subgrab.app.domain.YoutubeUrlParser.isPlaylistUrl(sourceUrl) -> {
+                val playlistId = Regex("[?&]list=([^&]+)").find(sourceUrl)?.groupValues?.get(1) ?: return null
+                database.playlistDao().getVideos(playlistId).map { it.videoId }
+            }
+            com.subgrab.app.domain.YoutubeUrlParser.isChannelUrl(sourceUrl) -> {
+                val channelId = Regex("/channel/([^/?#]+)", RegexOption.IGNORE_CASE).find(sourceUrl)?.groupValues?.get(1)
+                    ?: return null
+                database.videoDao().getByChannel(channelId, 50, 0).map { it.videoId }
+            }
+            else -> return null
+        }
+        val videos = getFreshCachedVideos(ids, cacheHours) ?: return null
+        if (videos.isEmpty()) return null
+        val title = when {
+            com.subgrab.app.domain.YoutubeUrlParser.isPlaylistUrl(sourceUrl) -> {
+                val playlistId = Regex("[?&]list=([^&]+)").find(sourceUrl)?.groupValues?.get(1) ?: return null
+                database.playlistDao().get(playlistId)?.title ?: return null
+            }
+            com.subgrab.app.domain.YoutubeUrlParser.isChannelUrl(sourceUrl) -> {
+                val channelId = Regex("/channel/([^/?#]+)", RegexOption.IGNORE_CASE).find(sourceUrl)?.groupValues?.get(1) ?: return null
+                database.channelDao().get(channelId)?.name ?: return null
+            }
+            else -> videos.first().title
+        }
+        return Source(sourceUrl, sourceUrl, title, videos.size) to videos
+    }
+
+    suspend fun getFreshCachedSearch(query: String, cacheHours: Long): Pair<Source, List<VideoItem>>? {
+        if (cacheHours <= 0L) return null
+        val session = database.searchDao().getLatestSession(query.trim()) ?: return null
+        if (System.currentTimeMillis() - session.fetchedAt >= cacheHoursToMs(cacheHours)) return null
+        val ids = database.searchDao().getSessionVideos(session.id).map { it.videoId }
+        val videos = getFreshCachedVideos(ids, cacheHours) ?: return null
+        if (videos.isEmpty()) return null
+        val clean = query.trim()
+        return Source("keyword:$clean", "https://www.youtube.com/results?search_query=" + android.net.Uri.encode(clean), clean, videos.size) to videos
+    }
+
+    private suspend fun getFreshCachedVideos(ids: List<String>, cacheHours: Long): List<VideoItem>? {
+        val now = System.currentTimeMillis()
+        val ttlMs = cacheHoursToMs(cacheHours)
+        val snapshots = ids.distinct().mapNotNull { id -> database.metadataSnapshotDao().latest(id) }
+        if (snapshots.size != ids.distinct().size) return null
+        if (snapshots.any { now - it.fetchedAt >= ttlMs }) return null
+        return snapshots.mapIndexed { index, snapshot ->
+            VideoItem(
+                index = index + 1,
+                videoId = snapshot.videoId,
+                title = snapshot.title,
+                durationSec = (snapshot.durationSeconds ?: 0L).toInt(),
+                availableSubs = emptyList(),
+                channelTitle = snapshot.channelName.orEmpty(),
+                publishedAt = snapshot.publishedAt.orEmpty(),
+                viewCount = snapshot.viewCount,
+                thumbnailUrl = snapshot.thumbnail.orEmpty(),
+                description = snapshot.description,
+                durationSeconds = snapshot.durationSeconds,
+                likeCount = snapshot.likeCount,
+                channelId = snapshot.channelId,
+                subscriberCount = snapshot.subscriberCount,
+                commentCount = snapshot.commentCount,
+                tags = snapshot.tags,
+                category = snapshot.category,
+                topic = snapshot.topic
+            )
+        }
+    }
+
+    private fun cacheHoursToMs(hours: Long): Long =
+        hours.coerceAtMost(Long.MAX_VALUE / (60L * 60L * 1000L)) * 60L * 60L * 1000L
+
     suspend fun getVideo(videoId: String) = database.videoDao().get(videoId)
     suspend fun getLatestSnapshot(videoId: String) = database.metadataSnapshotDao().latest(videoId)
     suspend fun getSnapshotHistory(videoId: String) = database.metadataSnapshotDao().history(videoId)
