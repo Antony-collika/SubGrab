@@ -150,6 +150,7 @@ private fun ResearchFilterDialog(initial: ResearchFilters, onDismiss: () -> Unit
     var title by remember { mutableStateOf(initial.titleContains) }
     var channel by remember { mutableStateOf(initial.channelContains) }
     var tags by remember { mutableStateOf(initial.tagsContains) }
+    var category by remember { mutableStateOf(initial.categoryContains) }
     var playlist by remember { mutableStateOf(initial.playlistContains) }
     var keyword by remember { mutableStateOf(initial.searchKeywordContext) }
     var minSubscribers by remember { mutableStateOf(initial.minSubscribers?.toString().orEmpty()) }
@@ -167,6 +168,8 @@ private fun ResearchFilterDialog(initial: ResearchFilters, onDismiss: () -> Unit
     var searchActivity by remember { mutableStateOf("SEARCH" in initial.activityTypes) }
     var analyzeActivity by remember { mutableStateOf("ANALYZE_URL" in initial.activityTypes) }
     var viewActivity by remember { mutableStateOf("VIEW_VIDEO" in initial.activityTypes) }
+    var activityFrom by remember { mutableStateOf(initial.activityFrom?.let(::formatDate).orEmpty()) }
+    var activityTo by remember { mutableStateOf(initial.activityTo?.let(::formatDate).orEmpty()) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Advanced Filter") },
@@ -175,6 +178,7 @@ private fun ResearchFilterDialog(initial: ResearchFilters, onDismiss: () -> Unit
                 item { FilterField("Tiêu đề", title) { title = it } }
                 item { FilterField("Kênh", channel) { channel = it } }
                 item { FilterField("Tags", tags) { tags = it } }
+                item { FilterField("Category / topic", category) { category = it } }
                 item { FilterField("Playlist", playlist) { playlist = it } }
                 item { FilterField("SearchSession keyword", keyword) { keyword = it } }
                 item { FilterPair("Subscribers", minSubscribers, maxSubscribers, { minSubscribers = it }, { maxSubscribers = it }) }
@@ -183,6 +187,7 @@ private fun ResearchFilterDialog(initial: ResearchFilters, onDismiss: () -> Unit
                 item { FilterPair("Comments", minComments, maxComments, { minComments = it }, { maxComments = it }) }
                 item { FilterPair("Published yyyy-MM-dd", publishedFrom, publishedTo, { publishedFrom = it }, { publishedTo = it }) }
                 item { FilterPair("Fetched yyyy-MM-dd", fetchedFrom, fetchedTo, { fetchedFrom = it }, { fetchedTo = it }) }
+                item { FilterPair("Activity yyyy-MM-dd", activityFrom, activityTo, { activityFrom = it }, { activityTo = it }) }
                 item { Row { Checkbox(searchActivity, { searchActivity = it }); Text("Đã tìm kiếm") } }
                 item { Row { Checkbox(analyzeActivity, { analyzeActivity = it }); Text("Đã phân tích") } }
                 item { Row { Checkbox(viewActivity, { viewActivity = it }); Text("Đã xem") } }
@@ -191,13 +196,14 @@ private fun ResearchFilterDialog(initial: ResearchFilters, onDismiss: () -> Unit
         confirmButton = {
             TextButton(onClick = {
                 onApply(initial.copy(titleContains = title, channelContains = channel, tagsContains = tags,
-                    playlistContains = playlist, searchKeywordContext = keyword,
+                    playlistContains = playlist, categoryContains = category, searchKeywordContext = keyword,
                     minSubscribers = minSubscribers.toLongOrNull(), maxSubscribers = maxSubscribers.toLongOrNull(),
                     minViews = minViews.toLongOrNull(), maxViews = maxViews.toLongOrNull(),
                     minLikes = minLikes.toLongOrNull(), maxLikes = maxLikes.toLongOrNull(),
                     minComments = minComments.toLongOrNull(), maxComments = maxComments.toLongOrNull(),
                     publishedFrom = parseDate(publishedFrom), publishedTo = parseDate(publishedTo, true),
                     fetchedFrom = parseDate(fetchedFrom), fetchedTo = parseDate(fetchedTo, true),
+                    activityFrom = parseDate(activityFrom), activityTo = parseDate(activityTo, true),
                     activityTypes = buildSet { if (searchActivity) add("SEARCH"); if (analyzeActivity) add("ANALYZE_URL"); if (viewActivity) add("VIEW_VIDEO") }
                 ))
             }) { Text("Áp dụng") }
