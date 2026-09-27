@@ -83,25 +83,6 @@ object ResearchExport {
 
     private fun jsonNumber(value: Long?): String = value?.toString() ?: "null"
 
-    private fun jsonString(value: String?): String {
-        if (value == null) return "null"
-        return buildString {
-            append('"')
-            value.forEach { ch ->
-                when (ch) {
-                    '\\' -> append("\\\\")
-                    '"' -> append("\\\"")
-                    '\b' -> append("\\b")
-                    '\u000C' -> append("\\f")
-                    '\n' -> append("\\n")
-                    '\r' -> append("\\r")
-                    '\t' -> append("\\t")
-                    else -> if (ch.code < 0x20) append("\\u%04x".format(ch.code)) else append(ch)
-                }
-            }
-            append('"')
-        }
-    }
 
     fun csv(results: List<VideoSearchResult>): String {
         val header = listOf("videoId","title","channelName","publishedAt","fetchedAt","durationSeconds","subscriberCount","viewCount","likeCount","commentCount","category","tags","topic","playlistTitles","searchKeywords")
