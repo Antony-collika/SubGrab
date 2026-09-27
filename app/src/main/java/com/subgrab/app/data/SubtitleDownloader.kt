@@ -79,7 +79,7 @@ class SubtitleDownloader(
             val cachedLanguage = cached?.language
             val cachedContent = cached?.content?.takeIf { it.isNotBlank() }
             val files = mutableListOf<File>()
-            val url = video.videoUrl()
+            val url = "https://www.youtube.com/watch?v=" + video.videoId
             val extractor = extractorClient.fetchSubtitleExtractor(url)
             val tracks = extractor.getSubtitles(MediaFormat.VTT).toList()
             val track = selectExactTrack(tracks, language)
