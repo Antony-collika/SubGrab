@@ -60,6 +60,7 @@ import com.subgrab.app.ui.ResearchSearchScreen
 import com.subgrab.app.ui.ResearchSearchViewModel
 import com.subgrab.app.ui.VideoDetailScreen
 import com.subgrab.app.ui.VideoDetailViewModel
+import com.subgrab.app.ui.BulkSubtitleDownloadDialog
 import com.subgrab.app.service.DownloadWorker
 import kotlinx.coroutines.launch
 
