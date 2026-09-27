@@ -100,7 +100,7 @@ class DataFoundationInstrumentedTest {
         )
         val missing = VideoItem(
             2, "video-missing", "Missing published date", 60, emptyList(),
-            publishedAt = null
+            publishedAt = ""
         )
         val invalid = VideoItem(
             3, "video-invalid", "Invalid published date", 60, emptyList(),
@@ -115,8 +115,8 @@ class DataFoundationInstrumentedTest {
                 listOf(valid, missing, invalid),
                 forceRefresh = true
             )
-            val from = java.time.Instant.parse("2024-01-01T00:00:00Z").toEpochMilli()
-            val to = java.time.Instant.parse("2024-12-31T23:59:59Z").toEpochMilli()
+            val from = 1704067200000L
+            val to = 1735689599000L
             val (rows, count) = research.search(
                 query = "",
                 filters = ResearchFilters(publishedFrom = from, publishedTo = to)
