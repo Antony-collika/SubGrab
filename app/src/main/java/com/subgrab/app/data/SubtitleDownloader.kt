@@ -63,7 +63,7 @@ class SubtitleDownloader(
                 }
                 if (OutputFormat.TXT in config.formats) {
                     val roomMatches = cachedLanguage != null && cachedContent != null && matchesLanguage(cachedLanguage, language)
-                    if (!roomMatches) files += write(outputDir, base + ".txt", cleanText)
+                    if (config.preferManual || !roomMatches) files += write(outputDir, base + ".txt", cleanText)
                 }
                 if (cachedLanguage.isNullOrBlank() || cachedContent.isNullOrBlank()) {
                     knowledgeRepository?.saveTranscript(video.videoId, cleanText, language)
