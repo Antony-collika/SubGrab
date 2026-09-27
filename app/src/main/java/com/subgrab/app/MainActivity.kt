@@ -47,6 +47,7 @@ import com.subgrab.app.ui.HistoryDetailScreen
 import com.subgrab.app.domain.AppSettings
 import com.subgrab.app.domain.Source
 import com.subgrab.app.domain.VideoItem
+import com.subgrab.app.domain.DownloadConfig
 import com.subgrab.app.ui.AnalysisState
 import com.subgrab.app.ui.DownloadViewModel
 import com.subgrab.app.ui.DownloadViewModelFactory
@@ -228,7 +229,7 @@ fun SubGrabApp() {
                     viewModel = researchSearchVm,
                     sessionId = null,
                     onOpenDetail = { id -> navController.navigate("video-detail/" + id) },
-                    onDownloadSelected = { selected ->
+                    onDownloadSelected = { selected, config ->
                         val videos = selected.mapIndexed { index, v ->
                             VideoItem(
                                 index = index + 1,
@@ -244,7 +245,7 @@ fun SubGrabApp() {
                                 Source("research-selection", "research", "Research selection", videos.size),
                                 videos,
                                 "Research",
-                                settings.toResearchDownloadConfig()
+                                config
                             )
                             knowledgeRepository.recordDownloadActivity(videos, "research-selection")
                             navController.navigate("progress")
@@ -258,7 +259,7 @@ fun SubGrabApp() {
                     viewModel = researchSearchVm,
                     sessionId = entry.arguments?.getString("sessionId"),
                     onOpenDetail = { id -> navController.navigate("video-detail/" + id) },
-                    onDownloadSelected = { selected ->
+                    onDownloadSelected = { selected, config ->
                         val videos = selected.mapIndexed { index, v ->
                             VideoItem(
                                 index = index + 1,
@@ -274,7 +275,7 @@ fun SubGrabApp() {
                                 Source("research-selection", "research", "Research selection", videos.size),
                                 videos,
                                 "Research",
-                                settings.toResearchDownloadConfig()
+                                config
                             )
                             knowledgeRepository.recordDownloadActivity(videos, "research-selection")
                             navController.navigate("progress")
@@ -428,6 +429,7 @@ private fun SelectVideoScreen(
     val context = LocalContext.current
     var folderName by rememberSaveable(folder) { mutableStateOf(folder) }
     val selected = videos.count { it.isSelected }
+    var subtitleDialogOpen by rememberSaveable { mutableStateOf(false) }
 
     Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Đã chọn ${selected}/${videos.size} · Tối đa 50 video/lần")
@@ -458,13 +460,34 @@ private fun SelectVideoScreen(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = onNewAnalysis, modifier = Modifier.weight(1f)) { Text("Phân tích mới") }
             Button(
-                onClick = {
-                    vm.startDownload(settings, onDownloadStarted)
-                },
+                onClick = { subtitleDialogOpen = true },
                 enabled = selected > 0 && folderName.isNotBlank() && downloadState !is DownloadState.Running,
                 modifier = Modifier.weight(1f)
             ) { Text("TẢI PHỤ ĐỀ (${selected})") }
         }
+        if (subtitleDialogOpen) {
+            BulkSubtitleDownloadDialog(
+                initialFolder = settings.outputDir,
+                onDismiss = { subtitleDialogOpen = false },
+                onConfirm = { language, preferOfficial, format, outputDir, timestampMode ->
+                    subtitleDialogOpen = false
+                    vm.startDownload(
+                        DownloadConfig(
+                            languages = listOf(language),
+                            formats = setOf(format),
+                            preferManual = preferOfficial,
+                            skipNoSub = settings.skipNoSub,
+                            outputDir = outputDir,
+                            timestampMode = timestampMode,
+                            subtitleConcurrency = settings.subtitleConcurrency,
+                            maxSubtitlesPerTask = settings.maxSubtitlesPerTask
+                        ),
+                        onDownloadStarted
+                    )
+                }
+            )
+        }
+    }
     }
 }
 
