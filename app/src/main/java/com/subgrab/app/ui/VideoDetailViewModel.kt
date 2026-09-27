@@ -123,7 +123,7 @@ class VideoDetailViewModel(
             val video = com.subgrab.app.domain.VideoItem(1, videoId, title, 0, emptyList())
             subtitleDownloader.downloadSingle(video, language, format, dir)
                 .onSuccess {
-                    fileStorage.publishToDownloads(dir, outputDir)
+                    fileStorage.publishToDownloads(dir, if (outputDir.equals("Download", true)) "" else outputDir.removePrefix("Download/").removePrefix("Download\\").trim('/'))
                     load(videoId)
                 }
                 .onFailure {
