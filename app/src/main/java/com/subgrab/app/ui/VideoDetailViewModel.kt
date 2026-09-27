@@ -68,7 +68,7 @@ class VideoDetailViewModel(
     }
 
 
-    fun exportData(videoId: String, title: String, options: ExportOptions) {
+    fun exportData(videoId: String, title: String, options: ResearchExport.ExportOptions) {
         _state.value = _state.value.copy(loading = true)
         viewModelScope.launch {
             runCatching {
@@ -85,9 +85,9 @@ class VideoDetailViewModel(
                     options
                 )
                 val ext = when (options.format) {
-                    ExportFormat.JSON -> "json"
-                    ExportFormat.CSV -> "csv"
-                    ExportFormat.MD -> "md"
+                    ResearchExport.ExportFormat.JSON -> "json"
+                    ResearchExport.ExportFormat.CSV -> "csv"
+                    ResearchExport.ExportFormat.MD -> "md"
                 }
                 fileStorage.publishTextFile(
                     "subgrab-" + com.subgrab.app.domain.FileNameSanitizer.sanitize(title) + "." + ext,
