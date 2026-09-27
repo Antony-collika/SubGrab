@@ -236,7 +236,52 @@ private fun formatDate(value: Long): String =
 @Composable
 fun VideoDetailScreen(viewModel: VideoDetailViewModel, videoId: String, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsState()
+    var exportOpen by rememberSaveable { mutableStateOf(false) }
+    var metadata by rememberSaveable { mutableStateOf(true) }
+    var transcript by rememberSaveable { mutableStateOf(false) }
+    var comments by rememberSaveable { mutableStateOf(false) }
+    var history by rememberSaveable { mutableStateOf(false) }
+    var format by rememberSaveable { mutableStateOf("JSON") }
+
     LaunchedEffect(videoId) { viewModel.load(videoId) }
+
+    if (exportOpen) {
+        AlertDialog(
+            onDismissRequest = { exportOpen = false },
+            title = { Text("Xuất dữ liệu") },
+            text = {
+                Column {
+                    Row { Checkbox(metadata, { metadata = it }); Text("metadata") }
+                    Row { Checkbox(transcript, { transcript = it }); Text("transcript") }
+                    Row { Checkbox(comments, { comments = it }); Text("comments") }
+                    Row { RadioButton(history, { history = !history }); Text("dữ liệu lịch sử") }
+                    Spacer(Modifier.height(8.dp))
+                    Text("Định dạng")
+                    Row { RadioButton(format == "JSON", { format = "JSON" }); Text("JSON") }
+                    Row { RadioButton(format == "CSV", { format = "CSV" }); Text("CSV") }
+                    Row { RadioButton(format == "MD", { format = "MD" }); Text("Markdown") }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    exportOpen = false
+                    viewModel.exportData(
+                        videoId,
+                        state.result?.title.orEmpty(),
+                        ResearchExport.ExportOptions(
+                            metadata = metadata,
+                            transcript = transcript,
+                            comments = comments,
+                            history = history,
+                            format = ResearchExport.ExportFormat.valueOf(format)
+                        )
+                    )
+                }) { Text("Xuất") }
+            },
+            dismissButton = { TextButton(onClick = { exportOpen = false }) { Text("Hủy") } }
+        )
+    }
+
     LazyColumn(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         state.error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
         state.result?.let { result ->
@@ -244,20 +289,34 @@ fun VideoDetailScreen(viewModel: VideoDetailViewModel, videoId: String, modifier
             item { Text("Kênh: " + result.channelName.orEmpty()) }
             item { Text("Views: " + (result.viewCount ?: 0) + " · Likes: " + (result.likeCount ?: 0) + " · Comments: " + (result.commentCount ?: 0)) }
             result.description?.let { item { Text(it) } }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { viewModel.refreshTranscript(videoId) }) { Text("Làm mới transcript") }
-                    OutlinedButton(onClick = { viewModel.refreshComments(videoId) }) { Text("Làm mới comments") }
-                }
+        }
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = {
+                    viewModel.refreshTranscript(videoId, listOf("vi", "en"), true)
+                }, modifier = Modifier.weight(1f)) { Text("Làm mới transcript") }
+                OutlinedButton(onClick = { viewModel.refreshComments(videoId) }, modifier = Modifier.weight(1f)) { Text("Làm mới comments") }
             }
         }
         item { Text("Metadata history", style = MaterialTheme.typography.titleMedium) }
-        items(state.snapshotHistory.take(10)) { snapshot ->
+        items(state.snapshotHistory) { snapshot ->
             Text(DateFormat.getDateTimeInstance().format(Date(snapshot.fetchedAt)) + " · " + snapshot.title,
                 style = MaterialTheme.typography.bodySmall)
         }
-        item { Text("Transcript", style = MaterialTheme.typography.titleMedium) }
-        item { Text(state.transcript?.content ?: "Chưa có transcript.") }
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Transcript", style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = { viewModel.toggleTranscriptExpanded() }) {
+                    Text(if (state.transcriptExpanded) "Thu gọn" else "Mở rộng")
+                }
+            }
+        }
+        item {
+            Text(
+                state.transcript?.content ?: "Chưa có transcript.",
+                maxLines = if (state.transcriptExpanded) Int.MAX_VALUE else 3
+            )
+        }
         item { Text("Comments", style = MaterialTheme.typography.titleMedium) }
         if (state.commentThreads.isEmpty()) item { Text("Chưa có comments.") }
         items(state.commentThreads) { thread ->
@@ -272,6 +331,11 @@ fun VideoDetailScreen(viewModel: VideoDetailViewModel, videoId: String, modifier
                         Text("↳ " + reply.author.orEmpty() + ": " + reply.text, style = MaterialTheme.typography.bodySmall)
                     }
                 }
+            }
+        }
+        item {
+            OutlinedButton(onClick = { exportOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                Text("Xuất dữ liệu")
             }
         }
     }
