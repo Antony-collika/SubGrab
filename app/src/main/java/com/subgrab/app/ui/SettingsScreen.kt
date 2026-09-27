@@ -67,14 +67,6 @@ fun SettingsScreen(repository: SettingsRepository, onBack: () -> Unit, onDiagnos
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("Thiết lập phụ đề và thư mục tải xuống", style = MaterialTheme.typography.bodyMedium)
-        Text("Ngôn ngữ phụ đề", style = MaterialTheme.typography.titleMedium)
-        LanguageToggle("Tiếng Việt", "vi", value.languages) { save(value.copy(languages = it)) }
-        LanguageToggle("English", "en", value.languages) { save(value.copy(languages = it)) }
-
-        Text("Định dạng", style = MaterialTheme.typography.titleMedium)
-        FormatToggle("TXT", OutputFormat.TXT, value.formats) { save(value.copy(formats = it)) }
-        FormatToggle("SRT", OutputFormat.SRT, value.formats) { save(value.copy(formats = it)) }
-
         if (OutputFormat.SRT in value.formats) {
             Text("Timestamp", style = MaterialTheme.typography.titleMedium)
             TimestampToggle("Có timestamp", SubtitleTimestampMode.WITH_TIMESTAMP, value.timestampMode) {
@@ -176,10 +168,6 @@ fun SettingsScreen(repository: SettingsRepository, onBack: () -> Unit, onDiagnos
             "Thư mục được chọn bên trong Download; ví dụ Download/Subtitles.",
             style = MaterialTheme.typography.bodySmall
         )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Ưu tiên phụ đề chính thức")
-            Switch(checked = value.preferManualSub, onCheckedChange = { save(value.copy(preferManualSub = it)) })
-        }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Bỏ qua video không có sub")
             Switch(checked = value.skipNoSub, onCheckedChange = { save(value.copy(skipNoSub = it)) })
