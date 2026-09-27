@@ -135,7 +135,7 @@ class DownloadOrchestrator(
             var videoToDownload = video
             val priorityLanguage = config.languages.firstOrNull().orEmpty()
             val roomSatisfied = priorityLanguage.isNotBlank() &&
-                subtitleDownloader.canSatisfyFromRoom(video.videoId, priorityLanguage, config.formats.firstOrNull() ?: OutputFormat.TXT)
+                subtitleDownloader.canSatisfyFromRoom(video.videoId, priorityLanguage, config.formats.firstOrNull() ?: OutputFormat.TXT, config.preferManual)
 
             if (!roomSatisfied) {
                 val subtitleResult = runCatching {
