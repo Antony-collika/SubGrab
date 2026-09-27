@@ -137,6 +137,7 @@ class ResearchRepository(private val database: SubGrabDatabase) {
     suspend fun getLatestSnapshot(videoId: String) = database.metadataSnapshotDao().latest(videoId)
     suspend fun getSnapshotHistory(videoId: String) = database.metadataSnapshotDao().history(videoId)
     suspend fun getTranscript(videoId: String) = database.transcriptDao().get(videoId)
+    suspend fun getTranscripts(videoId: String) = database.transcriptDao().getAll(videoId)
     suspend fun getCommentThreads(videoId: String) = database.commentDao().getThreads(videoId)
     suspend fun getComments(threadId: String) = database.commentDao().getComments(threadId)
 
