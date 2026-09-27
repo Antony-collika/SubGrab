@@ -51,7 +51,7 @@ class VideoDetailViewModel(
                         it.likeCount, it.commentCount, it.tags.joinToString(" "), it.category,
                         it.topic.joinToString(" "), null, null)
                 }
-                VideoDetailState(result, history, transcript, threads, false, null)
+                VideoDetailState(result = result, snapshotHistory = history, transcript = transcript, commentThreads = threads, loading = false, error = null)
             }.onSuccess { _state.value = it }
              .onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Không thể tải chi tiết video") }
         }
@@ -60,15 +60,13 @@ class VideoDetailViewModel(
     fun refreshTranscript(videoId: String, selectedLanguages: List<String>, preferManual: Boolean) {
         _state.value = _state.value.copy(loading = true)
         viewModelScope.launch {
-            var error: Throwable? = null
-            selectedLanguages.distinct().filter { it.isNotBlank() }.forEach { language ->
-                subtitleDownloader.fetchAndPersistTranscript(videoId, selectedLanguages, preferManual, language, OutputFormat.TXT, false)
-                    .onFailure { error = it }
-            }
-            if (error == null) load(videoId)
-            else _state.value = _state.value.copy(loading = false, error = error?.message ?: "Không thể làm mới transcript")
+            subtitleDownloader.fetchAndPersistTranscript(
+                videoId, selectedLanguages, preferManual, null, OutputFormat.TXT, false
+            ).onSuccess { load(videoId) }
+             .onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Không thể làm mới transcript") }
         }
     }
+
 
     fun toggleTranscriptExpanded() {
         _state.value = _state.value.copy(transcriptExpanded = !_state.value.transcriptExpanded)
