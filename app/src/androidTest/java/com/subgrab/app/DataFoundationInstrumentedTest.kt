@@ -7,6 +7,8 @@ import com.subgrab.app.data.SubGrabDatabase
 import com.subgrab.app.data.repository.KnowledgeRepository
 import com.subgrab.app.domain.Source
 import com.subgrab.app.domain.VideoItem
+import com.subgrab.app.domain.ResearchFilters
+import com.subgrab.app.data.repository.ResearchRepository
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -86,6 +88,42 @@ class DataFoundationInstrumentedTest {
             assertEquals("en", repository.getTranscript("video-1")?.language)
             repository.saveTranscript("video-1", "hello refreshed", "en", overwrite = true)
             assertEquals("hello refreshed", repository.getTranscript("video-1")?.content)
+        }
+    }
+
+
+    @Test
+    fun publishedDateFilterExplicitlyExcludesMissingAndInvalidDates() {
+        val valid = VideoItem(
+            1, "video-valid", "Valid published date", 60, emptyList(),
+            publishedAt = "2024-06-15T12:00:00Z"
+        )
+        val missing = VideoItem(
+            2, "video-missing", "Missing published date", 60, emptyList(),
+            publishedAt = null
+        )
+        val invalid = VideoItem(
+            3, "video-invalid", "Invalid published date", 60, emptyList(),
+            publishedAt = "not-a-date"
+        )
+        val knowledge = KnowledgeRepository(database)
+        val research = ResearchRepository(database)
+
+        kotlinx.coroutines.runBlocking {
+            knowledge.saveAnalysis(
+                Source("research", "https://www.youtube.com/watch?v=video-valid", "Research", 3),
+                listOf(valid, missing, invalid),
+                forceRefresh = true
+            )
+            val from = java.time.Instant.parse("2024-01-01T00:00:00Z").toEpochMilli()
+            val to = java.time.Instant.parse("2024-12-31T23:59:59Z").toEpochMilli()
+            val (rows, count) = research.search(
+                query = "",
+                filters = ResearchFilters(publishedFrom = from, publishedTo = to)
+            )
+
+            assertEquals(1, count)
+            assertEquals(listOf("video-valid"), rows.map { it.videoId })
         }
     }
 
