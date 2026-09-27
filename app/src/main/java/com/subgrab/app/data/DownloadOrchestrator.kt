@@ -1,6 +1,7 @@
 package com.subgrab.app.data
 
 import com.subgrab.app.domain.DownloadConfig
+import com.subgrab.app.domain.OutputFormat
 import com.subgrab.app.domain.RequestLane
 import com.subgrab.app.domain.Source
 import com.subgrab.app.domain.VideoItem
