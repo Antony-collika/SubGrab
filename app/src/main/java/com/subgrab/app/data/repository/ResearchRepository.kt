@@ -53,11 +53,11 @@ class ResearchRepository(private val database: SubGrabDatabase) {
         filters.minComments?.let { conditions += "COALESCE(m.commentCount, 0) >= ?"; args += it }
         filters.maxComments?.let { conditions += "COALESCE(m.commentCount, 0) <= ?"; args += it }
         filters.publishedFrom?.let {
-            conditions += publishedEpochSql() + " >= ?"
+            conditions += publishedDateFilterSql(publishedEpochSql(), ">=")
             args += it
         }
         filters.publishedTo?.let {
-            conditions += publishedEpochSql() + " <= ?"
+            conditions += publishedDateFilterSql(publishedEpochSql(), "<=")
             args += it
         }
         filters.fetchedFrom?.let { conditions += "m.fetchedAt >= ?"; args += it }
@@ -162,6 +162,9 @@ class ResearchRepository(private val database: SubGrabDatabase) {
 
     private fun publishedEpochSql(): String =
         "CAST(strftime('%s', replace(substr(m.publishedAt, 1, 19), 'T', ' ')) AS INTEGER) * 1000"
+
+    private fun publishedDateFilterSql(epochSql: String, operator: String): String =
+        "(m.publishedAt IS NOT NULL AND TRIM(m.publishedAt) <> '' AND $epochSql IS NOT NULL AND $epochSql $operator ?)"
 
     private fun ftsQuery(input: String): String =
         input.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
