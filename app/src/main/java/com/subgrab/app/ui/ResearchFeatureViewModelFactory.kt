@@ -17,6 +17,7 @@ class ResearchFeatureViewModelFactory(context: Context) : ViewModelProvider.Fact
     private val api = YouTubeDataApiClient(settings, pacer)
     private val apiDiscovery = ApiDiscoveryClient(api)
     private val knowledge = KnowledgeRepository(database)
+    private val fileStorage = FileStorage(appContext)
     private val repository = ResearchRepository(database)
     private val subtitleDownloader = SubtitleDownloader(extractor, downloader, knowledge)
 
@@ -25,7 +26,7 @@ class ResearchFeatureViewModelFactory(context: Context) : ViewModelProvider.Fact
         modelClass.isAssignableFrom(ResearchHistoryViewModel::class.java) -> ResearchHistoryViewModel(repository) as T
         modelClass.isAssignableFrom(ResearchSearchViewModel::class.java) -> ResearchSearchViewModel(repository) as T
         modelClass.isAssignableFrom(VideoDetailViewModel::class.java) ->
-            VideoDetailViewModel(repository, subtitleDownloader, apiDiscovery, settings, knowledge) as T
+            VideoDetailViewModel(repository, subtitleDownloader, apiDiscovery, settings, knowledge, fileStorage) as T
         else -> error("Unsupported research ViewModel: " + modelClass.name)
     }
 }

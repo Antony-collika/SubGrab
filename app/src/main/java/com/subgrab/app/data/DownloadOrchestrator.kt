@@ -132,7 +132,8 @@ class DownloadOrchestrator(
             if (!waitUntilRunnable(video.title)) return
 
             var videoToDownload = video
-            if (!video.subtitleChecked) {
+            val roomSatisfied = subtitleDownloader.canSatisfyFromRoom(video.videoId, config.languages, config.formats)
+            if (!roomSatisfied && !video.subtitleChecked) {
                 val subtitleResult = runCatching {
                     extractorClient.listSubtitles(video.videoUrl()).getOrThrow()
                 }
@@ -156,7 +157,7 @@ class DownloadOrchestrator(
                     return
                 }
                 videoToDownload = video.copy(availableSubs = subs, subtitleChecked = true)
-            } else if (!video.hasSub) {
+            } else if (!roomSatisfied && !video.hasSub) {
                 log("⚠️ " + video.title + ": không có phụ đề")
                 val eta = markCompleted(0, config.skipNoSub)
                 val (savedNow, skippedNow, logSnapshot) = progress()
