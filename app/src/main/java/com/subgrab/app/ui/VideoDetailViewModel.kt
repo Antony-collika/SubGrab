@@ -8,6 +8,7 @@ import com.subgrab.app.data.SettingsRepository
 import com.subgrab.app.data.SubtitleDownloader
 import com.subgrab.app.data.repository.ResearchRepository
 import com.subgrab.app.data.repository.KnowledgeRepository
+import com.subgrab.app.data.export.ResearchExport
 import com.subgrab.app.domain.VideoSearchResult
 import com.subgrab.app.domain.OutputFormat
 import kotlinx.coroutines.flow.MutableStateFlow
