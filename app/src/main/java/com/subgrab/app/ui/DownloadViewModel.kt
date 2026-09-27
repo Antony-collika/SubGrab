@@ -138,10 +138,13 @@ class DownloadViewModel(
  fun selectAll(){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(videos=c.videos.map{if(it.canSelect)it.copy(isSelected=true)else it})}
  fun clearSelection(){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(videos=c.videos.map{it.copy(isSelected=false)})}
  fun updateFolder(folder:String){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(folder=folder)}
- fun startDownload(settings:AppSettings,onEnqueued:()->Unit={}){val c=_state.value as? AnalysisState.Ready?:return;viewModelScope.launch{
-  DownloadWorker.enqueueBatch(context,c.source,c.videos,c.folder,settings.toDownloadConfig())
-  runCatching { knowledgeRepository.recordDownloadActivity(c.videos.filter { it.isSelected }, c.source.id) }
-  onEnqueued()
+ fun startDownload(config: DownloadConfig, onEnqueued:()->Unit={}){
+  val c=_state.value as? AnalysisState.Ready?:return
+  viewModelScope.launch{
+   DownloadWorker.enqueueBatch(context,c.source,c.videos,c.folder,config)
+   runCatching { knowledgeRepository.recordDownloadActivity(c.videos.filter { it.isSelected }, c.source.id) }
+   onEnqueued()
+  }
  }}
  fun pauseDownload(){viewModelScope.launch{control.pause()}};fun resumeDownload(){viewModelScope.launch{control.resume()}};fun cancelDownload(){viewModelScope.launch{control.cancel()}}
  fun continueNextTask(){viewModelScope.launch{DownloadWorker.enqueueNext(context)}}
