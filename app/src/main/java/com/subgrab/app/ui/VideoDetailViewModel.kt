@@ -72,6 +72,7 @@ class VideoDetailViewModel(
                 languages = listOf(language.code),
                 preferManual = !language.isAuto,
                 requestedLanguage = language.code,
+                requestedAuto = language.isAuto,
                 requestedFormat = com.subgrab.app.domain.OutputFormat.TXT,
                 forceRefresh = true
             ).onSuccess { load(videoId) }
