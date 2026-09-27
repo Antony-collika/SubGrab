@@ -251,6 +251,7 @@ fun SubGrabApp() {
                             navController.navigate("progress")
                         }
                     },
+                    defaultDownloadFolder = settings.outputDir,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -281,6 +282,7 @@ fun SubGrabApp() {
                             navController.navigate("progress")
                         }
                     },
+                    defaultDownloadFolder = settings.outputDir,
                     modifier = Modifier.fillMaxSize()
                 )
             }
