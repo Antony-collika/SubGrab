@@ -79,10 +79,6 @@ class SubtitleDownloader(
             val cachedLanguage = cached?.language
             val cachedContent = cached?.content?.takeIf { it.isNotBlank() }
             val files = mutableListOf<File>()
-            if (format == OutputFormat.TXT && cachedLanguage != null && cachedContent != null && matchesLanguage(cachedLanguage, language.code)) {
-                files += write(outputDir, fileBase(video, cachedLanguage) + ".txt", cachedContent)
-                return@runCatching files
-            }
             val url = video.videoUrl()
             val extractor = extractorClient.fetchSubtitleExtractor(url)
             val tracks = extractor.getSubtitles(MediaFormat.VTT).toList()
@@ -95,7 +91,7 @@ class SubtitleDownloader(
             if (format == OutputFormat.SRT) files += write(outputDir, base + ".srt", SubtitleFormatter.format(cues, timestampMode))
             else files += write(outputDir, base + ".txt", cleanText)
             if (cachedLanguage.isNullOrBlank() || cachedContent.isNullOrBlank()) {
-                knowledgeRepository?.saveTranscriptIfAbsent(video.videoId, cleanText, track.getLanguageTag())
+                knowledgeRepository?.saveTranscript(video.videoId, cleanText, track.getLanguageTag())
             }
             files
         }
@@ -123,7 +119,7 @@ class SubtitleDownloader(
             val cleanText = SubtitleFormatter.format(cues, SubtitleTimestampMode.WITHOUT_TIMESTAMP)
             val actualLanguage = track.getLanguageTag()
             if (requestedFormat == OutputFormat.TXT) {
-                if (existingLanguage.isNullOrBlank() || existingContent == null) knowledgeRepository?.saveTranscriptIfAbsent(videoId, cleanText, actualLanguage)
+                if (existingLanguage.isNullOrBlank() || existingContent == null) knowledgeRepository?.saveTranscript(videoId, cleanText, actualLanguage)
                 else if (forceRefresh && !matchesLanguage(existingLanguage, actualLanguage)) knowledgeRepository?.saveTranscript(videoId, cleanText, actualLanguage, overwrite = true)
             }
             actualLanguage
