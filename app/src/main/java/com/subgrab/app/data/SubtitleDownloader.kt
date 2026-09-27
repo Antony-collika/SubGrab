@@ -16,8 +16,8 @@ class SubtitleDownloader(
     suspend fun listSubtitles(videoUrl: String): Result<List<SubtitleLanguage>> =
         extractorClient.listSubtitles(videoUrl)
 
-    suspend fun canSatisfyFromRoom(videoId: String, language: String, format: OutputFormat): Boolean {
-        if (format != OutputFormat.TXT) return false
+    suspend fun canSatisfyFromRoom(videoId: String, language: String, format: OutputFormat, preferManual: Boolean): Boolean {
+        if (format != OutputFormat.TXT || preferManual) return false
         val cached = knowledgeRepository?.getTranscript(videoId) ?: return false
         val stored = cached.language ?: return false
         return !cached.content.isNullOrBlank() && matchesLanguage(stored, language)
@@ -31,7 +31,7 @@ class SubtitleDownloader(
             val requested = config.languages.distinct().filter { it.isNotBlank() }
             val files = mutableListOf<File>()
 
-            if (cachedLanguage != null && cachedContent != null && OutputFormat.TXT in config.formats &&
+            if (!config.preferManual && cachedLanguage != null && cachedContent != null && OutputFormat.TXT in config.formats &&
                 requested.any { matchesLanguage(cachedLanguage, it) }) {
                 files += write(outputDir, fileBase(video, cachedLanguage) + ".txt", cachedContent)
             }
