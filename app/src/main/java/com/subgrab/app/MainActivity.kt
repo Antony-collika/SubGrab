@@ -491,7 +491,6 @@ private fun SelectVideoScreen(
             )
         }
     }
-    }
 }
 
 @Composable
