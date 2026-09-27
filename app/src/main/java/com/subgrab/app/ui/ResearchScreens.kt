@@ -283,9 +283,14 @@ fun VideoDetailScreen(
         subtitleError = null
         viewModel.listSubtitles(videoId) { result ->
             result.onSuccess {
-                subtitleLanguages = it
-                subtitleLoading = false
-                afterLoad()
+                if (it.isEmpty()) {
+                    subtitleLoading = false
+                    subtitleError = "Video này không có phụ đề."
+                } else {
+                    subtitleLanguages = it
+                    subtitleLoading = false
+                    afterLoad()
+                }
             }.onFailure {
                 subtitleLoading = false
                 subtitleError = it.message ?: "Không thể lấy danh sách phụ đề"
