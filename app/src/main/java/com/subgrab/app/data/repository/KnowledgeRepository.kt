@@ -131,9 +131,7 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
         database.withTransaction {
             database.videoDao().insert(VideoEntity(videoId, null, now, now))
             val existing = database.transcriptDao().get(videoId)
-            val canWrite = existing == null || existing.language == null ||
-                existing.language.equals(language, true)
-            if (canWrite || (overwrite && existing?.language.equals(language, true))) {
+            if (existing == null || overwrite) {
                 database.transcriptDao().upsert(
                     TranscriptEntity(videoId, content, language, now, "SUCCESS", null)
                 )
