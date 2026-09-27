@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -255,7 +257,12 @@ private fun formatDate(value: Long): String =
 }
 
 @Composable
-fun VideoDetailScreen(viewModel: VideoDetailViewModel, videoId: String, modifier: Modifier = Modifier) {
+fun VideoDetailScreen(
+    viewModel: VideoDetailViewModel,
+    videoId: String,
+    defaultDownloadFolder: String = "Download/Subtitles",
+    modifier: Modifier = Modifier
+) {
     val state by viewModel.state.collectAsState()
     var exportOpen by rememberSaveable { mutableStateOf(false) }
     var metadata by rememberSaveable { mutableStateOf(true) }
@@ -263,8 +270,28 @@ fun VideoDetailScreen(viewModel: VideoDetailViewModel, videoId: String, modifier
     var comments by rememberSaveable { mutableStateOf(false) }
     var history by rememberSaveable { mutableStateOf(false) }
     var format by rememberSaveable { mutableStateOf("JSON") }
+    var subtitleDownloadOpen by rememberSaveable { mutableStateOf(false) }
+    var transcriptRefreshOpen by rememberSaveable { mutableStateOf(false) }
+    var subtitleLoading by rememberSaveable { mutableStateOf(false) }
+    var subtitleError by rememberSaveable { mutableStateOf<String?>(null) }
+    var subtitleLanguages by remember { mutableStateOf<List<com.subgrab.app.domain.SubtitleLanguage>>(emptyList()) }
 
     LaunchedEffect(videoId) { viewModel.load(videoId) }
+
+    fun loadSubtitleLanguages(afterLoad: () -> Unit) {
+        subtitleLoading = true
+        subtitleError = null
+        viewModel.listSubtitles(videoId) { result ->
+            result.onSuccess {
+                subtitleLanguages = it
+                subtitleLoading = false
+                afterLoad()
+            }.onFailure {
+                subtitleLoading = false
+                subtitleError = it.message ?: "Không thể lấy danh sách phụ đề"
+            }
+        }
+    }
 
     if (exportOpen) {
         AlertDialog(
@@ -303,6 +330,42 @@ fun VideoDetailScreen(viewModel: VideoDetailViewModel, videoId: String, modifier
         )
     }
 
+    if (subtitleLoading) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Phụ đề") },
+            text = { Text("Đang lấy danh sách phụ đề…") },
+            confirmButton = {}
+        )
+    } else if (subtitleError != null) {
+        AlertDialog(
+            onDismissRequest = { subtitleError = null },
+            title = { Text("Phụ đề") },
+            text = { Text(subtitleError.orEmpty()) },
+            confirmButton = { TextButton(onClick = { subtitleError = null }) { Text("Đóng") } }
+        )
+    } else if (subtitleDownloadOpen && subtitleLanguages.isNotEmpty()) {
+        SingleSubtitleDownloadDialog(
+            languages = subtitleLanguages,
+            initialFolder = defaultDownloadFolder,
+            onDismiss = { subtitleDownloadOpen = false },
+            onConfirm = { language, selectedFormat, folder ->
+                subtitleDownloadOpen = false
+                viewModel.downloadSubtitles(videoId, state.result?.title.orEmpty(), language, selectedFormat, folder)
+            }
+        )
+    } else if (transcriptRefreshOpen && subtitleLanguages.isNotEmpty()) {
+        TranscriptRefreshDialog(
+            languages = subtitleLanguages,
+            currentLanguage = state.transcript?.language,
+            onDismiss = { transcriptRefreshOpen = false },
+            onConfirm = { language ->
+                transcriptRefreshOpen = false
+                viewModel.refreshTranscript(videoId, language)
+            }
+        )
+    }
+
     LazyColumn(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         state.error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
         state.result?.let { result ->
@@ -311,34 +374,65 @@ fun VideoDetailScreen(viewModel: VideoDetailViewModel, videoId: String, modifier
             item { Text("Views: " + (result.viewCount ?: 0) + " · Likes: " + (result.likeCount ?: 0) + " · Comments: " + (result.commentCount ?: 0)) }
             result.description?.let { item { Text(it) } }
         }
+
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = {
-                    viewModel.refreshTranscript(videoId, listOf("vi", "en"), true)
-                }, modifier = Modifier.weight(1f)) { Text("Làm mới transcript") }
-                OutlinedButton(onClick = { viewModel.refreshComments(videoId) }, modifier = Modifier.weight(1f)) { Text("Làm mới comments") }
+                OutlinedButton(
+                    onClick = {
+                        subtitleDownloadOpen = true
+                        transcriptRefreshOpen = false
+                        loadSubtitleLanguages {}
+                    },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Tải phụ đề") }
+                OutlinedButton(onClick = { exportOpen = true }, modifier = Modifier.weight(1f)) {
+                    Text("Xuất data")
+                }
             }
         }
+
         item { Text("Metadata history", style = MaterialTheme.typography.titleMedium) }
         items(state.snapshotHistory) { snapshot ->
-            Text(DateFormat.getDateTimeInstance().format(Date(snapshot.fetchedAt)) + " · " + snapshot.title,
-                style = MaterialTheme.typography.bodySmall)
+            Text(
+                DateFormat.getDateTimeInstance().format(Date(snapshot.fetchedAt)) + " · " + snapshot.title,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
+
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Transcript", style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = { viewModel.toggleTranscriptExpanded() }) {
-                    Text(if (state.transcriptExpanded) "Thu gọn" else "Mở rộng")
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Transcript", style = MaterialTheme.typography.titleMedium)
+                    TextButton(onClick = { viewModel.toggleTranscriptExpanded() }) {
+                        Text(if (state.transcriptExpanded) "Thu gọn" else "Mở rộng")
+                    }
+                }
+                IconButton(
+                    onClick = {
+                        transcriptRefreshOpen = true
+                        subtitleDownloadOpen = false
+                        loadSubtitleLanguages {}
+                    }
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Làm mới transcript")
                 }
             }
         }
         item {
             Text(
                 state.transcript?.content ?: "Chưa có transcript.",
-                maxLines = if (state.transcriptExpanded) Int.MAX_VALUE else 3
+                maxLines = if (state.transcriptExpanded) Int.MAX_VALUE else 2
             )
         }
-        item { Text("Comments", style = MaterialTheme.typography.titleMedium) }
+
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Comments", style = MaterialTheme.typography.titleMedium)
+                IconButton(onClick = { viewModel.refreshComments(videoId) }) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Làm mới comments")
+                }
+            }
+        }
         if (state.commentThreads.isEmpty()) item { Text("Chưa có comments.") }
         items(state.commentThreads) { thread ->
             val replies by produceState<List<com.subgrab.app.data.db.CommentEntity>>(emptyList(), thread.threadId) {
@@ -352,11 +446,6 @@ fun VideoDetailScreen(viewModel: VideoDetailViewModel, videoId: String, modifier
                         Text("↳ " + reply.author.orEmpty() + ": " + reply.text, style = MaterialTheme.typography.bodySmall)
                     }
                 }
-            }
-        }
-        item {
-            OutlinedButton(onClick = { exportOpen = true }, modifier = Modifier.fillMaxWidth()) {
-                Text("Xuất dữ liệu")
             }
         }
     }
