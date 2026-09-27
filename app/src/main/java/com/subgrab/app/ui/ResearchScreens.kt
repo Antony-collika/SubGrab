@@ -61,9 +61,10 @@ private fun activityLabel(item: ResearchActivityItem): String = when (item.type)
 
 @Composable
 fun ResearchSearchScreen(viewModel: ResearchSearchViewModel, sessionId: String?, onOpenDetail: (String) -> Unit,
-                         onDownloadSelected: (List<VideoSearchResult>) -> Unit = {}, modifier: Modifier = Modifier) {
+                         onDownloadSelected: (List<VideoSearchResult>, com.subgrab.app.domain.DownloadConfig) -> Unit = { _, _ -> }, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsState()
     var filterOpen by rememberSaveable { mutableStateOf(false) }
+    var bulkDialogOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(sessionId) { if (!sessionId.isNullOrBlank()) viewModel.loadSession(sessionId) else viewModel.reset() }
     Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Tìm kiếm dữ liệu", style = MaterialTheme.typography.headlineSmall)
@@ -74,7 +75,27 @@ fun ResearchSearchScreen(viewModel: ResearchSearchViewModel, sessionId: String?,
             OutlinedButton(onClick = { filterOpen = true }, modifier = Modifier.weight(1f)) { Text("Bộ lọc") }
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        ResearchResultsContent(state, viewModel, onOpenDetail, onDownloadSelected, Modifier.weight(1f))
+        ResearchResultsContent(state, viewModel, onOpenDetail, { selected -> bulkDialogOpen = true }, Modifier.weight(1f))
+    }
+    if (bulkDialogOpen) {
+        BulkSubtitleDownloadDialog(
+            initialFolder = "Download/Subtitles",
+            onDismiss = { bulkDialogOpen = false },
+            onConfirm = { language, preferOfficial, format, outputDir, timestampMode ->
+                bulkDialogOpen = false
+                val selected = state.results.filter { it.isSelected }
+                onDownloadSelected(
+                    selected,
+                    com.subgrab.app.domain.DownloadConfig(
+                        languages = listOf(language),
+                        formats = setOf(format),
+                        preferManual = preferOfficial,
+                        outputDir = outputDir,
+                        timestampMode = timestampMode
+                    )
+                )
+            }
+        )
     }
     if (filterOpen) ResearchFilterDialog(state.filters, { filterOpen = false }) {
         viewModel.updateFilters(it); filterOpen = false; viewModel.search()
