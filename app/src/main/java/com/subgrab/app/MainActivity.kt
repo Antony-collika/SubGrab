@@ -290,6 +290,7 @@ fun SubGrabApp() {
                 VideoDetailScreen(
                     viewModel = videoDetailVm,
                     videoId = entry.arguments?.getString("videoId").orEmpty(),
+                    defaultDownloadFolder = settings.outputDir,
                     modifier = Modifier.fillMaxSize()
                 )
             }
