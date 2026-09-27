@@ -108,9 +108,6 @@ interface TranscriptDao {
 
     @Query("SELECT * FROM transcripts WHERE videoId = :videoId LIMIT 1")
     suspend fun get(videoId: String): TranscriptEntity?
-
-    @Query("SELECT * FROM transcripts WHERE videoId = :videoId")
-    suspend fun getAll(videoId: String): List<TranscriptEntity>
 }
 
 @Dao
