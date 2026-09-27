@@ -3,6 +3,55 @@ package com.subgrab.app.data.export
 import com.subgrab.app.domain.VideoSearchResult
 
 object ResearchExport {
+    enum class ExportFormat { JSON, CSV, MD }
+    
+    data class ExportOptions(
+        val metadata: Boolean = true,
+        val transcript: Boolean = false,
+        val comments: Boolean = false,
+        val history: Boolean = false,
+        val format: ExportFormat = ExportFormat.JSON
+    )
+    
+    data class VideoExportData(
+        val videoId: String,
+        val title: String,
+        val metadata: List<com.subgrab.app.data.db.VideoMetadataSnapshotEntity>,
+        val transcript: com.subgrab.app.data.db.TranscriptEntity?,
+        val comments: List<com.subgrab.app.data.db.CommentEntity>
+    )
+    
+    fun exportVideo(data: VideoExportData, options: ExportOptions): String = when (options.format) {
+        ExportFormat.JSON -> buildString {
+            appendLine("{")
+            appendLine("  \"videoId\": " + jsonString(data.videoId) + ",")
+            appendLine("  \"title\": " + jsonString(data.title) + ",")
+            appendLine("  \"metadata\": " + if (options.metadata) data.metadata.joinToString(prefix="[", postfix="]") { "{\"fetchedAt\":" + it.fetchedAt + ",\"title\":" + jsonString(it.title) + "}" } else "[]")
+            if (options.transcript) appendLine(",  \"transcript\": " + (data.transcript?.let { "{\"language\":" + jsonString(it.language) + ",\"fetchedAt\":" + (it.fetchedAt ?: 0L) + ",\"content\":" + jsonString(it.content) + "}" } ?: "null"))
+            if (options.comments) appendLine(",  \"comments\": " + data.comments.joinToString(prefix="[", postfix="]") { "{\"commentId\":" + jsonString(it.commentId) + ",\"fetchedAt\":" + (it.fetchedAt ?: 0L) + ",\"text\":" + jsonString(it.text) + "}" })
+            appendLine("}")
+        }
+        ExportFormat.CSV -> buildString {
+            appendLine("videoId,section,fetchedAt,key,value")
+            if (options.metadata) data.metadata.forEach { appendLine(listOf(data.videoId,"metadata",it.fetchedAt,"title",it.title).joinToString(",") { v -> csvCell(v.toString()) }) }
+            if (options.transcript) data.transcript?.let { appendLine(listOf(data.videoId,"transcript",it.fetchedAt ?: 0L,"content",it.content.orEmpty()).joinToString(",") { v -> csvCell(v.toString()) }) }
+            if (options.comments) data.comments.forEach { appendLine(listOf(data.videoId,"comment",it.fetchedAt ?: 0L,it.commentId,it.text).joinToString(",") { v -> csvCell(v.toString()) }) }
+        }
+        ExportFormat.MD -> buildString {
+            appendLine("# SubGrab Export")
+            appendLine("\n- Video ID: " + data.videoId + "\n- Title: " + data.title)
+            if (options.metadata) { appendLine("\n## Metadata"); data.metadata.forEach { appendLine("- ${it.fetchedAt}: ${it.title}") } }
+            if (options.transcript) { appendLine("\n## Transcript"); appendLine(data.transcript?.content.orEmpty()) }
+            if (options.comments) { appendLine("\n## Comments"); data.comments.forEach { appendLine("- " + it.author.orEmpty() + ": " + it.text) } }
+        }
+    }
+    
+    private fun jsonString(value: String?): String {
+        if (value == null) return "null"
+        return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r") + "\""
+    }
+    private fun csvCell(value: String): String = "\"" + value.replace("\"", "\"\"").replace("\n", " ").replace("\r", " ") + "\""
+    
     fun json(results: List<VideoSearchResult>): String = buildString {
         appendLine("[")
         results.forEachIndexed { index, v ->
