@@ -40,7 +40,7 @@ class SubtitleDownloader(
                 requested.none { cachedLanguage != null && cachedContent != null && matchesLanguage(cachedLanguage, it) }
             if (!needsSource) return@runCatching files.distinctBy { it.absolutePath }
 
-            val url = video.videoUrl()
+            val url = "https://www.youtube.com/watch?v=" + video.videoId
             val extractor = extractorClient.fetchSubtitleExtractor(url)
             val tracks = extractor.getSubtitles(MediaFormat.VTT).toList()
             if (tracks.isEmpty()) throw SubtitleFailure(FailureType.NO_SUBTITLE, "Không tìm thấy phụ đề")
