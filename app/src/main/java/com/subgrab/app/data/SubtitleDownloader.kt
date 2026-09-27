@@ -62,8 +62,10 @@ class SubtitleDownloader(
                     files += write(outputDir, base + ".srt", SubtitleFormatter.format(cues, config.timestampMode))
                 }
                 if (OutputFormat.TXT in config.formats) {
-                    val roomMatches = cachedLanguage != null && cachedContent != null && matchesLanguage(cachedLanguage, language)
-                    if (config.preferManual || !roomMatches) files += write(outputDir, base + ".txt", cleanText)
+                    // Room is an analysis cache, not a download cache. A bulk download request
+                    // must always materialize the requested subtitle file, even when Room already
+                    // contains the same language. Re-downloading is a valid user action.
+                    files += write(outputDir, base + ".txt", cleanText)
                 }
                 if (cachedLanguage.isNullOrBlank() || cachedContent.isNullOrBlank()) {
                     knowledgeRepository?.saveTranscript(video.videoId, cleanText, language)
