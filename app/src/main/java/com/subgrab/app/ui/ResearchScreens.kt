@@ -85,7 +85,7 @@ fun ResearchSearchScreen(viewModel: ResearchSearchViewModel, sessionId: String?,
             onDismiss = { bulkDialogOpen = false },
             onConfirm = { language, preferOfficial, format, outputDir, timestampMode ->
                 bulkDialogOpen = false
-                val selected = state.results.filter { it.isSelected }
+                val selected = state.selectedResults
                 onDownloadSelected(
                     selected,
                     com.subgrab.app.domain.DownloadConfig(
