@@ -167,7 +167,7 @@ fun SingleSubtitleDownloadDialog(
                     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         languages.forEach { item ->
                             DropdownMenuItem(
-                                text = { Text(subtitleLabel(item)) },
+                                text = { SubtitleLanguageItem(item) },
                                 onClick = {
                                     selectedCode = item.code
                                     selectedAuto = item.isAuto
@@ -269,6 +269,14 @@ fun TranscriptRefreshDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Hủy") } }
     )
+}
+
+@Composable
+private fun SubtitleLanguageItem(language: SubtitleLanguage) {
+    Column {
+        Text(language.code, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+        Text(language.name + if (language.isAuto) " (Auto-generated)" else "")
+    }
 }
 
 private fun subtitleLabel(language: SubtitleLanguage): String =
