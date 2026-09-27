@@ -68,6 +68,37 @@ class VideoDetailViewModel(
     }
 
 
+    fun exportData(videoId: String, title: String, options: ExportOptions) {
+        _state.value = _state.value.copy(loading = true)
+        viewModelScope.launch {
+            runCatching {
+                val history = repository.getSnapshotHistory(videoId)
+                val metadata = if (options.history) history else history.firstOrNull()?.let { listOf(it) }.orEmpty()
+                val body = ResearchExport.exportVideo(
+                    ResearchExport.VideoExportData(
+                        videoId,
+                        title,
+                        metadata,
+                        if (options.transcript) repository.getTranscript(videoId) else null,
+                        if (options.comments) repository.getCommentThreads(videoId).flatMap { repository.getComments(it.threadId) } else emptyList()
+                    ),
+                    options
+                )
+                val ext = when (options.format) {
+                    ExportFormat.JSON -> "json"
+                    ExportFormat.CSV -> "csv"
+                    ExportFormat.MD -> "md"
+                }
+                fileStorage.publishTextFile(
+                    "subgrab-" + com.subgrab.app.domain.FileNameSanitizer.sanitize(title) + "." + ext,
+                    body,
+                    "SubGrab/Exports"
+                )
+            }.onSuccess { load(videoId) }
+             .onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Không thể xuất dữ liệu") }
+        }
+    }
+
     fun toggleTranscriptExpanded() {
         _state.value = _state.value.copy(transcriptExpanded = !_state.value.transcriptExpanded)
     }
