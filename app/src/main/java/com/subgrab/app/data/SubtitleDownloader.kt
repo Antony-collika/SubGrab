@@ -101,7 +101,7 @@ class SubtitleDownloader(
         }
     }
 
-    suspend fun fetchAndPersistTranscript(videoId: String, languages: List<String>, preferManual: Boolean, requestedLanguage: String? = null, requestedFormat: OutputFormat = OutputFormat.TXT, forceRefresh: Boolean = false): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun fetchAndPersistTranscript(videoId: String, languages: List<String>, preferManual: Boolean, requestedLanguage: String? = null, requestedAuto: Boolean? = null, requestedFormat: OutputFormat = OutputFormat.TXT, forceRefresh: Boolean = false): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val existing = knowledgeRepository?.getTranscript(videoId)
             val wantedLanguage = requestedLanguage ?: languages.firstOrNull { language -> existing?.language?.let { stored -> matchesLanguage(stored, language) } == true }
@@ -113,8 +113,11 @@ class SubtitleDownloader(
             val url = "https://www.youtube.com/watch?v=" + videoId
             val extractor = extractorClient.fetchSubtitleExtractor(url)
             val tracks = extractor.getSubtitles(MediaFormat.VTT).toList()
-            val track = selectTrackForLanguage(tracks, wantedLanguage, preferManual)
-                ?: throw SubtitleFailure(FailureType.LANGUAGE_UNAVAILABLE, "Không tìm thấy subtitle: " + wantedLanguage)
+            val track = if (requestedLanguage != null && requestedAuto != null) {
+                selectExactTrack(tracks, SubtitleLanguage(wantedLanguage, requestedAuto))
+            } else {
+                selectTrackForLanguage(tracks, wantedLanguage, preferManual)
+            } ?: throw SubtitleFailure(FailureType.LANGUAGE_UNAVAILABLE, "Không tìm thấy subtitle: " + wantedLanguage)
             val rawVtt = downloader.fetchText(track.content, url)
             val cues = SubtitleParser.parseWebVtt(rawVtt)
             val cleanText = SubtitleFormatter.format(cues, SubtitleTimestampMode.WITHOUT_TIMESTAMP)
