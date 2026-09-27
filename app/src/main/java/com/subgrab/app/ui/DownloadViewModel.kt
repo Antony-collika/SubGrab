@@ -145,7 +145,7 @@ class DownloadViewModel(
    runCatching { knowledgeRepository.recordDownloadActivity(c.videos.filter { it.isSelected }, c.source.id) }
    onEnqueued()
   }
- }}
+ }
  fun pauseDownload(){viewModelScope.launch{control.pause()}};fun resumeDownload(){viewModelScope.launch{control.resume()}};fun cancelDownload(){viewModelScope.launch{control.cancel()}}
  fun continueNextTask(){viewModelScope.launch{DownloadWorker.enqueueNext(context)}}
  private fun WorkInfo.toDownloadState(data:Data):DownloadState{
