@@ -58,11 +58,22 @@ class VideoDetailViewModel(
         }
     }
 
-    fun refreshTranscript(videoId: String, selectedLanguages: List<String>, preferManual: Boolean) {
-        _state.value = _state.value.copy(loading = true)
+    fun listSubtitles(videoId: String, onResult: (Result<List<com.subgrab.app.domain.SubtitleLanguage>>) -> Unit) {
+        viewModelScope.launch {
+            onResult(subtitleDownloader.listSubtitles("https://www.youtube.com/watch?v=" + videoId))
+        }
+    }
+
+    fun refreshTranscript(videoId: String, language: com.subgrab.app.domain.SubtitleLanguage) {
+        _state.value = _state.value.copy(loading = true, error = null)
         viewModelScope.launch {
             subtitleDownloader.fetchAndPersistTranscript(
-                videoId, selectedLanguages, preferManual, null, OutputFormat.TXT, false
+                videoId = videoId,
+                languages = listOf(language.code),
+                preferManual = !language.isAuto,
+                requestedLanguage = language.code,
+                requestedFormat = com.subgrab.app.domain.OutputFormat.TXT,
+                forceRefresh = true
             ).onSuccess { load(videoId) }
              .onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Không thể làm mới transcript") }
         }
@@ -104,14 +115,14 @@ class VideoDetailViewModel(
         _state.value = _state.value.copy(transcriptExpanded = !_state.value.transcriptExpanded)
     }
 
-    fun downloadSubtitles(videoId: String, title: String, languages: List<String>, preferManual: Boolean, format: OutputFormat) {
-        _state.value = _state.value.copy(loading = true)
+    fun downloadSubtitles(videoId: String, title: String, language: com.subgrab.app.domain.SubtitleLanguage, format: com.subgrab.app.domain.OutputFormat, outputDir: String) {
+        _state.value = _state.value.copy(loading = true, error = null)
         viewModelScope.launch {
-            val dir = fileStorage.createTaskDirectory(title, "SubGrab/VideoDetail")
-            val config = com.subgrab.app.domain.DownloadConfig(languages = languages, formats = setOf(format), preferManual = preferManual)
-            subtitleDownloader.download(com.subgrab.app.domain.VideoItem(1, videoId, title, 0, emptyList()), config, dir)
+            val dir = fileStorage.createTaskDirectory(title, outputDir)
+            val video = com.subgrab.app.domain.VideoItem(1, videoId, title, 0, emptyList())
+            subtitleDownloader.downloadSingle(video, language, format, dir)
                 .onSuccess {
-                    fileStorage.publishToDownloads(dir, "SubGrab/" + com.subgrab.app.domain.FileNameSanitizer.sanitize(title))
+                    fileStorage.publishToDownloads(dir, outputDir)
                     load(videoId)
                 }
                 .onFailure {
@@ -119,6 +130,7 @@ class VideoDetailViewModel(
                 }
         }
     }
+
 
     fun refreshComments(videoId: String) {
         _state.value = _state.value.copy(loading = true)
