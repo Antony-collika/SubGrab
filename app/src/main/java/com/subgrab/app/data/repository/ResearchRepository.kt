@@ -52,8 +52,14 @@ class ResearchRepository(private val database: SubGrabDatabase) {
         filters.maxLikes?.let { conditions += "COALESCE(m.likeCount, 0) <= ?"; args += it }
         filters.minComments?.let { conditions += "COALESCE(m.commentCount, 0) >= ?"; args += it }
         filters.maxComments?.let { conditions += "COALESCE(m.commentCount, 0) <= ?"; args += it }
-        filters.publishedFrom?.let { conditions += publishedEpochSql() + " >= ?"; args += it }
-        filters.publishedTo?.let { conditions += publishedEpochSql() + " <= ?"; args += it }
+        filters.publishedFrom?.let {
+            conditions += publishedEpochSql() + " >= ?"
+            args += it
+        }
+        filters.publishedTo?.let {
+            conditions += publishedEpochSql() + " <= ?"
+            args += it
+        }
         filters.fetchedFrom?.let { conditions += "m.fetchedAt >= ?"; args += it }
         filters.fetchedTo?.let { conditions += "m.fetchedAt <= ?"; args += it }
         if (filters.searchKeywordContext.isNotBlank()) {
