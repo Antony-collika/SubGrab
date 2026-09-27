@@ -61,7 +61,7 @@ private fun activityLabel(item: ResearchActivityItem): String = when (item.type)
 
 @Composable
 fun ResearchSearchScreen(viewModel: ResearchSearchViewModel, sessionId: String?, onOpenDetail: (String) -> Unit,
-                         onDownloadSelected: (List<VideoSearchResult>, com.subgrab.app.domain.DownloadConfig) -> Unit = { _, _ -> }, modifier: Modifier = Modifier) {
+                         onDownloadSelected: (List<VideoSearchResult>, com.subgrab.app.domain.DownloadConfig) -> Unit = { _, _ -> }, defaultDownloadFolder: String = "Download/Subtitles", modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsState()
     var filterOpen by rememberSaveable { mutableStateOf(false) }
     var bulkDialogOpen by rememberSaveable { mutableStateOf(false) }
@@ -79,7 +79,7 @@ fun ResearchSearchScreen(viewModel: ResearchSearchViewModel, sessionId: String?,
     }
     if (bulkDialogOpen) {
         BulkSubtitleDownloadDialog(
-            initialFolder = "Download/Subtitles",
+            initialFolder = defaultDownloadFolder,
             onDismiss = { bulkDialogOpen = false },
             onConfirm = { language, preferOfficial, format, outputDir, timestampMode ->
                 bulkDialogOpen = false
