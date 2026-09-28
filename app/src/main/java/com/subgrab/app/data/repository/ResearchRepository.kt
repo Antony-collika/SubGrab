@@ -160,13 +160,12 @@ class ResearchRepository(private val database: SubGrabDatabase) {
         }
     }
 
-    private fun publishedEpochSql(): String =
-        "CAST(strftime('%s', replace(substr(m.publishedAt, 1, 19), 'T', ' ')) AS INTEGER) * 1000"
+    private fun publishedEpochSql(): String = "m.publishedAtEpochMs"
 
     private fun publishedDateFilterSql(epochSql: String, operator: String): String =
-        "(m.publishedAt IS NOT NULL AND TRIM(m.publishedAt) <> '' AND $epochSql IS NOT NULL AND $epochSql $operator ?)"
+        "($epochSql IS NOT NULL AND $epochSql $operator ?)"
 
     private fun ftsQuery(input: String): String =
         input.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
-            .joinToString(" AND ") { "\"" + it.replace("\"", "") + "\"" }
+            .joinToString(" AND ") { "\"" + SearchTextNormalizer.normalize(it).replace("\"", "") + "\"*" }
 }
