@@ -96,7 +96,8 @@ class DataFoundationInstrumentedTest {
     fun publishedDateFilterExplicitlyExcludesMissingAndInvalidDates() {
         val valid = VideoItem(
             1, "video-valid", "Valid published date", 60, emptyList(),
-            publishedAt = "2024-06-15T12:00:00Z"
+            publishedAt = "2024-06-15T12:00:00Z",
+            publishedAtEpochMs = 1718452800000L
         )
         val missing = VideoItem(
             2, "video-missing", "Missing published date", 60, emptyList(),
