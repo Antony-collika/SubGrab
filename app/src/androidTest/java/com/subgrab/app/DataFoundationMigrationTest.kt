@@ -81,7 +81,7 @@ class DataFoundationMigrationTest {
 
         com.subgrab.app.data.SearchIndexRebuilder.rebuild(database!!.openHelper.writableDatabase)
         val ids = kotlinx.coroutines.runBlocking {
-            database!!.searchDao().searchVideoIds("\"ca\"* AND \"phe\"*", 10)
+            database!!.searchDao().searchVideoIds("ca* AND phe*", 10)
         }
         assertEquals(listOf("v1"), ids)
 
