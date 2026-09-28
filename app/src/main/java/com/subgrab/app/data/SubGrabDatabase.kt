@@ -150,14 +150,14 @@ abstract class SubGrabDatabase : RoomDatabase() {
 }
 
 
-private object SearchTextNormalizer {
+object SearchTextNormalizer {
     fun normalize(value: String): String =
         java.text.Normalizer.normalize(value.lowercase(java.util.Locale.ROOT), java.text.Normalizer.Form.NFD)
             .replace(Regex("\\p{M}+"), "")
             .replace('đ', 'd')
 }
 
-private object SearchIndexRebuilder {
+object SearchIndexRebuilder {
     fun rebuild(db: SupportSQLiteDatabase) {
         db.beginTransaction()
         try {
