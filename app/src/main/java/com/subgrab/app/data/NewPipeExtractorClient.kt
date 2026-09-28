@@ -69,7 +69,10 @@ class NewPipeExtractorClient(
                                 durationSec = item.getDuration().toInt(),
                                 availableSubs = emptyList(),
                                 subtitleChecked = false,
-                                channelTitle = channelTitle
+                                channelTitle = channelTitle,
+                                publishedAt = item.getTextualUploadDate().orEmpty(),
+                                publishedAtEpochMs = item.getUploadDate()?.getInstant()?.toEpochMilli(),
+                                publishedAtIsApproximate = item.getUploadDate()?.isApproximation() == true
                             )
                         }
                         Source(normalizedUrl, normalizedUrl, channelTitle, videos.size) to videos
@@ -90,7 +93,10 @@ class NewPipeExtractorClient(
                                 title = item.getName(),
                                 durationSec = item.getDuration().toInt(),
                                 availableSubs = emptyList(),
-                                subtitleChecked = false
+                                subtitleChecked = false,
+                                publishedAt = item.getTextualUploadDate().orEmpty(),
+                                publishedAtEpochMs = item.getUploadDate()?.getInstant()?.toEpochMilli(),
+                                publishedAtIsApproximate = item.getUploadDate()?.isApproximation() == true
                             )
                         }
                         Source(normalizedUrl, normalizedUrl, extractor.getName(), videos.size) to videos
@@ -111,7 +117,9 @@ class NewPipeExtractorClient(
                                 title = title,
                                 durationSec = 0,
                                 availableSubs = emptyList(),
-                                subtitleChecked = false
+                                subtitleChecked = false,
+                                publishedAtEpochMs = extractor.getUploadDate()?.getInstant()?.toEpochMilli(),
+                                publishedAtIsApproximate = extractor.getUploadDate()?.isApproximation() == true
                             )
                         )
                     }
@@ -221,6 +229,8 @@ class NewPipeExtractorClient(
                         subtitleChecked = false,
                         channelTitle = item.getUploaderName().orEmpty(),
                         publishedAt = item.getTextualUploadDate().orEmpty(),
+                        publishedAtEpochMs = item.getUploadDate()?.getInstant()?.toEpochMilli(),
+                        publishedAtIsApproximate = item.getUploadDate()?.isApproximation() == true,
                         viewCount = item.getViewCount().takeIf { it >= 0 },
                         thumbnailUrl = item.getThumbnails().firstOrNull()?.getUrl().orEmpty()
                     )
