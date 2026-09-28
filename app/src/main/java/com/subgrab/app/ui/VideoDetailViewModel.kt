@@ -10,7 +10,6 @@ import com.subgrab.app.data.repository.ResearchRepository
 import com.subgrab.app.data.repository.KnowledgeRepository
 import com.subgrab.app.data.export.ResearchExport
 import com.subgrab.app.domain.VideoSearchResult
-import com.subgrab.app.domain.OutputFormat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -80,9 +79,8 @@ class VideoDetailViewModel(
         }
     }
 
-
-    fun exportData(videoId: String, title: String, options: ResearchExport.ExportOptions) {
-        _state.value = _state.value.copy(loading = true)
+    fun exportData(videoId: String, title: String, options: ResearchExport.ExportOptions, outputDir: String, onSuccess: (String) -> Unit) {
+        _state.value = _state.value.copy(loading = true, error = null)
         viewModelScope.launch {
             runCatching {
                 val history = repository.getSnapshotHistory(videoId)
@@ -102,13 +100,13 @@ class VideoDetailViewModel(
                     ResearchExport.ExportFormat.CSV -> "csv"
                     ResearchExport.ExportFormat.MD -> "md"
                 }
-                fileStorage.publishTextFile(
-                    "subgrab-" + com.subgrab.app.domain.FileNameSanitizer.sanitize(title) + "." + ext,
-                    body,
-                    "SubGrab/Exports"
-                )
-            }.onSuccess { load(videoId) }
-             .onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Không thể xuất dữ liệu") }
+                val fileName = "subgrab-" + com.subgrab.app.domain.FileNameSanitizer.sanitize(title) + "." + ext
+                fileStorage.publishTextFile(fileName, body, outputDir.removePrefix("Download/").removePrefix("Download\\").trim('/'))
+                "Download/" + outputDir.removePrefix("Download/").removePrefix("Download\\").trim('/') + "/" + fileName
+            }.onSuccess {
+                load(videoId)
+                onSuccess(it)
+            }.onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Không thể xuất dữ liệu") }
         }
     }
 
@@ -131,7 +129,6 @@ class VideoDetailViewModel(
                 }
         }
     }
-
 
     fun refreshComments(videoId: String) {
         _state.value = _state.value.copy(loading = true)
