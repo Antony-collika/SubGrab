@@ -167,6 +167,8 @@ class ResearchRepository(private val database: SubGrabDatabase) {
         "($epochSql IS NOT NULL AND $epochSql $operator ?)"
 
     private fun ftsQuery(input: String): String =
-        input.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
-            .joinToString(" AND ") { "\"" + SearchTextNormalizer.normalize(it).replace("\"", "") + "\"*" }
+        input.trim().split(Regex("\\s+"))
+            .map { SearchTextNormalizer.normalize(it).replace(Regex("[^\\p{L}\\p{N}_-]"), "") }
+            .filter { it.isNotBlank() }
+            .joinToString(" AND ") { "$it*" }
 }
