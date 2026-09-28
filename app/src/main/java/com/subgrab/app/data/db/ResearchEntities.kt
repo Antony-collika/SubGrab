@@ -57,6 +57,8 @@ data class VideoMetadataSnapshotEntity(
     val title: String,
     val description: String?,
     val publishedAt: String?,
+    val publishedAtEpochMs: Long?,
+    val publishedAtIsApproximate: Boolean,
     val durationSeconds: Long?,
     val channelId: String?,
     val channelName: String?,
