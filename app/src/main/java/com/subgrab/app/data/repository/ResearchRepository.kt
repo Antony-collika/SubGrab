@@ -170,5 +170,5 @@ class ResearchRepository(private val database: SubGrabDatabase) {
         input.trim().split(Regex("\\s+"))
             .map { SearchTextNormalizer.normalize(it).replace(Regex("[^\\p{L}\\p{N}_-]"), "") }
             .filter { it.isNotBlank() }
-            .joinToString(" AND ") { "$it*" }
+            .joinToString(" ") { "$it*" }
 }
