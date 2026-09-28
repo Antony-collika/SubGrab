@@ -8,6 +8,7 @@ import com.subgrab.app.domain.FailureType
 import com.subgrab.app.domain.RequestLane
 import com.subgrab.app.domain.RequestResult
 import com.subgrab.app.data.SubtitleParser
+import com.subgrab.app.data.SearchTextNormalizer
 import com.subgrab.app.domain.*
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -33,6 +34,11 @@ class CoreTest {
 
     @Test fun sanitizesVietnameseAndSpecialCharacters() {
         assertEquals("huong_dan_kotlin", FileNameSanitizer.sanitize("Hướng dẫn Kotlin: *"))
+    }
+
+    @Test fun searchTextNormalizerRemovesVietnameseDiacriticsWithoutChangingWordBoundaries() {
+        assertEquals("ca phe sua da", SearchTextNormalizer.normalize("Cà phê sữa đá"))
+        assertEquals("dai hoc", SearchTextNormalizer.normalize("Đại học"))
     }
 
     @Test fun parsesInlineWebVttTimestampsAndMarkup() {
