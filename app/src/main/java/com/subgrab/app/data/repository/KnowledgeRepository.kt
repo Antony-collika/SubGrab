@@ -238,6 +238,8 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
                 availableSubs = emptyList(),
                 channelTitle = snapshot.channelName.orEmpty(),
                 publishedAt = snapshot.publishedAt.orEmpty(),
+                publishedAtEpochMs = snapshot.publishedAtEpochMs,
+                publishedAtIsApproximate = snapshot.publishedAtIsApproximate,
                 viewCount = snapshot.viewCount,
                 thumbnailUrl = snapshot.thumbnail.orEmpty(),
                 description = snapshot.description,
@@ -314,8 +316,8 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
         Regex("/channel/([^/?#]+)", RegexOption.IGNORE_CASE).find(url)?.groupValues?.get(1)
 
     private fun com.subgrab.app.data.NormalizedVideoMetadata.toSnapshot(now: Long) =
-        VideoMetadataSnapshotEntity(0, videoId, now, title, description, publishedAt, durationSeconds, channelId, channelName, subscriberCount, viewCount, likeCount, commentCount, tags, category, topic, thumbnail)
+        VideoMetadataSnapshotEntity(0, videoId, now, title, description, publishedAt, publishedAtEpochMs, publishedAtIsApproximate, durationSeconds, channelId, channelName, subscriberCount, viewCount, likeCount, commentCount, tags, category, topic, thumbnail)
 
     private fun com.subgrab.app.data.NormalizedVideoMetadata.toSearchDocument() =
-        VideoSearchEntity(videoId, title, description.orEmpty(), channelName.orEmpty(), tags.joinToString(" "), category.orEmpty(), topic.joinToString(" "))
+        VideoSearchEntity(videoId, SearchTextNormalizer.normalize(title), SearchTextNormalizer.normalize(description.orEmpty()), SearchTextNormalizer.normalize(channelName.orEmpty()), SearchTextNormalizer.normalize(tags.joinToString(" ")), SearchTextNormalizer.normalize(category.orEmpty()), SearchTextNormalizer.normalize(topic.joinToString(" ")))
 }
