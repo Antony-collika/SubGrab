@@ -5,6 +5,8 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.subgrab.app.data.SubGrabDatabase
+import com.subgrab.app.data.repository.ResearchRepository
+import com.subgrab.app.domain.ResearchFilters
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -82,6 +84,20 @@ class DataFoundationMigrationTest {
             database!!.searchDao().searchVideoIds("\"ca\"* AND \"phe\"*", 10)
         }
         assertEquals(listOf("v1"), ids)
+
+        val publishedAt = database!!.openHelper.writableDatabase.query(
+            "SELECT publishedAtEpochMs FROM video_metadata_snapshots WHERE videoId = 'v1'"
+        ).use { it.moveToFirst(); it.getLong(0) }
+        val filtered = kotlinx.coroutines.runBlocking {
+            ResearchRepository(database!!).search(
+                query = "",
+                filters = ResearchFilters(
+                    publishedFrom = publishedAt - 24L * 60L * 60L * 1000L,
+                    publishedTo = publishedAt + 24L * 60L * 60L * 1000L
+                )
+            )
+        }
+        assertEquals(listOf("v1"), filtered.first.map { it.videoId })
     }
 
     companion object {
