@@ -17,7 +17,17 @@ class FileStorage(private val context: Context) {
 
     fun createTaskDirectory(folderName: String, outputDir: String = "Download/Subtitles"): File {
         val safeBase = outputDir.split('/', '\\').map(::sanitizeSegment).filter(String::isNotBlank).joinToString(File.separator).ifBlank { "Download/Subtitles" }
-        return File(stagingRoot, safeBase + File.separator + FileNameSanitizer.sanitize(folderName).ifBlank { "SubGrab" }).apply { mkdirs() }
+        return File(stagingRoot, safeBase + File.separator + FileNameSanitizer.sanitize(folderName).ifBlank { "SubGrab" }).apply {
+            mkdirs()
+            // The staging directory is reused by folder name, while users can delete the
+            // previously published files. Remove stale staged subtitles so an old task can
+            // never republish files that are not part of the current selection.
+            listFiles()?.filter(::isSubtitleFile)?.forEach { file ->
+                if (!file.delete() && file.exists()) {
+                    throw StorageFailure("Không thể dọn file staging cũ: " + file.name)
+                }
+            }
+        }
     }
 
     fun publishToDownloads(directory: File, relativePath: String): List<String> {
