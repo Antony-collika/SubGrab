@@ -26,7 +26,7 @@ import com.subgrab.app.data.db.*
         CommentEntity::class,
         VideoSearchEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(ResearchConverters::class)
@@ -80,6 +80,53 @@ abstract class SubGrabDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE video_metadata_snapshots ADD COLUMN publishedAtEpochMs INTEGER")
+                db.execSQL("ALTER TABLE video_metadata_snapshots ADD COLUMN publishedAtIsApproximate INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("""
+                    UPDATE video_metadata_snapshots
+                    SET publishedAtEpochMs = CAST(strftime('%s', publishedAt) AS INTEGER) * 1000
+                    WHERE publishedAtEpochMs IS NULL
+                      AND publishedAt IS NOT NULL
+                      AND TRIM(publishedAt) <> ''
+                      AND strftime('%s', publishedAt) IS NOT NULL
+                """.trimIndent())
+                db.execSQL("""
+                    UPDATE video_metadata_snapshots
+                    SET publishedAtEpochMs = fetchedAt - (
+                        CAST(substr(TRIM(publishedAt), 1, instr(TRIM(publishedAt), ' ') - 1) AS INTEGER) *
+                        CASE
+                            WHEN lower(TRIM(publishedAt)) LIKE '% minute ago'
+                              OR lower(TRIM(publishedAt)) LIKE '% minutes ago'
+                              OR TRIM(publishedAt) LIKE '% phút trước' THEN 60000
+                            WHEN lower(TRIM(publishedAt)) LIKE '% hour ago'
+                              OR lower(TRIM(publishedAt)) LIKE '% hours ago'
+                              OR TRIM(publishedAt) LIKE '% giờ trước' THEN 3600000
+                            WHEN lower(TRIM(publishedAt)) LIKE '% day ago'
+                              OR lower(TRIM(publishedAt)) LIKE '% days ago'
+                              OR TRIM(publishedAt) LIKE '% ngày trước' THEN 86400000
+                            WHEN lower(TRIM(publishedAt)) LIKE '% week ago'
+                              OR lower(TRIM(publishedAt)) LIKE '% weeks ago'
+                              OR TRIM(publishedAt) LIKE '% tuần trước' THEN 604800000
+                            WHEN lower(TRIM(publishedAt)) LIKE '% month ago'
+                              OR lower(TRIM(publishedAt)) LIKE '% months ago'
+                              OR TRIM(publishedAt) LIKE '% tháng trước' THEN 2592000000
+                            WHEN lower(TRIM(publishedAt)) LIKE '% year ago'
+                              OR lower(TRIM(publishedAt)) LIKE '% years ago'
+                              OR TRIM(publishedAt) LIKE '% năm trước' THEN 31536000000
+                            ELSE NULL
+                        END
+                    ),
+                    publishedAtIsApproximate = 1
+                    WHERE publishedAtEpochMs IS NULL
+                      AND publishedAt IS NOT NULL
+                      AND instr(TRIM(publishedAt), ' ') > 0
+                      AND (lower(TRIM(publishedAt)) LIKE '% ago' OR TRIM(publishedAt) LIKE '% trước')
+                """.trimIndent())
+            }
+        }
+
         @Volatile private var instance: SubGrabDatabase? = null
 
         fun get(context: Context): SubGrabDatabase = instance ?: synchronized(this) {
@@ -87,7 +134,66 @@ abstract class SubGrabDatabase : RoomDatabase() {
                 context.applicationContext,
                 SubGrabDatabase::class.java,
                 DB_NAME
-            ).addMigrations(MIGRATION_1_2).build().also { instance = it }
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addCallback(object : RoomDatabase.Callback() {
+                    override fun onOpen(db: SupportSQLiteDatabase) {
+                        val prefs = context.applicationContext.getSharedPreferences("subgrab_database_state", Context.MODE_PRIVATE)
+                        if (prefs.getInt("search_index_version", 0) < 3) {
+                            SearchIndexRebuilder.rebuild(db)
+                            prefs.edit().putInt("search_index_version", 3).commit()
+                        }
+                    }
+                })
+                .build().also { instance = it }
+        }
+    }
+}
+
+
+private object SearchTextNormalizer {
+    fun normalize(value: String): String =
+        java.text.Normalizer.normalize(value.lowercase(java.util.Locale.ROOT), java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "")
+            .replace('đ', 'd')
+}
+
+private object SearchIndexRebuilder {
+    fun rebuild(db: SupportSQLiteDatabase) {
+        db.beginTransaction()
+        try {
+            db.execSQL("DELETE FROM video_search")
+            db.query("""
+                SELECT m.videoId, m.title, m.description, m.channelName, m.tags, m.category, m.topic
+                FROM video_metadata_snapshots m
+                WHERE m.id = (
+                    SELECT ms.id FROM video_metadata_snapshots ms
+                    WHERE ms.videoId = m.videoId
+                    ORDER BY ms.fetchedAt DESC LIMIT 1
+                )
+            """.trimIndent()).use { cursor ->
+                val videoId = cursor.getColumnIndexOrThrow("videoId")
+                val title = cursor.getColumnIndexOrThrow("title")
+                val description = cursor.getColumnIndexOrThrow("description")
+                val channelName = cursor.getColumnIndexOrThrow("channelName")
+                val tags = cursor.getColumnIndexOrThrow("tags")
+                val category = cursor.getColumnIndexOrThrow("category")
+                val topic = cursor.getColumnIndexOrThrow("topic")
+                while (cursor.moveToNext()) {
+                    val values = android.content.ContentValues().apply {
+                        put("videoId", cursor.getString(videoId))
+                        put("title", SearchTextNormalizer.normalize(cursor.getString(title)))
+                        put("description", SearchTextNormalizer.normalize(if (cursor.isNull(description)) "" else cursor.getString(description)))
+                        put("channelName", SearchTextNormalizer.normalize(if (cursor.isNull(channelName)) "" else cursor.getString(channelName)))
+                        put("tags", SearchTextNormalizer.normalize(cursor.getString(tags)))
+                        put("category", SearchTextNormalizer.normalize(if (cursor.isNull(category)) "" else cursor.getString(category)))
+                        put("topic", SearchTextNormalizer.normalize(cursor.getString(topic)))
+                    }
+                    db.insert("video_search", android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE, values)
+                }
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
         }
     }
 }
