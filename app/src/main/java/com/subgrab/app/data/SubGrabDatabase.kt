@@ -179,16 +179,17 @@ object SearchIndexRebuilder {
                 val category = cursor.getColumnIndexOrThrow("category")
                 val topic = cursor.getColumnIndexOrThrow("topic")
                 while (cursor.moveToNext()) {
-                    val values = android.content.ContentValues().apply {
-                        put("videoId", cursor.getString(videoId))
-                        put("title", SearchTextNormalizer.normalize(cursor.getString(title)))
-                        put("description", SearchTextNormalizer.normalize(if (cursor.isNull(description)) "" else cursor.getString(description)))
-                        put("channelName", SearchTextNormalizer.normalize(if (cursor.isNull(channelName)) "" else cursor.getString(channelName)))
-                        put("tags", SearchTextNormalizer.normalize(cursor.getString(tags)))
-                        put("category", SearchTextNormalizer.normalize(if (cursor.isNull(category)) "" else cursor.getString(category)))
-                        put("topic", SearchTextNormalizer.normalize(cursor.getString(topic)))
-                    }
-                    db.insert("video_search", android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE, values)
+                    val videoIdValue = cursor.getString(videoId)
+                    val titleValue = SearchTextNormalizer.normalize(cursor.getString(title))
+                    val descriptionValue = SearchTextNormalizer.normalize(if (cursor.isNull(description)) "" else cursor.getString(description))
+                    val channelNameValue = SearchTextNormalizer.normalize(if (cursor.isNull(channelName)) "" else cursor.getString(channelName))
+                    val tagsValue = SearchTextNormalizer.normalize(cursor.getString(tags))
+                    val categoryValue = SearchTextNormalizer.normalize(if (cursor.isNull(category)) "" else cursor.getString(category))
+                    val topicValue = SearchTextNormalizer.normalize(cursor.getString(topic))
+                    db.execSQL(
+                        "INSERT INTO video_search(videoId, title, description, channelName, tags, category, topic) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        arrayOf(videoIdValue, titleValue, descriptionValue, channelNameValue, tagsValue, categoryValue, topicValue)
+                    )
                 }
             }
             db.setTransactionSuccessful()
