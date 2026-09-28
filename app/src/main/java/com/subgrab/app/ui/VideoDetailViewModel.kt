@@ -102,7 +102,7 @@ class VideoDetailViewModel(
                 }
                 val fileName = "subgrab-" + com.subgrab.app.domain.FileNameSanitizer.sanitize(title) + "." + ext
                 fileStorage.publishTextFile(fileName, body, outputDir.removePrefix("Download/").removePrefix("Download\\").trim('/'))
-                "Download/" + outputDir.removePrefix("Download/").removePrefix("Download\\").trim('/') + "/" + fileName
+                "Download/" + outputDir.removePrefix("Download/").removePrefix("Download\\").trim('/').let { if (it.isBlank()) fileName else it + "/" + fileName }
             }.onSuccess {
                 load(videoId)
                 onSuccess(it)
