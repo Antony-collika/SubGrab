@@ -34,7 +34,7 @@ data class ResearchActivityItem(
 )
 
 enum class ResearchSort(val sql: String, val label: String) {
-    PUBLISHED_DESC("m.publishedAt DESC", "Mới xuất bản"),
+    PUBLISHED_DESC("m.publishedAtEpochMs DESC", "Mới xuất bản"),
     FETCHED_DESC("m.fetchedAt DESC", "Mới cập nhật"),
     VIEWS_DESC("COALESCE(m.viewCount, 0) DESC", "Lượt xem"),
     LIKES_DESC("COALESCE(m.likeCount, 0) DESC", "Lượt thích"),
