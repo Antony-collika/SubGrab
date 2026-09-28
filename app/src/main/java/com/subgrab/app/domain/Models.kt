@@ -34,7 +34,9 @@ data class VideoItem(
     val commentCount: Long? = null,
     val tags: List<String> = emptyList(),
     val category: String? = null,
-    val topic: List<String> = emptyList()
+    val topic: List<String> = emptyList(),
+    val publishedAtEpochMs: Long? = null,
+    val publishedAtIsApproximate: Boolean = false
 ) {
     val hasSub get() = availableSubs.isNotEmpty()
     val canSelect get() = !subtitleChecked || hasSub
