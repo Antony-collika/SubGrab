@@ -2,6 +2,7 @@ package com.subgrab.app.data.repository
 
 import androidx.sqlite.db.SimpleSQLiteQuery
 import com.subgrab.app.data.SubGrabDatabase
+import com.subgrab.app.data.SearchTextNormalizer
 import com.subgrab.app.data.db.UserActivityEntity
 import java.util.UUID
 import com.subgrab.app.domain.ResearchActivityItem
