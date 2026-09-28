@@ -58,7 +58,7 @@ class DataFoundationMigrationTest {
         legacy.execSQL("CREATE TABLE request_metrics (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, timestamp INTEGER NOT NULL, lane TEXT NOT NULL, operation TEXT NOT NULL, durationMs INTEGER NOT NULL, httpStatus INTEGER, success INTEGER NOT NULL, failureType TEXT)")
         legacy.execSQL("CREATE TABLE runtime_logs (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, timestamp INTEGER NOT NULL, level TEXT NOT NULL, category TEXT NOT NULL, lane TEXT, operation TEXT, message TEXT NOT NULL)")
         legacy.execSQL("PRAGMA user_version = 1")
-        SubGrabDatabase.MIGRATION_1_2.migrate(legacy)
+        SubGrabDatabase.MIGRATION_1_2.migrate(androidx.sqlite.db.framework.FrameworkSQLiteDatabase(legacy))
         legacy.execSQL("INSERT INTO videos(videoId, channelId, createdAt, updatedAt) VALUES ('v1', NULL, 1000, 1000)")
         legacy.execSQL("INSERT INTO video_metadata_snapshots(videoId, fetchedAt, title, description, publishedAt, tags, topic) VALUES ('v1', 1700000000000, 'Cà phê Việt Nam', 'Hướng dẫn cơ bản', '3 days ago', '', '')")
         legacy.execSQL("INSERT INTO video_search(videoId, title, description, channelName, tags, category, topic) VALUES ('v1', 'Cà phê Việt Nam', 'Hướng dẫn cơ bản', '', '', '', '')")
