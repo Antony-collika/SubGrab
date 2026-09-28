@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.Instant
 
 data class FetchedComment(
     val id: String,
@@ -117,7 +118,7 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
     val dur=parseDuration(cd?.optString("duration").orEmpty())
     val tags=buildList{val tagsArray=sn.optJSONArray("tags");if(tagsArray!=null)for(j in 0 until tagsArray.length())tagsArray.optString(j).takeIf{it.isNotBlank()}?.let(::add)}
     val topics=buildList{val topicsArray=sn.optJSONArray("topicIds");if(topicsArray!=null)for(j in 0 until topicsArray.length())topicsArray.optString(j).takeIf{it.isNotBlank()}?.let(::add)}
-    out+=VideoItem(out.size+1,x.getString("id"),sn.optString("title"),dur.toInt(),emptyList(),channelTitle=sn.optString("channelTitle"),publishedAt=sn.optString("publishedAt"),viewCount=st?.optString("viewCount")?.toLongOrNull(),thumbnailUrl=sn.optJSONObject("thumbnails")?.optJSONObject("medium")?.optString("url").orEmpty(),description=sn.optString("description").takeIf{it.isNotBlank()},durationSeconds=dur,likeCount=st?.optString("likeCount")?.toLongOrNull(),channelId=sn.optString("channelId").takeIf{it.isNotBlank()},commentCount=st?.optString("commentCount")?.toLongOrNull(),tags=tags,category=sn.optString("categoryId").takeIf{it.isNotBlank()},topic=topics)
+    out+=VideoItem(out.size+1,x.getString("id"),sn.optString("title"),dur.toInt(),emptyList(),channelTitle=sn.optString("channelTitle"),publishedAt=sn.optString("publishedAt"),publishedAtEpochMs=sn.optString("publishedAt").takeIf{it.isNotBlank()}?.let{runCatching{Instant.parse(it).toEpochMilli()}.getOrNull()},viewCount=st?.optString("viewCount")?.toLongOrNull(),thumbnailUrl=sn.optJSONObject("thumbnails")?.optJSONObject("medium")?.optString("url").orEmpty(),description=sn.optString("description").takeIf{it.isNotBlank()},durationSeconds=dur,likeCount=st?.optString("likeCount")?.toLongOrNull(),channelId=sn.optString("channelId").takeIf{it.isNotBlank()},commentCount=st?.optString("commentCount")?.toLongOrNull(),tags=tags,category=sn.optString("categoryId").takeIf{it.isNotBlank()},topic=topics)
    }
   }
   val channelIds=out.mapNotNull{it.channelId}.distinct()
