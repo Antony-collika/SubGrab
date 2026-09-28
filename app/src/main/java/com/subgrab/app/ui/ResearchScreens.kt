@@ -1,6 +1,10 @@
 package com.subgrab.app.ui
 
 import android.content.Intent
+import android.provider.DocumentsContract
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -270,7 +274,16 @@ fun VideoDetailScreen(
     var comments by rememberSaveable { mutableStateOf(false) }
     var history by rememberSaveable { mutableStateOf(false) }
     var format by rememberSaveable { mutableStateOf("JSON") }
+    var exportFolder by rememberSaveable { mutableStateOf(defaultDownloadFolder) }
+    var exportFormatMenuOpen by rememberSaveable { mutableStateOf(false) }
     var subtitleDownloadOpen by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+    val exportFolderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        val documentId = uri?.let { runCatching { DocumentsContract.getTreeDocumentId(it) }.getOrNull() }
+        val relative = documentId?.removePrefix("primary:")
+        if (relative == "Download" || relative?.startsWith("Download/") == true) exportFolder = relative
+        else if (uri != null) Toast.makeText(context, "Chỉ được chọn thư mục trong Download", Toast.LENGTH_SHORT).show()
+    }
     var transcriptRefreshOpen by rememberSaveable { mutableStateOf(false) }
     var subtitleLoading by rememberSaveable { mutableStateOf(false) }
     var subtitleError by rememberSaveable { mutableStateOf<String?>(null) }
@@ -303,16 +316,38 @@ fun VideoDetailScreen(
             onDismissRequest = { exportOpen = false },
             title = { Text("Xuất dữ liệu") },
             text = {
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row { Checkbox(metadata, { metadata = it }); Text("metadata") }
                     Row { Checkbox(transcript, { transcript = it }); Text("transcript") }
                     Row { Checkbox(comments, { comments = it }); Text("comments") }
                     Row { RadioButton(history, { history = !history }); Text("dữ liệu lịch sử") }
-                    Spacer(Modifier.height(8.dp))
-                    Text("Định dạng")
-                    Row { RadioButton(format == "JSON", { format = "JSON" }); Text("JSON") }
-                    Row { RadioButton(format == "CSV", { format = "CSV" }); Text("CSV") }
-                    Row { RadioButton(format == "MD", { format = "MD" }); Text("Markdown") }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Định dạng", modifier = Modifier.weight(1f))
+                        Box {
+                            TextButton(onClick = { exportFormatMenuOpen = true }) { Text(if (format == "MD") "Markdown" else format + " ▾") }
+                            DropdownMenu(expanded = exportFormatMenuOpen, onDismissRequest = { exportFormatMenuOpen = false }) {
+                                DropdownMenuItem(text = { Text("JSON") }, onClick = { format = "JSON"; exportFormatMenuOpen = false })
+                                DropdownMenuItem(text = { Text("CSV") }, onClick = { format = "CSV"; exportFormatMenuOpen = false })
+                                DropdownMenuItem(text = { Text("Markdown") }, onClick = { format = "MD"; exportFormatMenuOpen = false })
+                            }
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = exportFolder,
+                            readOnly = true,
+                            onValueChange = {},
+                            label = { Text("Thư mục trong Downloads") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        Button(onClick = {
+                            val initial = DocumentsContract.buildTreeDocumentUri(
+                                "com.android.externalstorage.documents", "primary:Download"
+                            )
+                            exportFolderPicker.launch(initial)
+                        }) { Text("Chọn thư mục") }
+                    }
                 }
             },
             confirmButton = {
@@ -327,8 +362,9 @@ fun VideoDetailScreen(
                             comments = comments,
                             history = history,
                             format = ResearchExport.ExportFormat.valueOf(format)
-                        )
-                    )
+                        ),
+                        exportFolder
+                    ) { path -> Toast.makeText(context, "Exported to $path", Toast.LENGTH_LONG).show() }
                 }) { Text("Xuất") }
             },
             dismissButton = { TextButton(onClick = { exportOpen = false }) { Text("Hủy") } }
