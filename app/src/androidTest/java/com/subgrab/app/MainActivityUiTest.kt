@@ -33,9 +33,9 @@ class MainActivityUiTest {
     @Test
     fun settingsTabShowsGroupedSections() {
         rule.onNodeWithText("Cài đặt").performClick()
-        rule.onNodeWithText("Tải phụ đề").assertIsDisplayed()
-        rule.onNodeWithText("Lưu trữ").assertIsDisplayed()
-        rule.onNodeWithText("Nâng cao").assertIsDisplayed()
+        rule.onNodeWithText("Tải phụ đề").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Lưu trữ").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Nâng cao").performScrollTo().assertIsDisplayed()
     }
 
     @Test
