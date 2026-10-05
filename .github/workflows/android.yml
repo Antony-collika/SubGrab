@@ -58,26 +58,12 @@ jobs:
       - name: Compile Android UI tests
         run: ./gradlew :app:compileArm64DebugAndroidTestKotlin :app:compileArm64DebugAndroidTestJavaWithJavac
 
-      - name: Build debug APK
-        run: |
-          set -e
-          ./gradlew assembleArm64Debug -PversionCode="$GITHUB_RUN_NUMBER" -PversionName="1.0.$GITHUB_RUN_NUMBER"
-          mkdir -p debug-assets
-          cp app/build/outputs/apk/arm64/debug/app-arm64-debug.apk "debug-assets/SubGrab-debug-$GITHUB_RUN_NUMBER-arm64.apk"
-          ls -lh debug-assets
-
-      - name: Upload debug APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: SubGrab-debug-apk
-          path: debug-assets/*.apk
-          if-no-files-found: error
-          retention-days: 30
-
       - name: Build release APK
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         run: |
           set -e
+          test -n "$RELEASE_KEYSTORE_PASSWORD"
+          test -n "$RELEASE_KEY_ALIAS"
+          test -n "$RELEASE_KEY_PASSWORD"
           ./gradlew assembleArm64Release -PversionCode="$GITHUB_RUN_NUMBER" -PversionName="1.0.$GITHUB_RUN_NUMBER"
           mkdir -p release-assets
           safe_ref_name="${GITHUB_REF_NAME//\//-}"
@@ -85,7 +71,6 @@ jobs:
           ls -lh release-assets
 
       - name: Upload release APK artifact
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: SubGrab-release-apk
