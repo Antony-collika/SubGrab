@@ -59,6 +59,10 @@ class NewPipePoTokenProvider(private val context: Context, private val downloade
 
     override fun getWebEmbedClientPoToken(videoId: String): PoTokenResult? = null
 
+    override fun getAndroidClientPoToken(videoId: String): PoTokenResult? = null
+
+    override fun getIosClientPoToken(videoId: String): PoTokenResult? = null
+
     private fun ensureInitialized() {
         synchronized(lock) {
             if (webView != null && System.currentTimeMillis() < expiresAt) return
