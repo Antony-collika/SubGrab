@@ -21,6 +21,7 @@ class SettingsRepository(private val context: Context) {
         val apiDelayMode = stringPreferencesKey("api_delay_mode"); val apiBase = longPreferencesKey("api_base_delay_ms")
         val apiJitterMin = longPreferencesKey("api_jitter_min_ms"); val apiJitterMax = longPreferencesKey("api_jitter_max_ms")
         val metadataCacheHours = longPreferencesKey("metadata_cache_hours")
+        val videosPerSource = intPreferencesKey("videos_per_source"); val commentsPerVideo = intPreferencesKey("comments_per_video")
     }
     val settings: Flow<AppSettings> = context.settingsStore.data.map { p ->
         AppSettings(
@@ -34,7 +35,8 @@ class SettingsRepository(private val context: Context) {
             subtitleConcurrency=(p[Keys.subtitleConcurrency] ?: 1).coerceAtLeast(1), maxSubtitlesPerTask=(p[Keys.maxSubtitlesPerTask] ?: 10).coerceIn(1, 50),
             apiDelayMode=p[Keys.apiDelayMode] ?: "NONE", apiBaseDelayMs=(p[Keys.apiBase] ?: 0).coerceAtLeast(0),
             apiJitterMinMs=(p[Keys.apiJitterMin] ?: 0).coerceAtLeast(0), apiJitterMaxMs=(p[Keys.apiJitterMax] ?: 0).coerceAtLeast(0),
-            metadataCacheHours=(p[Keys.metadataCacheHours] ?: 24).coerceAtLeast(0)
+            metadataCacheHours=(p[Keys.metadataCacheHours] ?: 24).coerceAtLeast(0),
+            videosPerSource=(p[Keys.videosPerSource] ?: 50).coerceAtLeast(0), commentsPerVideo=(p[Keys.commentsPerVideo] ?: 100).coerceAtLeast(0)
         )
     }
     suspend fun current(): AppSettings = settings.first()
@@ -44,6 +46,7 @@ class SettingsRepository(private val context: Context) {
         require(value.apiJitterMinMs >= 0 && value.apiJitterMaxMs >= value.apiJitterMinMs)
         require(value.subtitleConcurrency >= 1 && value.maxSubtitlesPerTask in 1..50)
         require(value.metadataCacheHours >= 0)
+        require(value.videosPerSource >= 0 && value.commentsPerVideo >= 0)
         context.settingsStore.edit { p ->
             p[Keys.languages]=value.languages.joinToString(","); p[Keys.formats]=value.formats.joinToString(","){it.name}
             p[Keys.outputDir]=value.outputDir; p[Keys.preferManual]=value.preferManualSub; p[Keys.skipNoSub]=value.skipNoSub
@@ -51,6 +54,7 @@ class SettingsRepository(private val context: Context) {
             p[Keys.subtitleDelayMode]=value.subtitleDelayMode; p[Keys.subtitleBase]=value.subtitleBaseDelayMs
             p[Keys.subtitleJitterMin]=value.subtitleJitterMinMs; p[Keys.subtitleJitterMax]=value.subtitleJitterMaxMs; p[Keys.subtitleConcurrency]=value.subtitleConcurrency; p[Keys.maxSubtitlesPerTask]=value.maxSubtitlesPerTask
             p[Keys.apiDelayMode]=value.apiDelayMode; p[Keys.apiBase]=value.apiBaseDelayMs; p[Keys.apiJitterMin]=value.apiJitterMinMs; p[Keys.apiJitterMax]=value.apiJitterMaxMs; p[Keys.metadataCacheHours]=value.metadataCacheHours
+            p[Keys.videosPerSource]=value.videosPerSource; p[Keys.commentsPerVideo]=value.commentsPerVideo
         }
     }
 }

@@ -43,15 +43,21 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
    c.disconnect();if(code !in 200..299)throw HttpFailure(code,body.take(500));PacedHttpResult(JSONObject(body),code)
   }.value
  }
- suspend fun searchKeyword(query:String):List<VideoItem>{
-  val json=get("search",mapOf("part" to "snippet","type" to "video","maxResults" to "50","q" to query))
+ /** Lấy MỘT trang kết quả tìm kiếm (tối đa 50 video). Lưu ý: mỗi lần gọi tìm kiếm tốn khoảng 100 đơn vị hạn mức. */
+ suspend fun searchPage(query:String,pageToken:String?=null):DiscoveryPage{
+  val params=mutableMapOf("part" to "snippet","type" to "video","maxResults" to "50","q" to query)
+  pageToken?.let{params["pageToken"]=it}
+  val json=get("search",params)
   val itemCount=json.optJSONArray("items")?.length()?:0
   pacer.logDiagnostic(RequestLane.DISCOVERY_API,"search","SEARCH_RESPONSE items="+itemCount)
   val ids=buildList{val a=json.optJSONArray("items")?:return@buildList;for(i in 0 until a.length())a.optJSONObject(i)?.optJSONObject("id")?.optString("videoId")?.takeIf{it.isNotBlank()}?.let(::add)}
   pacer.logDiagnostic(RequestLane.DISCOVERY_API,"search","SEARCH_VIDEO_IDS extracted="+ids.size)
   pacer.logDiagnostic(RequestLane.API_METADATA,"videos","METADATA_REQUEST preparing ids="+ids.size)
-  return getVideoMetadata(ids)
+  val videos=getVideoMetadata(ids)
+  val next=json.optString("nextPageToken").takeIf{it.isNotBlank()}
+  return DiscoveryPage(videos,null,nextLoader(next){searchPage(query,it)})
  }
+ suspend fun searchKeyword(query:String):List<VideoItem>=searchPage(query).videos
  suspend fun getChannelTitle(source:String):String{
   return getChannelResource(source,"snippet").optJSONArray("items")?.optJSONObject(0)
    ?.optJSONObject("snippet")?.optString("title").orEmpty()
@@ -73,12 +79,15 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
   return get("channels",params)
  }
 
- suspend fun listChannelUploads(source:String):List<VideoItem>{
+ private suspend fun uploadsPlaylistId(source:String):String{
   val channelJson=getChannelResource(source,"contentDetails")
   val uploads=channelJson.optJSONArray("items")?.optJSONObject(0)?.optJSONObject("contentDetails")?.optJSONObject("relatedPlaylists")?.optString("uploads").orEmpty()
   require(uploads.isNotBlank()) { "Không tìm thấy uploads playlist của channel" }
-  return listPlaylistItems("https://www.youtube.com/playlist?list=$uploads")
+  return uploads
  }
+ /** Trang đầu danh sách video đã đăng của kênh (kèm tổng số video và hàm lấy trang kế tiếp). */
+ suspend fun channelUploadsPage(source:String):DiscoveryPage=playlistPage(uploadsPlaylistId(source))
+ suspend fun listChannelUploads(source:String):List<VideoItem>=channelUploadsPage(source).videos
  suspend fun getPlaylistTitle(source:String):String{
   val id=Uri.parse(source).getQueryParameter("list")
    ?: Regex("[?&]list=([^&]+)").find(source)?.groupValues?.get(1)
@@ -88,13 +97,21 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
    .ifBlank { error("Không tìm thấy tên playlist") }
  }
 
- suspend fun listPlaylistItems(source:String):List<VideoItem>{
-  val id=Uri.parse(source).getQueryParameter("list")?:Regex("[?&]list=([^&]+)").find(source)?.groupValues?.get(1) ?: error("Không tìm thấy playlist id")
-  val json=get("playlistItems",mapOf("part" to "snippet","maxResults" to "50","playlistId" to id))
-  val a=json.optJSONArray("items")?:return emptyList()
-  val videoIds=buildList<String>{for(i in 0 until a.length()){a.optJSONObject(i)?.optJSONObject("snippet")?.optJSONObject("resourceId")?.optString("videoId")?.takeIf{it.isNotBlank()}?.let{add(it)}}}
-  return getVideoMetadata(videoIds)
+ private fun playlistIdOf(source:String):String=Uri.parse(source).getQueryParameter("list")?:Regex("[?&]list=([^&]+)").find(source)?.groupValues?.get(1) ?: error("Không tìm thấy playlist id")
+ /** Lấy MỘT trang (tối đa 50 video) của playlist, kèm tổng số video và hàm lấy trang kế tiếp. */
+ suspend fun playlistPage(playlistId:String,pageToken:String?=null):DiscoveryPage{
+  val params=mutableMapOf("part" to "snippet","maxResults" to "50","playlistId" to playlistId)
+  pageToken?.let{params["pageToken"]=it}
+  val json=get("playlistItems",params)
+  val a=json.optJSONArray("items")
+  val videoIds=buildList<String>{if(a!=null)for(i in 0 until a.length()){a.optJSONObject(i)?.optJSONObject("snippet")?.optJSONObject("resourceId")?.optString("videoId")?.takeIf{it.isNotBlank()}?.let{add(it)}}}
+  val videos=getVideoMetadata(videoIds)
+  val total=json.optJSONObject("pageInfo")?.optInt("totalResults",-1)?.takeIf{it>=0}
+  val next=json.optString("nextPageToken").takeIf{it.isNotBlank()}
+  return DiscoveryPage(videos,total,nextLoader(next){playlistPage(playlistId,it)})
  }
+ suspend fun playlistPageFor(source:String):DiscoveryPage=playlistPage(playlistIdOf(source))
+ suspend fun listPlaylistItems(source:String):List<VideoItem>=playlistPageFor(source).videos
  suspend fun getVideoMetadataInOrder(ids:List<String>):List<VideoItem>{
   val uniqueIds=ids.map(String::trim).filter(String::isNotBlank).distinct().take(50)
   if(uniqueIds.isEmpty())return emptyList()
@@ -108,7 +125,7 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
  suspend fun getVideoMetadata(ids:List<String>):List<VideoItem>{
   if(ids.isEmpty())return emptyList()
   val out=mutableListOf<VideoItem>()
-  ids.map(String::trim).filter(String::isNotBlank).distinct().take(50).chunked(50).forEach{chunk->
+  ids.map(String::trim).filter(String::isNotBlank).distinct().chunked(50).forEach{chunk->
    val json=get("videos",mapOf("part" to "snippet,contentDetails,statistics","id" to chunk.joinToString(",")))
    val metadataCount=json.optJSONArray("items")?.length()?:0
    pacer.logDiagnostic(RequestLane.API_METADATA,"videos","METADATA_RESPONSE items="+metadataCount+" requested="+chunk.size)
@@ -122,8 +139,8 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
    }
   }
   val channelIds=out.mapNotNull{it.channelId}.distinct()
-  val subscribers=getSubscriberCounts(channelIds)
-  return out.map{it.copy(subscriberCount=it.channelId?.let(subscribers::get))}.take(50)
+  val subscribers=channelIds.chunked(50).fold(emptyMap<String,Long?>()){acc,chunk->acc+getSubscriberCounts(chunk)}
+  return out.map{it.copy(subscriberCount=it.channelId?.let(subscribers::get))}
  }
  private suspend fun getSubscriberCounts(channelIds:List<String>):Map<String,Long?>{
   if(channelIds.isEmpty()) return emptyMap()
@@ -138,15 +155,21 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
   }
  }
 
- suspend fun fetchCommentThreads(videoId: String): List<FetchedCommentThread> {
+ /**
+  * Lấy comment của video. [maxThreads] = số comment gốc tối đa (0 = tất cả); null = theo Cài đặt "Comment mỗi video".
+  */
+ suspend fun fetchCommentThreads(videoId: String, maxThreads: Int? = null): List<FetchedCommentThread> {
+  val limit = (maxThreads ?: settings.current().commentsPerVideo).coerceAtLeast(0)
   val threads = mutableListOf<FetchedCommentThread>()
   var pageToken: String? = null
   do {
-   val params = mutableMapOf("part" to "snippet,replies", "videoId" to videoId, "maxResults" to "100", "textFormat" to "plainText")
+   val pageSize = if (limit > 0) minOf(100, limit - threads.size) else 100
+   val params = mutableMapOf("part" to "snippet,replies", "videoId" to videoId, "maxResults" to pageSize.toString(), "textFormat" to "plainText")
    pageToken?.let { params["pageToken"] = it }
    val json = get("commentThreads", params, RequestLane.API_METADATA)
    val items = json.optJSONArray("items") ?: org.json.JSONArray()
    for (i in 0 until items.length()) {
+    if (limit > 0 && threads.size >= limit) break
     val item = items.optJSONObject(i) ?: continue
     val threadId = item.optString("id").takeIf { it.isNotBlank() } ?: continue
     val snippet = item.optJSONObject("snippet") ?: continue
@@ -183,7 +206,7 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
     }
     threads += FetchedCommentThread(threadId, video, topComment, snippet.optInt("totalReplyCount", replies.size), replies.distinctBy { it.id })
    }
-   pageToken = json.optString("nextPageToken").takeIf { it.isNotBlank() }
+   pageToken = if (limit > 0 && threads.size >= limit) null else json.optString("nextPageToken").takeIf { it.isNotBlank() }
   } while (pageToken != null)
   return threads
  }

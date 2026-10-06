@@ -8,6 +8,8 @@ import com.subgrab.app.domain.SubtitleLanguage
 import com.subgrab.app.domain.VideoItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.schabi.newpipe.extractor.InfoItem
+import org.schabi.newpipe.extractor.ListExtractor
 import org.schabi.newpipe.extractor.MediaFormat
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor
@@ -243,6 +245,111 @@ class NewPipeExtractorClient(
                     originalTotalVideos = videos.size
                 )
                 source to videos
+            }
+        }
+
+    // -----------------------------------------------------------------------------------------
+    // Khám phá theo TRANG (không dùng API): trang đầu + biết còn nữa hay không + lấy trang kế tiếp
+    // -----------------------------------------------------------------------------------------
+
+    private fun streamToVideo(item: StreamInfoItem, index: Int, channelTitle: String?): VideoItem = VideoItem(
+        index = index,
+        videoId = youtubeVideoId(item.getUrl()),
+        title = item.getName(),
+        durationSec = item.getDuration().coerceAtLeast(0L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+        availableSubs = emptyList(),
+        isSelected = false,
+        subtitleChecked = false,
+        channelTitle = channelTitle?.takeIf { it.isNotBlank() } ?: item.getUploaderName().orEmpty(),
+        publishedAt = item.getTextualUploadDate().orEmpty(),
+        publishedAtEpochMs = item.getUploadDate()?.getInstant()?.toEpochMilli(),
+        publishedAtIsApproximate = item.getUploadDate()?.isApproximation() == true,
+        viewCount = item.getViewCount().takeIf { it >= 0 },
+        thumbnailUrl = item.getThumbnails().firstOrNull()?.getUrl().orEmpty()
+    )
+
+    private fun extractorPage(
+        extractor: ListExtractor<out InfoItem>,
+        page: ListExtractor.InfoItemsPage<out InfoItem>,
+        channelTitle: String?,
+        total: Int?
+    ): DiscoveryPage {
+        val videos = page.items
+            .filterIsInstance<StreamInfoItem>()
+            .mapIndexed { index, item -> streamToVideo(item, index + 1, channelTitle) }
+        val next = page.nextPage
+        val loader: (suspend () -> DiscoveryPage)? =
+            if (page.hasNextPage() && next != null) {
+                suspend {
+                    withContext(Dispatchers.IO) {
+                        val more = downloader.withRequestContext(RequestLane.DISCOVERY_EXTRACTOR, "page.fetch") {
+                            extractor.getPage(next)
+                        }
+                        extractorPage(extractor, more, channelTitle, total)
+                    }
+                }
+            } else null
+        return DiscoveryPage(videos, total, loader)
+    }
+
+    suspend fun discoverChannelPaged(url: String): Result<Pair<Source, DiscoveryPage>> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val normalizedUrl = com.subgrab.app.domain.YoutubeUrlParser.normalize(url)
+                val service = NewPipe.getServiceByUrl(normalizedUrl)
+                val channelExtractor = service.getChannelExtractor(normalizedUrl)
+                downloader.withRequestContext(RequestLane.DISCOVERY_EXTRACTOR, "channel.fetch") {
+                    channelExtractor.fetchPage()
+                }
+                val videosTab = channelExtractor.getTabs().firstOrNull()
+                    ?: error("Không tìm thấy tab video của kênh")
+                val tabExtractor = service.getChannelTabExtractor(videosTab)
+                downloader.withRequestContext(RequestLane.DISCOVERY_EXTRACTOR, "channel.videos.fetch") {
+                    tabExtractor.fetchPage()
+                }
+                val channelTitle = runCatching { channelExtractor.getName() }.getOrDefault("")
+                val page = extractorPage(tabExtractor, tabExtractor.getInitialPage(), channelTitle, null)
+                Source(normalizedUrl, normalizedUrl, channelTitle, page.videos.size) to page
+            }
+        }
+
+    suspend fun discoverPlaylistPaged(url: String): Result<Pair<Source, DiscoveryPage>> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val normalizedUrl = com.subgrab.app.domain.YoutubeUrlParser.normalize(url)
+                val service = NewPipe.getServiceByUrl(normalizedUrl)
+                val extractor = service.getPlaylistExtractor(normalizedUrl)
+                downloader.withRequestContext(RequestLane.DISCOVERY_EXTRACTOR, "playlist.fetch") {
+                    extractor.fetchPage()
+                }
+                val total = runCatching { extractor.getStreamCount() }.getOrNull()
+                    ?.takeIf { it >= 0 }?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt()
+                val page = extractorPage(extractor, extractor.getInitialPage(), null, total)
+                Source(normalizedUrl, normalizedUrl, extractor.getName(), page.videos.size) to page
+            }
+        }
+
+    /** Từ khóa: chỉ lấy trang đầu; các trang sau do người dùng chủ động bấm "Tải thêm". */
+    suspend fun searchPaged(query: String): Result<Pair<Source, DiscoveryPage>> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val cleanQuery = query.trim()
+                require(cleanQuery.isNotBlank()) { "Vui lòng nhập từ khóa" }
+                val encodedQuery = Uri.encode(cleanQuery)
+                val searchUrl = "https://www.youtube.com/results?search_query=" + encodedQuery
+                val searchHandler = org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler(
+                    searchUrl,
+                    searchUrl,
+                    cleanQuery,
+                    emptyList(),
+                    ""
+                )
+                val extractor = org.schabi.newpipe.extractor.ServiceList.YouTube.getSearchExtractor(searchHandler)
+                downloader.withRequestContext(RequestLane.DISCOVERY_EXTRACTOR, "search.fetch") {
+                    extractor.fetchPage()
+                }
+                val page = extractorPage(extractor, extractor.getInitialPage(), null, null)
+                Source("keyword:" + cleanQuery, searchUrl, cleanQuery, page.videos.size) to page
             }
         }
 
