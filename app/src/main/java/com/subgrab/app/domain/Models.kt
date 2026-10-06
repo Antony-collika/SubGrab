@@ -71,7 +71,9 @@ data class AppSettings(
     val apiBaseDelayMs: Long = 0,
     val apiJitterMinMs: Long = 0,
     val apiJitterMaxMs: Long = 0,
-    val metadataCacheHours: Long = 24
+    val metadataCacheHours: Long = 24,
+    val videosPerSource: Int = 50,
+    val commentsPerVideo: Int = 100
 )
 data class UrlCandidate(
     val raw: String,
