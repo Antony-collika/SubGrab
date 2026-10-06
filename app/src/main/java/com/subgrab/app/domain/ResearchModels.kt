@@ -78,6 +78,12 @@ data class ResearchFilters(
     val publishedWithinHours: Long? = null
 )
 
+enum class LibraryMode(val label: String) { VIDEO("Video"), CHANNEL("Kênh"), PLAYLIST("Playlist"), KEYWORD("Từ khóa") }
+
+data class LibraryObject(val id: String, val title: String, val count: Int, val subtitle: String? = null)
+
+data class LibraryScope(val mode: LibraryMode, val id: String)
+
 data class SearchState(
     val query: String = "",
     val filters: ResearchFilters = ResearchFilters(),
@@ -88,7 +94,10 @@ data class SearchState(
     val loading: Boolean = false,
     val error: String? = null,
     val hasMore: Boolean = false,
-    val page: Int = 0
+    val page: Int = 0,
+    val libraryMode: LibraryMode = LibraryMode.VIDEO,
+    val libraryObjects: List<LibraryObject> = emptyList(),
+    val libraryScope: LibraryScope? = null
 ) {
     val selectedResults: List<VideoSearchResult>
         get() = results.filter { it.videoId in selectedVideos }
