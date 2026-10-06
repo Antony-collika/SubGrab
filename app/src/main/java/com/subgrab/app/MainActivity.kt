@@ -10,7 +10,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -231,6 +233,14 @@ fun SubGrabApp() {
                     onToggle = vm::toggle,
                     onSelectAll = vm::selectAll,
                     onClearSelection = vm::clearSelection,
+                    total = ready?.total,
+                    hasMore = ready?.hasMore == true,
+                    loadingMore = ready?.loadingMore == true,
+                    fromCache = ready?.fromCache == true,
+                    notice = ready?.notice,
+                    loadMoreCost = ready?.loadMoreCost,
+                    onLoadMore = vm::loadMore,
+                    onStopLoading = vm::stopLoading,
                     onNewAnalysis = {
                         vm.resetAnalysis()
                         navController.navigate("home") { popUpTo("home") { inclusive = true } }
@@ -315,6 +325,35 @@ fun SubGrabApp() {
             composable("settings/pacing") { PacingSettingsScreen(settingsRepo, goBack, Modifier.fillMaxSize()) }
             composable("settings/logs") { LogsScreen(SubGrabDatabase.get(context), goBack, Modifier.fillMaxSize()) }
         }
+    }
+
+    // Đang lấy nhiều trang (kênh/playlist, chọn "Tất cả" hoặc nhiều video): hiện tiến trình và nút Dừng.
+    (state as? AnalysisState.Loading)?.takeIf { it.loaded > 0 }?.let { loading ->
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Đang lấy video") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    val totalCount = loading.total
+                    if (totalCount != null && totalCount > 0) {
+                        LinearProgressIndicator(
+                            progress = { (loading.loaded.toFloat() / totalCount).coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text("Đã lấy ${loading.loaded}/$totalCount video")
+                    } else {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        Text("Đã lấy ${loading.loaded} video")
+                    }
+                    Text(
+                        "Bấm Dừng để giữ phần đã lấy. Phần còn lại có thể lấy tiếp bằng nút Tải thêm.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = { TextButton(onClick = vm::stopLoading) { Text("Dừng") } }
+        )
     }
 }
 
