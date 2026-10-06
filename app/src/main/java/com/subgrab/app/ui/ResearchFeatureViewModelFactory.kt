@@ -24,7 +24,7 @@ class ResearchFeatureViewModelFactory(context: Context) : ViewModelProvider.Fact
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T = when {
         modelClass.isAssignableFrom(ResearchHistoryViewModel::class.java) -> ResearchHistoryViewModel(repository) as T
-        modelClass.isAssignableFrom(ResearchSearchViewModel::class.java) -> ResearchSearchViewModel(repository) as T
+        modelClass.isAssignableFrom(ResearchSearchViewModel::class.java) -> ResearchSearchViewModel(repository, apiDiscovery, knowledge, fileStorage) as T
         modelClass.isAssignableFrom(VideoDetailViewModel::class.java) ->
             VideoDetailViewModel(repository, subtitleDownloader, apiDiscovery, settings, knowledge, fileStorage) as T
         else -> error("Unsupported research ViewModel: " + modelClass.name)

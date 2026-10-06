@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -68,6 +70,9 @@ fun LibraryScreen(
     var filterOpen by rememberSaveable { mutableStateOf(false) }
     var downloadSheetOpen by rememberSaveable { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
+    var commentConfirmOpen by rememberSaveable { mutableStateOf(false) }
+    var exportSheetOpen by rememberSaveable { mutableStateOf(false) }
+    val batch by viewModel.batch.collectAsState()
     val selecting = state.selectedVideos.isNotEmpty()
 
     LaunchedEffect(Unit) { viewModel.search() }
@@ -122,10 +127,27 @@ fun LibraryScreen(
 
         if (selecting && tab == 0) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Button(
-                onClick = { downloadSheetOpen = true },
-                modifier = Modifier.fillMaxWidth().padding(16.dp).heightIn(min = 52.dp)
-            ) { Text("Tải phụ đề (${state.selectedVideos.size})") }
+            Row(
+                Modifier.fillMaxWidth().padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val barPadding = PaddingValues(horizontal = 8.dp)
+                Button(
+                    onClick = { downloadSheetOpen = true },
+                    contentPadding = barPadding,
+                    modifier = Modifier.weight(1f).heightIn(min = 52.dp)
+                ) { Text("Phụ đề", maxLines = 1) }
+                Button(
+                    onClick = { commentConfirmOpen = true },
+                    contentPadding = barPadding,
+                    modifier = Modifier.weight(1f).heightIn(min = 52.dp)
+                ) { Text("Comments", maxLines = 1) }
+                Button(
+                    onClick = { exportSheetOpen = true },
+                    contentPadding = barPadding,
+                    modifier = Modifier.weight(1f).heightIn(min = 52.dp)
+                ) { Text("Data", maxLines = 1) }
+            }
         }
     }
 
@@ -151,6 +173,69 @@ fun LibraryScreen(
             }
         )
     }
+    if (commentConfirmOpen) {
+        AlertDialog(
+            onDismissRequest = { commentConfirmOpen = false },
+            title = { Text("Lấy comment") },
+            text = {
+                Text(
+                    "Lấy toàn bộ comment của ${state.selectedVideos.size} video đã chọn và lưu vào máy.\n\n" +
+                        "Cần nhập YouTube API key trong Cài đặt. Video có nhiều comment sẽ tốn nhiều hạn mức API trong ngày."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    commentConfirmOpen = false
+                    viewModel.fetchComments(state.selectedResults)
+                }) { Text("Lấy comment") }
+            },
+            dismissButton = { TextButton(onClick = { commentConfirmOpen = false }) { Text("Hủy") } }
+        )
+    }
+    if (exportSheetOpen) {
+        ExportDataSheet(
+            videoCount = state.selectedVideos.size,
+            initialFolder = settings.outputDir,
+            onDismiss = { exportSheetOpen = false },
+            onConfirm = { options, folder ->
+                exportSheetOpen = false
+                viewModel.exportData(state.selectedResults, options, folder)
+            }
+        )
+    }
+    if (batch.running) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(batch.label) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LinearProgressIndicator(
+                        progress = { if (batch.total == 0) 0f else batch.done.toFloat() / batch.total },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text("Video ${(batch.done + 1).coerceAtMost(batch.total)}/${batch.total}", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        batch.currentTitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            },
+            confirmButton = { TextButton(onClick = { viewModel.cancelBatch() }) { Text("Dừng") } }
+        )
+    }
+    batch.summary?.let { summary ->
+        if (!batch.running) {
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissBatchSummary() },
+                title = { Text("Kết quả") },
+                text = { Column(Modifier.verticalScroll(rememberScrollState())) { Text(summary) } },
+                confirmButton = { TextButton(onClick = { viewModel.dismissBatchSummary() }) { Text("Đóng") } }
+            )
+        }
+    }
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
@@ -161,6 +246,96 @@ fun LibraryScreen(
             },
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Hủy") } }
         )
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Bảng "Xuất data" cho nhiều video: gộp thành 1 file
+// ---------------------------------------------------------------------------------------------
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun ExportDataSheet(
+    videoCount: Int,
+    initialFolder: String,
+    onDismiss: () -> Unit,
+    onConfirm: (ResearchExport.ExportOptions, String) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var metadata by remember { mutableStateOf(true) }
+    var transcript by remember { mutableStateOf(false) }
+    var comments by remember { mutableStateOf(false) }
+    var history by remember { mutableStateOf(false) }
+    var format by remember { mutableStateOf(ResearchExport.ExportFormat.JSON) }
+    var folder by remember { mutableStateOf(initialFolder) }
+    val pickFolder = rememberDownloadFolderPicker { folder = it }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding()
+                .padding(horizontal = 20.dp).padding(bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Xuất data", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    "$videoCount video · gộp thành 1 file",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            ExportSection("Nội dung") {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ChoiceChip("Metadata", metadata, { metadata = !metadata })
+                    ChoiceChip("Transcript", transcript, { transcript = !transcript })
+                    ChoiceChip("Comments", comments, { comments = !comments })
+                    ChoiceChip("Lịch sử", history, { history = !history })
+                }
+            }
+            ExportSection("Định dạng") {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ChoiceChip("JSON", format == ResearchExport.ExportFormat.JSON, { format = ResearchExport.ExportFormat.JSON })
+                    ChoiceChip("CSV", format == ResearchExport.ExportFormat.CSV, { format = ResearchExport.ExportFormat.CSV })
+                    ChoiceChip("Markdown", format == ResearchExport.ExportFormat.MD, { format = ResearchExport.ExportFormat.MD })
+                }
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Lưu trong $folder",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = pickFolder) { Text("Đổi") }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) { Text("Hủy") }
+                Button(
+                    onClick = {
+                        onConfirm(
+                            ResearchExport.ExportOptions(
+                                metadata = metadata,
+                                transcript = transcript,
+                                comments = comments,
+                                history = history,
+                                format = format
+                            ),
+                            folder
+                        )
+                    },
+                    enabled = metadata || transcript || comments,
+                    modifier = Modifier.weight(1.4f).heightIn(min = 52.dp)
+                ) { Text("Xuất") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExportSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        content()
     }
 }
 
