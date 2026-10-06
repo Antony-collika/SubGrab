@@ -88,17 +88,21 @@ fun ResearchSearchScreen(viewModel: ResearchSearchViewModel, sessionId: String?,
         if (state.libraryMode == LibraryMode.VIDEO || state.libraryScope != null) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val downloaded = "DOWNLOAD_SUBTITLE" in state.filters.activityTypes
-                FilterChip(selected = downloaded, onClick = {
-                    val next = if (downloaded) emptySet() else setOf("DOWNLOAD_SUBTITLE")
-                    viewModel.applyFilters(state.filters.copy(activityTypes = next))
-                }, label = { Text("Đã tải phụ đề") })
+                item {
+                    FilterChip(selected = downloaded, onClick = {
+                        val next = if (downloaded) emptySet() else setOf("DOWNLOAD_SUBTITLE")
+                        viewModel.applyFilters(state.filters.copy(activityTypes = next))
+                    }, label = { Text("Đã tải phụ đề") })
+                }
                 items(listOf("24 giờ" to 24L, "7 ngày" to 168L, "30 ngày" to 720L)) { (label, hours) ->
                     FilterChip(selected = state.filters.publishedWithinHours == hours, onClick = {
                         val next = if (state.filters.publishedWithinHours == hours) null else hours
                         viewModel.applyFilters(state.filters.copy(publishedWithinHours = next))
                     }, label = { Text(label) })
                 }
-                FilterChip(selected = false, onClick = { filterOpen = true }, label = { Text("Bộ lọc") })
+                item {
+                    FilterChip(selected = false, onClick = { filterOpen = true }, label = { Text("Bộ lọc") })
+                }
             }
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
