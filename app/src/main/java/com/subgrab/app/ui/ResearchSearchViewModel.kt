@@ -161,7 +161,7 @@ class ResearchSearchViewModel(
     fun clearSelection() { _state.update { it.copy(selectedVideos = emptySet()) } }
 
     fun loadSession(sessionId: String) {
-        _state.update { it.copy(loading = true, error = null, page = 0) }
+        _state.update { it.copy(loading = true, error = null, page = 0, libraryMode = LibraryMode.VIDEO, libraryScope = null) }
         viewModelScope.launch {
             runCatching { repository.getSearchSession(sessionId) to repository.getSessionResults(sessionId, 0, pageSize) }
                 .onSuccess { (session, result) ->
