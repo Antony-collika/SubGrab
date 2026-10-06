@@ -63,6 +63,7 @@ class ResearchSearchViewModel(
     fun updateQuery(query: String) {
         _state.update { it.copy(query = query, error = null) }
         debounceJob?.cancel()
+        if (_state.value.libraryMode != LibraryMode.VIDEO && _state.value.libraryScope == null) return
         debounceJob = viewModelScope.launch {
             delay(300)
             loadPage(0, replace = true)
