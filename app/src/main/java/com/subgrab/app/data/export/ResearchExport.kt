@@ -32,20 +32,55 @@ object ResearchExport {
             appendLine("}")
         }
         ExportFormat.CSV -> buildString {
-            appendLine("videoId,section,fetchedAt,key,value")
-            if (options.metadata) data.metadata.forEach { appendLine(listOf(data.videoId,"metadata",it.fetchedAt,"title",it.title).joinToString(",") { v -> csvCell(v.toString()) }) }
-            if (options.transcript) data.transcript?.let { appendLine(listOf(data.videoId,"transcript",it.fetchedAt ?: 0L,"content",it.content.orEmpty()).joinToString(",") { v -> csvCell(v.toString()) }) }
-            if (options.comments) data.comments.forEach { appendLine(listOf(data.videoId,"comment",it.fetchedAt ?: 0L,it.commentId,it.text).joinToString(",") { v -> csvCell(v.toString()) }) }
+            appendLine(CSV_HEADER)
+            append(csvRows(data, options))
         }
         ExportFormat.MD -> buildString {
             appendLine("# SubGrab Export")
             appendLine("\n- Video ID: " + data.videoId + "\n- Title: " + data.title)
-            if (options.metadata) { appendLine("\n## Metadata"); data.metadata.forEach { appendLine("- ${it.fetchedAt}: ${it.title}") } }
-            if (options.transcript) { appendLine("\n## Transcript"); appendLine(data.transcript?.content.orEmpty()) }
-            if (options.comments) { appendLine("\n## Comments"); data.comments.forEach { appendLine("- " + it.author.orEmpty() + ": " + it.text) } }
+            appendMdSections(data, options, "##")
         }
     }
-    
+
+    /**
+     * Xuất NHIỀU video vào MỘT kết quả duy nhất. Nội dung từng video giống hệt khi xuất riêng lẻ:
+     * - JSON: một mảng, mỗi phần tử là một video.
+     * - CSV: một bảng chung (cột videoId cho biết dòng thuộc video nào).
+     * - Markdown: một tài liệu, mỗi video là một mục.
+     */
+    fun exportVideos(items: List<VideoExportData>, options: ExportOptions): String = when (options.format) {
+        ExportFormat.JSON -> items.joinToString(separator = ",\n", prefix = "[\n", postfix = "\n]\n") {
+            exportVideo(it, options).trimEnd()
+        }
+        ExportFormat.CSV -> buildString {
+            appendLine(CSV_HEADER)
+            items.forEach { append(csvRows(it, options)) }
+        }
+        ExportFormat.MD -> buildString {
+            appendLine("# SubGrab Export")
+            appendLine("\nTổng số video: " + items.size)
+            items.forEach { data ->
+                appendLine("\n## " + data.title)
+                appendLine("\n- Video ID: " + data.videoId)
+                appendMdSections(data, options, "###")
+            }
+        }
+    }
+
+    private const val CSV_HEADER = "videoId,section,fetchedAt,key,value"
+
+    private fun csvRows(data: VideoExportData, options: ExportOptions): String = buildString {
+        if (options.metadata) data.metadata.forEach { appendLine(listOf(data.videoId,"metadata",it.fetchedAt,"title",it.title).joinToString(",") { v -> csvCell(v.toString()) }) }
+        if (options.transcript) data.transcript?.let { appendLine(listOf(data.videoId,"transcript",it.fetchedAt ?: 0L,"content",it.content.orEmpty()).joinToString(",") { v -> csvCell(v.toString()) }) }
+        if (options.comments) data.comments.forEach { appendLine(listOf(data.videoId,"comment",it.fetchedAt ?: 0L,it.commentId,it.text).joinToString(",") { v -> csvCell(v.toString()) }) }
+    }
+
+    private fun StringBuilder.appendMdSections(data: VideoExportData, options: ExportOptions, h: String) {
+        if (options.metadata) { appendLine("\n$h Metadata"); data.metadata.forEach { appendLine("- ${it.fetchedAt}: ${it.title}") } }
+        if (options.transcript) { appendLine("\n$h Transcript"); appendLine(data.transcript?.content.orEmpty()) }
+        if (options.comments) { appendLine("\n$h Comments"); data.comments.forEach { appendLine("- " + it.author.orEmpty() + ": " + it.text) } }
+    }
+
     private fun jsonString(value: String?): String {
         if (value == null) return "null"
         return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r") + "\""
