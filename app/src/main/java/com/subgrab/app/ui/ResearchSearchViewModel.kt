@@ -125,7 +125,7 @@ class ResearchSearchViewModel(
     fun clearAll() {
         debounceJob?.cancel()
         _state.update { it.copy(query = "", filters = ResearchFilters(), error = null) }
-        search()
+        if (_state.value.libraryMode == LibraryMode.VIDEO || _state.value.libraryScope != null) search()
     }
 
     fun search() {
@@ -142,7 +142,7 @@ class ResearchSearchViewModel(
     /** Đếm số kết quả sẽ có nếu áp dụng bộ lọc này (dùng cho nút "Xem N kết quả"). */
     suspend fun countFor(filters: ResearchFilters): Int {
         val current = _state.value
-        return runCatching { repository.search(current.query, filters, current.sort, 0, 1).second }
+        return runCatching { repository.search(current.query, filters, current.sort, 0, 1, current.libraryScope).second }
             .getOrElse { if (it is CancellationException) throw it else 0 }
     }
 
