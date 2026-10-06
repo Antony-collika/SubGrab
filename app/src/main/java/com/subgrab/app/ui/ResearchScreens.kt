@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -73,102 +74,75 @@ fun ResearchSearchScreen(viewModel: ResearchSearchViewModel, sessionId: String?,
     var bulkDialogOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(sessionId) { if (!sessionId.isNullOrBlank()) viewModel.loadSession(sessionId) else viewModel.reset() }
     Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Tìm kiếm dữ liệu", style = MaterialTheme.typography.headlineSmall)
-        OutlinedTextField(state.query, viewModel::updateQuery, label = { Text("Từ khóa") },
-            modifier = Modifier.fillMaxWidth(), singleLine = true)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = viewModel::search, modifier = Modifier.weight(1f)) { Text("Tìm trong History") }
-            OutlinedButton(onClick = { filterOpen = true }, modifier = Modifier.weight(1f)) { Text("Bộ lọc") }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Thư viện", style = MaterialTheme.typography.headlineSmall)
+            if (state.libraryScope != null) TextButton(onClick = viewModel::backToLibraryObjects) { Text("Quay lại") }
+        }
+        OutlinedTextField(state.query, viewModel::updateQuery, label = { Text("Tìm kiếm") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(LibraryMode.values().toList()) { mode ->
+                FilterChip(selected = state.libraryMode == mode && (mode == LibraryMode.VIDEO || state.libraryScope == null),
+                    onClick = { viewModel.setLibraryMode(mode) }, label = { Text(mode.label) })
+            }
+        }
+        if (state.libraryMode == LibraryMode.VIDEO || state.libraryScope != null) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val downloaded = "DOWNLOAD_SUBTITLE" in state.filters.activityTypes
+                FilterChip(selected = downloaded, onClick = {
+                    val next = if (downloaded) emptySet() else setOf("DOWNLOAD_SUBTITLE")
+                    viewModel.applyFilters(state.filters.copy(activityTypes = next))
+                }, label = { Text("Đã tải phụ đề") })
+                listOf("24 giờ" to 24L, "7 ngày" to 168L, "30 ngày" to 720L).forEach { (label, hours) ->
+                    FilterChip(selected = state.filters.publishedWithinHours == hours, onClick = {
+                        val next = if (state.filters.publishedWithinHours == hours) null else hours
+                        viewModel.applyFilters(state.filters.copy(publishedWithinHours = next))
+                    }, label = { Text(label) })
+                }
+                FilterChip(selected = false, onClick = { filterOpen = true }, label = { Text("Bộ lọc") })
+            }
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        ResearchResultsContent(state, viewModel, onOpenDetail, { selected -> bulkDialogOpen = true }, Modifier.weight(1f))
+        if (state.libraryMode != LibraryMode.VIDEO && state.libraryScope == null) {
+            val q = state.query.trim()
+            val objects = if (q.isBlank()) state.libraryObjects else state.libraryObjects.filter { it.title.contains(q, ignoreCase = true) }
+            LibraryObjectsContent(objects, state.libraryMode, viewModel, Modifier.weight(1f))
+        } else {
+            ResearchResultsContent(state, viewModel, onOpenDetail, { selected -> bulkDialogOpen = true }, Modifier.weight(1f))
+        }
     }
     if (bulkDialogOpen) {
-        BulkSubtitleDownloadDialog(
-            initialFolder = defaultDownloadFolder,
-            onDismiss = { bulkDialogOpen = false },
+        BulkSubtitleDownloadDialog(initialFolder = defaultDownloadFolder, onDismiss = { bulkDialogOpen = false },
             onConfirm = { language, preferOfficial, format, outputDir, timestampMode ->
                 bulkDialogOpen = false
-                val selected = state.selectedResults
-                onDownloadSelected(
-                    selected,
-                    com.subgrab.app.domain.DownloadConfig(
-                        languages = listOf(language),
-                        formats = setOf(format),
-                        preferManual = preferOfficial,
-                        outputDir = outputDir,
-                        timestampMode = timestampMode
-                    )
-                )
-            }
-        )
+                onDownloadSelected(state.selectedResults, com.subgrab.app.domain.DownloadConfig(
+                    languages = listOf(language), formats = setOf(format), preferManual = preferOfficial,
+                    outputDir = outputDir, timestampMode = timestampMode))
+            })
     }
     if (filterOpen) ResearchFilterDialog(state.filters, { filterOpen = false }) {
-        viewModel.updateFilters(it); filterOpen = false; viewModel.search()
+        viewModel.applyFilters(it); filterOpen = false
     }
 }
 
 @Composable
-private fun ResearchResultsContent(state: SearchState, viewModel: ResearchSearchViewModel, onOpenDetail: (String) -> Unit,
-                                   onDownloadSelected: (List<VideoSearchResult>) -> Unit, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
+private fun LibraryObjectsContent(objects: List<LibraryObject>, mode: LibraryMode, viewModel: ResearchSearchViewModel, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(state.resultCount.toString() + " kết quả")
-            Row {
-                TextButton(onClick = viewModel::selectAllVisible) { Text("Chọn tất cả") }
-                TextButton(onClick = viewModel::clearSelection) { Text("Bỏ chọn") }
-            }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            TextButton(onClick = { viewModel.search() }) { Text("Làm mới") }
-            TextButton(onClick = { viewModel.updateSort(nextSort(state.sort)); viewModel.search() }) { Text("Sắp xếp: " + state.sort.label) }
-            TextButton(onClick = { if (state.selectedResults.isNotEmpty()) onDownloadSelected(state.selectedResults) }) { Text("Tải phụ đề") }
-            TextButton(onClick = {
-                if (state.results.isNotEmpty()) {
-                    val body = ResearchExport.markdown(if (state.selectedResults.isNotEmpty()) state.selectedResults else state.results)
-                    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                        type = "text/markdown"; putExtra(Intent.EXTRA_TEXT, body)
-                    }, "Xuất Markdown"))
-                }
-            }) { Text("Xuất MD") }
-            TextButton(onClick = {
-                if (state.results.isNotEmpty()) {
-                    val body = ResearchExport.json(if (state.selectedResults.isNotEmpty()) state.selectedResults else state.results)
-                    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                        type = "application/json"; putExtra(Intent.EXTRA_TEXT, body)
-                    }, "Xuất JSON"))
-                }
-            }) { Text("Xuất JSON") }
-            TextButton(onClick = {
-                if (state.results.isNotEmpty()) {
-                    val body = ResearchExport.csv(if (state.selectedResults.isNotEmpty()) state.selectedResults else state.results)
-                    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                        type = "text/csv"; putExtra(Intent.EXTRA_TEXT, body)
-                    }, "Xuất CSV"))
-                }
-            }) { Text("Xuất CSV") }
-        }
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(state.results, key = { it.videoId }) { result ->
-                Card(Modifier.fillMaxWidth().clickable { onOpenDetail(result.videoId) }) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(result.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                            Checkbox(result.videoId in state.selectedVideos, { viewModel.toggleSelection(result.videoId) })
+        Text(objects.size.toString() + " " + mode.label.lowercase())
+        if (objects.isEmpty()) {
+            Text("Chưa có dữ liệu trong thư viện.")
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(objects, key = { it.id }) { item ->
+                    Card(Modifier.fillMaxWidth().clickable { viewModel.openLibraryObject(item) }) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(item.title, style = MaterialTheme.typography.titleMedium)
+                            Text(item.count.toString() + " video", style = MaterialTheme.typography.bodySmall)
+                            item.subtitle?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
                         }
-                        Text(result.channelName.orEmpty(), style = MaterialTheme.typography.bodySmall)
-                        Text("Views: " + (result.viewCount ?: 0) + " · Likes: " + (result.likeCount ?: 0) +
-                            " · Comments: " + (result.commentCount ?: 0), style = MaterialTheme.typography.bodySmall)
-                        result.playlistTitles?.takeIf { it.isNotBlank() }?.let { Text("Playlist: " + it, style = MaterialTheme.typography.labelSmall) }
                     }
                 }
             }
-            if (state.hasMore) item {
-                OutlinedButton(onClick = viewModel::loadMore, enabled = !state.loading, modifier = Modifier.fillMaxWidth()) { Text("Tải thêm") }
-            }
         }
-        if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
     }
 }
 
