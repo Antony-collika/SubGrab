@@ -6,6 +6,9 @@ import com.subgrab.app.data.SearchTextNormalizer
 import com.subgrab.app.data.db.UserActivityEntity
 import java.util.UUID
 import com.subgrab.app.domain.ResearchActivityItem
+import com.subgrab.app.domain.LibraryMode
+import com.subgrab.app.domain.LibraryObject
+import com.subgrab.app.domain.LibraryScope
 import com.subgrab.app.domain.ResearchFilters
 import com.subgrab.app.domain.ResearchSort
 import com.subgrab.app.domain.VideoSearchResult
@@ -30,9 +33,19 @@ class ResearchRepository(private val database: SubGrabDatabase) {
 
     suspend fun search(query: String, filters: ResearchFilters = ResearchFilters(),
                         sort: ResearchSort = ResearchSort.FETCHED_DESC,
-                        page: Int = 0, pageSize: Int = 50): Pair<List<VideoSearchResult>, Int> {
+                        page: Int = 0, pageSize: Int = 50,
+                        libraryScope: LibraryScope? = null): Pair<List<VideoSearchResult>, Int> {
         val args = mutableListOf<Any>()
         val conditions = mutableListOf<String>()
+        when (val scope = libraryScope) {
+            is LibraryScope -> when (scope.mode) {
+                LibraryMode.CHANNEL -> { conditions += "m.channelId = ?"; args += scope.id }
+                LibraryMode.PLAYLIST -> { conditions += "EXISTS (SELECT 1 FROM playlist_video pvs WHERE pvs.videoId = m.videoId AND pvs.playlistId = ?)"; args += scope.id }
+                LibraryMode.KEYWORD -> { conditions += "EXISTS (SELECT 1 FROM search_session_video ssvs JOIN search_sessions sss ON sss.id = ssvs.searchSessionId WHERE ssvs.videoId = m.videoId AND sss.query = ?)"; args += scope.id }
+                LibraryMode.VIDEO -> Unit
+            }
+            null -> Unit
+        }
         if (query.trim().isNotBlank()) {
             conditions += "(m.videoId IN (SELECT vs.videoId FROM video_search vs WHERE video_search MATCH ?) OR EXISTS (SELECT 1 FROM playlist_video pvq JOIN playlists pq ON pq.playlistId = pvq.playlistId WHERE pvq.videoId = m.videoId AND LOWER(pq.title) LIKE LOWER(?)))"
             args += ftsQuery(query)
@@ -104,6 +117,16 @@ class ResearchRepository(private val database: SubGrabDatabase) {
             SimpleSQLiteQuery(base + " ORDER BY " + sort.sql + " LIMIT ? OFFSET ?", dataArgs.toTypedArray())
         )
         return rows to count
+    }
+
+    suspend fun getLibraryObjects(mode: LibraryMode): List<LibraryObject> {
+        val sql = when (mode) {
+            LibraryMode.VIDEO -> return emptyList()
+            LibraryMode.CHANNEL -> "SELECT c.channelId AS id, COALESCE(c.name, 'Kênh chưa đặt tên') AS title, COUNT(DISTINCT v.videoId) AS count FROM channels c JOIN videos v ON v.channelId = c.channelId GROUP BY c.channelId ORDER BY LOWER(title)"
+            LibraryMode.PLAYLIST -> "SELECT p.playlistId AS id, p.title AS title, COUNT(DISTINCT pv.videoId) AS count FROM playlists p LEFT JOIN playlist_video pv ON pv.playlistId = p.playlistId GROUP BY p.playlistId ORDER BY LOWER(title)"
+            LibraryMode.KEYWORD -> "SELECT ss.query AS id, ss.query AS title, COUNT(DISTINCT ssv.videoId) AS count FROM search_sessions ss JOIN search_session_video ssv ON ssv.searchSessionId = ss.id GROUP BY ss.query ORDER BY MAX(ss.fetchedAt) DESC"
+        }
+        return database.researchQueryDao().libraryObjects(SimpleSQLiteQuery(sql))
     }
 
     suspend fun getSearchSession(sessionId: String) = database.searchDao().getSession(sessionId)
