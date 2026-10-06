@@ -81,7 +81,7 @@ fun ResearchSearchScreen(viewModel: ResearchSearchViewModel, sessionId: String?,
         OutlinedTextField(state.query, viewModel::updateQuery, label = { Text("Tìm kiếm") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(LibraryMode.values().toList()) { mode ->
-                FilterChip(selected = state.libraryMode == mode && (mode == LibraryMode.VIDEO || state.libraryScope == null),
+                FilterChip(selected = state.libraryMode == mode,
                     onClick = { viewModel.setLibraryMode(mode) }, label = { Text(mode.label) })
             }
         }
