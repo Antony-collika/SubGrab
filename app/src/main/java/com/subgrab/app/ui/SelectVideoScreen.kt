@@ -34,9 +34,18 @@ fun SelectVideoScreen(
     onClearSelection: () -> Unit,
     onNewAnalysis: () -> Unit,
     onStartDownload: (DownloadConfig, String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    total: Int? = null,
+    hasMore: Boolean = false,
+    loadingMore: Boolean = false,
+    fromCache: Boolean = false,
+    notice: String? = null,
+    loadMoreCost: String? = null,
+    onLoadMore: () -> Unit = {},
+    onStopLoading: () -> Unit = {}
 ) {
     var sheetOpen by rememberSaveable { mutableStateOf(false) }
+    var costConfirm by rememberSaveable { mutableStateOf(false) }
     val selected = videos.count { it.isSelected }
     val batchLimit = settings.maxSubtitlesPerTask.coerceIn(1, 50)
 
@@ -56,6 +65,18 @@ fun SelectVideoScreen(
                 "Đã chọn $selected/${videos.size}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (videos.size > 1 || hasMore || loadingMore || notice != null) {
+            LoadStatusRow(
+                count = videos.size,
+                total = total,
+                hasMore = hasMore,
+                loadingMore = loadingMore,
+                fromCache = fromCache,
+                notice = notice,
+                onLoadMore = { if (loadMoreCost != null) costConfirm = true else onLoadMore() },
+                onStop = onStopLoading
             )
         }
         if (selected > batchLimit) {
@@ -88,6 +109,16 @@ fun SelectVideoScreen(
         }
     }
 
+    if (costConfirm) {
+        AlertDialog(
+            onDismissRequest = { costConfirm = false },
+            title = { Text("Tải thêm kết quả?") },
+            text = { Text(loadMoreCost.orEmpty()) },
+            confirmButton = { TextButton(onClick = { costConfirm = false; onLoadMore() }) { Text("Tải thêm") } },
+            dismissButton = { TextButton(onClick = { costConfirm = false }) { Text("Hủy") } }
+        )
+    }
+
     if (sheetOpen) {
         DownloadConfirmSheet(
             videoCount = selected,
@@ -99,6 +130,58 @@ fun SelectVideoScreen(
                 onStartDownload(config, folderName)
             }
         )
+    }
+}
+
+/** Dòng trạng thái: đã lấy bao nhiêu / tổng, còn nữa không, nút Tải thêm hoặc Dừng. */
+@Composable
+private fun LoadStatusRow(
+    count: Int,
+    total: Int?,
+    hasMore: Boolean,
+    loadingMore: Boolean,
+    fromCache: Boolean,
+    notice: String?,
+    onLoadMore: () -> Unit,
+    onStop: () -> Unit
+) {
+    val countText = if (total != null && total > 0 && (hasMore || loadingMore)) "$count/$total" else "$count"
+    val status = when {
+        loadingMore -> "Đang tải thêm… $countText video"
+        hasMore -> "Đã lấy $countText video · còn nữa"
+        fromCache -> "Đã lấy $count video (lưu tạm). Bấm Làm mới để lấy đầy đủ."
+        else -> "Đã lấy hết $count video"
+    }
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                status,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            if (loadingMore) {
+                TextButton(onClick = onStop) { Text("Dừng") }
+            } else if (hasMore) {
+                OutlinedButton(onClick = onLoadMore) { Text("Tải thêm") }
+            }
+        }
+        if (loadingMore) {
+            if (total != null && total > 0) {
+                LinearProgressIndicator(
+                    progress = { (count.toFloat() / total).coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+        }
+        if (notice != null) {
+            Text(notice, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
     }
 }
 

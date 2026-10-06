@@ -138,7 +138,12 @@ fun LibraryScreen(
                     modifier = Modifier.weight(1f).heightIn(min = 52.dp)
                 ) { Text("Phụ đề", maxLines = 1) }
                 Button(
-                    onClick = { commentConfirmOpen = true },
+                    onClick = {
+                        val estimate = estimateComments(state.selectedResults, settings.commentsPerVideo)
+                        // Việc nhỏ thì chạy luôn; vượt ngưỡng mới hỏi để người dùng biết trước chi phí.
+                        if (estimate.requests > COMMENT_CONFIRM_THRESHOLD) commentConfirmOpen = true
+                        else viewModel.fetchComments(state.selectedResults)
+                    },
                     contentPadding = barPadding,
                     modifier = Modifier.weight(1f).heightIn(min = 52.dp)
                 ) { Text("Comments", maxLines = 1) }
@@ -174,13 +179,18 @@ fun LibraryScreen(
         )
     }
     if (commentConfirmOpen) {
+        val estimate = estimateComments(state.selectedResults, settings.commentsPerVideo)
+        val limitText = if (settings.commentsPerVideo > 0) "tối đa ${settings.commentsPerVideo} comment mỗi video" else "không giới hạn mỗi video"
         AlertDialog(
             onDismissRequest = { commentConfirmOpen = false },
             title = { Text("Lấy comment") },
             text = {
                 Text(
-                    "Lấy toàn bộ comment của ${state.selectedVideos.size} video đã chọn và lưu vào máy.\n\n" +
-                        "Cần nhập YouTube API key trong Cài đặt. Video có nhiều comment sẽ tốn nhiều hạn mức API trong ngày."
+                    buildString {
+                        append("${estimate.videos} video ≈ ${Format.count(estimate.comments)} comment ($limitText) ≈ ${estimate.requests} lượt gọi API, chưa tính phần trả lời.")
+                        if (estimate.unknown > 0) append("\n\n${estimate.unknown} video chưa biết số comment, tạm tính 1 lượt mỗi video.")
+                        append("\n\nĐổi giới hạn trong Cài đặt > Giới hạn lấy dữ liệu. Cần nhập YouTube API key trong Cài đặt.")
+                    }
                 )
             },
             confirmButton = {
@@ -247,6 +257,37 @@ fun LibraryScreen(
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Hủy") } }
         )
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Ước tính chi phí lấy comment
+// ---------------------------------------------------------------------------------------------
+
+/** Từ số lượt gọi API ước tính này trở lên thì hỏi xác nhận trước khi lấy comment. */
+private const val COMMENT_CONFIRM_THRESHOLD = 10
+
+private data class CommentEstimate(val videos: Int, val comments: Long, val requests: Int, val unknown: Int)
+
+/**
+ * Ước tính từ số comment đã lưu sẵn của từng video (commentCount): mỗi 100 comment gốc ≈ 1 lượt gọi API.
+ * Con số này là mức tối đa gần đúng vì số comment của YouTube đã tính cả phần trả lời.
+ */
+private fun estimateComments(videos: List<VideoSearchResult>, limitPerVideo: Int): CommentEstimate {
+    var comments = 0L
+    var requests = 0
+    var unknown = 0
+    videos.forEach { video ->
+        val count = video.commentCount
+        if (count == null) {
+            unknown++
+            requests += 1
+        } else {
+            val take = if (limitPerVideo > 0) minOf(count, limitPerVideo.toLong()) else count
+            comments += take
+            requests += maxOf(1, ((take + 99) / 100).toInt())
+        }
+    }
+    return CommentEstimate(videos.size, comments, requests, unknown)
 }
 
 // ---------------------------------------------------------------------------------------------

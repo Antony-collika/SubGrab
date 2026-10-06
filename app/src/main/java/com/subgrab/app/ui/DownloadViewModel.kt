@@ -7,13 +7,33 @@ import com.subgrab.app.data.*
 import com.subgrab.app.data.repository.KnowledgeRepository
 import com.subgrab.app.domain.*
 import com.subgrab.app.service.DownloadWorker
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 sealed interface AnalysisState{
  data object Idle:AnalysisState
- data object Loading:AnalysisState
- data class Ready(val source:Source,val videos:List<VideoItem>,val folder:String,val persistenceWarning:String?=null):AnalysisState
+ /** loaded > 0: đã lấy xong trang đầu và đang lấy các trang kế tiếp (hiện thanh tiến trình + nút Dừng). */
+ data class Loading(val loaded:Int=0,val total:Int?=null):AnalysisState
+ data class Ready(
+  val source:Source,
+  val videos:List<VideoItem>,
+  val folder:String,
+  val persistenceWarning:String?=null,
+  /** Tổng số video mà nguồn báo cho biết (null nếu không biết). */
+  val total:Int?=null,
+  /** Còn video chưa lấy (có thể bấm Tải thêm). */
+  val hasMore:Boolean=false,
+  val loadingMore:Boolean=false,
+  /** Kết quả lấy từ bộ nhớ đệm: không biết còn nữa hay không, cần Làm mới để lấy đầy đủ. */
+  val fromCache:Boolean=false,
+  val isKeyword:Boolean=false,
+  /** Cảnh báo chi phí cần xác nhận trước khi Tải thêm (từ khóa dùng API). */
+  val loadMoreCost:String?=null,
+  /** Thông báo kèm theo (ví dụ: dừng giữa chừng vì lỗi). */
+  val notice:String?=null
+ ):AnalysisState
  data class Error(val message:String,val retryUrl:String?=null):AnalysisState
 }
 class DownloadViewModel(
@@ -36,6 +56,11 @@ class DownloadViewModel(
   }?:DownloadState.Idle
  }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),DownloadState.Idle)
  private var lastUrl:String?=null;private var lastKeyword:String?=null
+ private var loadJob:Job?=null
+ private var moreLoader:(suspend ()->DiscoveryPage)?=null
+ @Volatile private var stopRequested=false
+ /** Dừng việc lấy thêm trang đang chạy (giữ nguyên phần đã lấy). */
+ fun stopLoading(){stopRequested=true}
  fun analyze(input:String, forceRefresh:Boolean=false){
   lastUrl=input
   val urls=YoutubeUrlParser.extractUrls(input)
@@ -48,7 +73,7 @@ class DownloadViewModel(
     _state.value=AnalysisState.Error("Chuỗi nhiều URL chỉ hỗ trợ URL video YouTube",input)
     return
    }
-   _state.value=AnalysisState.Loading
+   _state.value=AnalysisState.Loading()
    viewModelScope.launch{
     val s=settingsRepository.current()
     val result=runCatching{
@@ -69,79 +94,156 @@ class DownloadViewModel(
    return
   }
   lastUrl=url
-  _state.value=AnalysisState.Loading
-  viewModelScope.launch{
+  startDiscovery(url,forceRefresh)
+ }
+ private fun startDiscovery(url:String,forceRefresh:Boolean){
+  loadJob?.cancel()
+  stopRequested=false
+  moreLoader=null
+  _state.value=AnalysisState.Loading()
+  loadJob=viewModelScope.launch{
    val s=settingsRepository.current()
-   val cached = if (!forceRefresh) {
-    knowledgeRepository.getFreshCachedAnalysis(url, s.metadataCacheHours)
-   } else null
-   val result = cached?.let { Result.success(it) } ?: runCatching{
-    when {
-     s.useYouTubeDataApi && YoutubeUrlParser.isPlaylistUrl(url) ->
-      apiDiscovery.discoverPlaylistWithSource(url)
-     s.useYouTubeDataApi && YoutubeUrlParser.isChannelUrl(url) ->
-      apiDiscovery.discoverChannelWithSource(url)
-     s.useYouTubeDataApi ->
-      apiDiscovery.discoverVideo(url).let{v->Source(url,url,v.firstOrNull()?.title?:"YouTube video",v.size) to v}
-     YoutubeUrlParser.isPlaylistUrl(url) ->
-      extractorDiscovery.discoverPlaylistWithSource(url)
-     YoutubeUrlParser.isChannelUrl(url) ->
-      extractorDiscovery.discoverChannelWithSource(url)
-     else ->
-      extractorClient.extractSource(url).getOrThrow()
+   val isPlaylist=YoutubeUrlParser.isPlaylistUrl(url)
+   val isChannel=YoutubeUrlParser.isChannelUrl(url)
+   val paged=isPlaylist||isChannel
+   // Kênh/playlist luôn lấy lại trang đầu để biết còn nữa hay không; bộ nhớ đệm chỉ dùng cho video lẻ.
+   val cached=if(!forceRefresh&&!paged) knowledgeRepository.getFreshCachedAnalysis(url,s.metadataCacheHours) else null
+   val result:Result<Pair<Source,DiscoveryPage>> = cached?.let{Result.success(it.first to DiscoveryPage(it.second))} ?: runCatching{
+    when{
+     s.useYouTubeDataApi&&isPlaylist->apiDiscovery.discoverPlaylistPaged(url)
+     s.useYouTubeDataApi&&isChannel->apiDiscovery.discoverChannelPaged(url)
+     s.useYouTubeDataApi->apiDiscovery.discoverVideo(url).let{v->Source(url,url,v.firstOrNull()?.title?:"YouTube video",v.size) to DiscoveryPage(v)}
+     isPlaylist->extractorClient.discoverPlaylistPaged(url).getOrThrow()
+     isChannel->extractorClient.discoverChannelPaged(url).getOrThrow()
+     else->extractorClient.extractSource(url).getOrThrow().let{(src,v)->src to DiscoveryPage(v)}
     }
    }
-   result.onSuccess{(source,v)->
-    val persistenceError=runCatching { knowledgeRepository.saveAnalysis(source,v,"ANALYZE_URL",s.metadataCacheHours,forceRefresh) }.exceptionOrNull()
-    _state.value=AnalysisState.Ready(source,v,source.title,persistenceError?.let { "Phân tích thành công nhưng chưa lưu được dữ liệu vào database: ${it.message?:"lỗi không xác định"}" })
+   result.onSuccess{(source,first)->
+    deliver(source,first,autoLimit=s.videosPerSource,autoPage=paged,s=s,folder=source.title,keyword=null,forceRefresh=forceRefresh)
    }.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể phân tích link",url)}
+  }
+ }
+ /** Gom thêm trang (nếu cần), lưu vào máy rồi chuyển sang màn kết quả. */
+ private suspend fun deliver(source:Source,first:DiscoveryPage,autoLimit:Int,autoPage:Boolean,s:AppSettings,folder:String,keyword:String?,forceRefresh:Boolean,fromCache:Boolean=false){
+  var latest=first
+  var notice:String?=null
+  if(autoPage&&first.hasMore&&(autoLimit<=0||first.videos.size<autoLimit)){
+   _state.value=AnalysisState.Loading(first.videos.size,first.total)
+   try{
+    latest=first.collectUntil(
+     limit=autoLimit,
+     shouldStop={stopRequested},
+     onPage={page->
+      latest=page
+      _state.value=AnalysisState.Loading(page.videos.size,page.total)
+     }
+    )
+   }catch(e:CancellationException){throw e}
+   catch(e:Throwable){notice="Dừng ở ${latest.videos.size} video: "+(e.message?:"lỗi không xác định")}
+  }
+  moreLoader=latest.loadNext
+  val videos=latest.videos
+  val finalSource=source.copy(originalTotalVideos=videos.size)
+  val saveError=runCatching{
+   if(keyword!=null) knowledgeRepository.saveKeywordSearch(keyword,finalSource,videos,s.metadataCacheHours,forceRefresh)
+   else knowledgeRepository.saveAnalysis(finalSource,videos,"ANALYZE_URL",s.metadataCacheHours,forceRefresh)
+  }.exceptionOrNull()
+  val prefix=if(keyword!=null)"Tìm kiếm" else "Phân tích"
+  _state.value=AnalysisState.Ready(
+   source=finalSource,
+   videos=videos,
+   folder=folder,
+   persistenceWarning=saveError?.let{"$prefix thành công nhưng chưa lưu được dữ liệu vào database: "+(it.message?:"lỗi không xác định")},
+   total=latest.total,
+   hasMore=latest.hasMore,
+   fromCache=fromCache,
+   isKeyword=keyword!=null,
+   loadMoreCost=if(keyword!=null&&s.useYouTubeDataApi)"Mỗi lần tải thêm kết quả tìm kiếm tốn khoảng 100 đơn vị hạn mức YouTube API (mặc định 10.000 đơn vị/ngày)." else null,
+   notice=notice
+  )
+ }
+ /** Lấy thêm video: kênh/playlist theo cài đặt "Video mỗi nguồn"; từ khóa luôn đúng 1 trang. */
+ fun loadMore(){
+  val c=_state.value as? AnalysisState.Ready?:return
+  val loader=moreLoader?:return
+  if(c.loadingMore)return
+  stopRequested=false
+  _state.value=c.copy(loadingMore=true,notice=null)
+  loadJob=viewModelScope.launch{
+   val s=settingsRepository.current()
+   val want=when{c.isKeyword->1;s.videosPerSource<=0->0;else->s.videosPerSource}
+   var latest=DiscoveryPage(emptyList(),c.total,loader)
+   var notice:String?=null
+   try{
+    latest=latest.collectUntil(
+     limit=want,
+     shouldStop={stopRequested},
+     onPage={page->
+      latest=page
+      appendFetched(page)
+     }
+    )
+   }catch(e:CancellationException){throw e}
+   catch(e:Throwable){notice="Dừng khi tải thêm: "+(e.message?:"lỗi không xác định")}
+   moreLoader=latest.loadNext
+   val added=latest.videos
+   val saveError=if(added.isEmpty())null else runCatching{
+    knowledgeRepository.saveAnalysis(c.source,added,"ANALYZE_URL",s.metadataCacheHours,false)
+   }.exceptionOrNull()
+   if(saveError!=null)notice=(notice?.plus("\n")?:"")+"Đã lấy thêm nhưng chưa lưu được dữ liệu: "+(saveError.message?:"lỗi không xác định")
+   _state.update{cur->
+    val ready=(cur as? AnalysisState.Ready)?:return@update cur
+    ready.copy(loadingMore=false,hasMore=latest.hasMore,total=latest.total?:ready.total,notice=notice)
+   }
+  }
+ }
+ /** Nối các video mới vào danh sách đang hiển thị, giữ nguyên các video đã được chọn. */
+ private fun appendFetched(page:DiscoveryPage){
+  _state.update{cur->
+   val ready=(cur as? AnalysisState.Ready)?:return@update cur
+   val known=ready.videos.map{it.videoId}.toHashSet()
+   val fresh=page.videos.filter{it.videoId !in known}.mapIndexed{i,v->v.copy(index=ready.videos.size+i+1)}
+   ready.copy(videos=ready.videos+fresh,total=page.total?:ready.total,hasMore=page.hasMore)
   }
  }
  fun searchKeyword(keyword:String, forceRefresh:Boolean=false){
   lastKeyword=keyword
-  _state.value=AnalysisState.Loading
-  viewModelScope.launch{
+  loadJob?.cancel()
+  stopRequested=false
+  moreLoader=null
+  _state.value=AnalysisState.Loading()
+  loadJob=viewModelScope.launch{
    val s=settingsRepository.current()
-   val cached = if (!forceRefresh) knowledgeRepository.getFreshCachedSearch(keyword, s.metadataCacheHours) else null
-   if(cached != null){
+   val clean=keyword.trim()
+   val cached=if(!forceRefresh) knowledgeRepository.getFreshCachedSearch(keyword,s.metadataCacheHours) else null
+   if(cached!=null){
     val (source,v)=cached
-    val persistenceError=runCatching { knowledgeRepository.saveKeywordSearch(keyword.trim(),source,v,s.metadataCacheHours,forceRefresh) }.exceptionOrNull()
-    _state.value=AnalysisState.Ready(source,v,source.title,persistenceError?.let { "Tìm kiếm thành công nhưng chưa lưu được dữ liệu vào database: " + (it.message ?: "lỗi không xác định") })
-   } else if(s.useYouTubeDataApi){
-    runCatching{apiDiscovery.discoverKeyword(keyword)}
-     .map{v->
-      val clean=keyword.trim()
-      Source("keyword:"+clean,"https://www.youtube.com/results?search_query="+android.net.Uri.encode(clean),clean,v.size) to v
-     }
-     .onSuccess{(source,v)->
-      val clean=keyword.trim()
-      val persistenceError=runCatching { knowledgeRepository.saveKeywordSearch(clean,source,v,s.metadataCacheHours,forceRefresh) }.exceptionOrNull()
-      _state.value=AnalysisState.Ready(source,v,clean,persistenceError?.let { "Tìm kiếm thành công nhưng chưa lưu được dữ liệu vào database: " + (it.message ?: "lỗi không xác định") })
-     }
-     .onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)}
-   } else {
-    runCatching{extractorDiscovery.discoverKeyword(keyword)}
-     .map{v->Source("keyword:"+keyword.trim(),"https://www.youtube.com/results?search_query="+android.net.Uri.encode(keyword.trim()),keyword.trim(),v.size) to v}
-     .onSuccess{(source,v)->
-      val persistenceError=runCatching { knowledgeRepository.saveKeywordSearch(keyword.trim(),source,v,s.metadataCacheHours,forceRefresh) }.exceptionOrNull()
-      _state.value=AnalysisState.Ready(source,v,source.title,persistenceError?.let { "Tìm kiếm thành công nhưng chưa lưu được dữ liệu vào database: " + (it.message ?: "lỗi không xác định") })
-     }
-     .onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)}
+    // Dữ liệu lưu tạm: không biết còn nữa hay không, nên không hiện nút Tải thêm (bấm Làm mới để lấy lại).
+    deliver(source,DiscoveryPage(v),autoLimit=0,autoPage=false,s=s,folder=source.title,keyword=clean,forceRefresh=forceRefresh,fromCache=true)
+    return@launch
    }
+   // Từ khóa: chỉ lấy 1 trang đầu, không tự lật trang (mỗi lần tìm bằng API tốn khoảng 100 đơn vị hạn mức).
+   val result:Result<Pair<Source,DiscoveryPage>> = runCatching{
+    if(s.useYouTubeDataApi) apiDiscovery.discoverKeywordPaged(clean)
+    else extractorClient.searchPaged(clean).getOrThrow()
+   }
+   result.onSuccess{(source,page)->
+    deliver(source,page,autoLimit=0,autoPage=false,s=s,folder=clean,keyword=clean,forceRefresh=forceRefresh)
+   }.onFailure{_state.value=AnalysisState.Error(it.message?:"Không thể tìm video",null)}
   }
  }
  private fun isPlaylist(url:String)=url.contains("playlist",true)||url.contains("list=",true)
  private fun isChannel(url:String)=url.contains("/channel/",true)||url.contains("/c/",true)||url.contains("/@",true)
  fun retryAnalysis(){lastUrl?.let(::analyze)?:lastKeyword?.let(::searchKeyword)}
- fun refreshMetadata(){lastUrl?.let{analyze(it,true)}?:lastKeyword?.let{searchKeyword(it,true)}};fun resetAnalysis(){_state.value=AnalysisState.Idle}
- fun toggle(index:Int){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(videos=c.videos.map{if(it.index==index&&(it.isSelected||c.videos.count{v->v.isSelected}<50)&&it.canSelect)it.copy(isSelected=!it.isSelected)else it})}
+ fun refreshMetadata(){lastUrl?.let{analyze(it,true)}?:lastKeyword?.let{searchKeyword(it,true)}};fun resetAnalysis(){loadJob?.cancel();moreLoader=null;_state.value=AnalysisState.Idle}
+ fun toggle(index:Int){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(videos=c.videos.map{if(it.index==index&&it.canSelect)it.copy(isSelected=!it.isSelected)else it})}
  fun selectAll(){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(videos=c.videos.map{if(it.canSelect)it.copy(isSelected=true)else it})}
  fun clearSelection(){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(videos=c.videos.map{it.copy(isSelected=false)})}
  fun updateFolder(folder:String){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(folder=folder)}
  fun startDownload(config: DownloadConfig, onEnqueued:()->Unit={}){
   val c=_state.value as? AnalysisState.Ready?:return
   viewModelScope.launch{
-   DownloadWorker.enqueueBatch(context,c.source,c.videos,c.folder,config)
+   DownloadWorker.enqueueBatch(context,c.source.copy(originalTotalVideos=c.videos.size),c.videos,c.folder,config)
    onEnqueued()
   }
  }

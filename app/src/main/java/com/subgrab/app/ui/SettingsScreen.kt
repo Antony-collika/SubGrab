@@ -42,7 +42,9 @@ private class SettingsEditor(private val repository: SettingsRepository, private
             maxSubtitlesPerTask = v.maxSubtitlesPerTask.coerceIn(1, 50),
             apiBaseDelayMs = v.apiBaseDelayMs.coerceAtLeast(0L),
             apiJitterMinMs = v.apiJitterMinMs.coerceAtLeast(0L),
-            apiJitterMaxMs = v.apiJitterMaxMs.coerceAtLeast(v.apiJitterMinMs.coerceAtLeast(0L))
+            apiJitterMaxMs = v.apiJitterMaxMs.coerceAtLeast(v.apiJitterMinMs.coerceAtLeast(0L)),
+            videosPerSource = v.videosPerSource.coerceAtLeast(0),
+            commentsPerVideo = v.commentsPerVideo.coerceAtLeast(0)
         )
         draft = normalized
         saveError = null
@@ -126,9 +128,15 @@ fun SettingsScreen(
             SettingsGroup("Lưu trữ") {
                 ValueRow("Thư mục lưu", "Bên trong Download", value.outputDir, pickFolder)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                ValueRow("Giới hạn mỗi lượt", "Số video tối đa trong 1 lượt tải", "${value.maxSubtitlesPerTask} video") { dialog = "batch" }
+                ValueRow("Thời gian lưu tạm dữ liệu", "0 = luôn làm mới. Chỉ áp dụng cho video lẻ và từ khóa", "${value.metadataCacheHours} giờ") { dialog = "cache" }
+            }
+
+            SettingsGroup("Giới hạn lấy dữ liệu") {
+                ValueRow("Video mỗi nguồn", "Kênh/playlist. Từ khóa luôn lấy 1 trang đầu", limitLabel(value.videosPerSource, "video")) { dialog = "videos" }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                ValueRow("Thời gian lưu tạm dữ liệu", "0 = luôn làm mới khi phân tích lại", "${value.metadataCacheHours} giờ") { dialog = "cache" }
+                ValueRow("Comment mỗi video", "Số comment gốc tối đa mỗi video", limitLabel(value.commentsPerVideo, "comment")) { dialog = "comments" }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                ValueRow("Phụ đề mỗi lượt", "Số video tối đa trong 1 lượt tải", "${value.maxSubtitlesPerTask} video") { dialog = "batch" }
             }
 
             SettingsGroup("Nâng cao") {
@@ -144,8 +152,28 @@ fun SettingsScreen(
     }
 
     when (dialog) {
+        "videos" -> LimitDialog(
+            title = "Video mỗi nguồn",
+            hint = "Số video tự lấy mỗi lần phân tích kênh/playlist. Chọn Tất cả sẽ lấy đến hết, có thanh tiến trình và nút Dừng. " +
+                "Luôn có nút Tải thêm ở màn kết quả. Từ khóa chỉ lấy 1 trang đầu vì mỗi lần tìm tốn khoảng 100 đơn vị hạn mức API.",
+            options = listOf(50, 100, 500, 0),
+            unit = "video",
+            selected = value.videosPerSource,
+            onDismiss = { dialog = null },
+            onSelect = { dialog = null; editor.save(value.copy(videosPerSource = it)) }
+        )
+        "comments" -> LimitDialog(
+            title = "Comment mỗi video",
+            hint = "Số comment gốc tối đa lấy cho mỗi video (kèm phần trả lời của các comment đó). " +
+                "Mỗi 100 comment tốn khoảng 1 đơn vị hạn mức YouTube API.",
+            options = listOf(100, 500, 0),
+            unit = "comment",
+            selected = value.commentsPerVideo,
+            onDismiss = { dialog = null },
+            onSelect = { dialog = null; editor.save(value.copy(commentsPerVideo = it)) }
+        )
         "batch" -> NumberDialog(
-            title = "Giới hạn mỗi lượt",
+            title = "Phụ đề mỗi lượt",
             hint = "Từ 1 đến 50 video. Các video còn lại sẽ chờ lượt kế tiếp.",
             initial = value.maxSubtitlesPerTask.toLong(),
             onDismiss = { dialog = null },
@@ -235,6 +263,46 @@ private fun NumberDialog(title: String, hint: String, initial: Long, onDismiss: 
             TextButton(enabled = text.isNotEmpty(), onClick = { text.toLongOrNull()?.let(onConfirm) }) { Text("Lưu") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Hủy") } }
+    )
+}
+
+private fun limitLabel(value: Int, unit: String): String = if (value <= 0) "Tất cả" else "$value $unit"
+
+@Composable
+private fun LimitDialog(
+    title: String,
+    hint: String,
+    options: List<Int>,
+    unit: String,
+    selected: Int,
+    onDismiss: () -> Unit,
+    onSelect: (Int) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                options.forEach { option ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable { onSelect(option) }.padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = option == selected, onClick = null)
+                        Spacer(Modifier.width(12.dp))
+                        Text(limitLabel(option, unit), style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+                Text(
+                    hint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Đóng") } }
     )
 }
 
