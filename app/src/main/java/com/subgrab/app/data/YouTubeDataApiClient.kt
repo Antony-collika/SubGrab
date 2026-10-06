@@ -57,7 +57,7 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
   val next=json.optString("nextPageToken").takeIf{it.isNotBlank()}
   return DiscoveryPage(videos,null,nextLoader(next){searchPage(query,it)})
  }
- suspend fun searchKeyword(query:String):List<VideoItem>=searchPage(query).videos
+ suspend fun searchKeyword(query:String):List<VideoItem> = searchPage(query).videos
  suspend fun getChannelTitle(source:String):String{
   return getChannelResource(source,"snippet").optJSONArray("items")?.optJSONObject(0)
    ?.optJSONObject("snippet")?.optString("title").orEmpty()
@@ -87,7 +87,7 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
  }
  /** Trang đầu danh sách video đã đăng của kênh (kèm tổng số video và hàm lấy trang kế tiếp). */
  suspend fun channelUploadsPage(source:String):DiscoveryPage=playlistPage(uploadsPlaylistId(source))
- suspend fun listChannelUploads(source:String):List<VideoItem>=channelUploadsPage(source).videos
+ suspend fun listChannelUploads(source:String):List<VideoItem> = channelUploadsPage(source).videos
  suspend fun getPlaylistTitle(source:String):String{
   val id=Uri.parse(source).getQueryParameter("list")
    ?: Regex("[?&]list=([^&]+)").find(source)?.groupValues?.get(1)
@@ -111,7 +111,7 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
   return DiscoveryPage(videos,total,nextLoader(next){playlistPage(playlistId,it)})
  }
  suspend fun playlistPageFor(source:String):DiscoveryPage=playlistPage(playlistIdOf(source))
- suspend fun listPlaylistItems(source:String):List<VideoItem>=playlistPageFor(source).videos
+ suspend fun listPlaylistItems(source:String):List<VideoItem> = playlistPageFor(source).videos
  suspend fun getVideoMetadataInOrder(ids:List<String>):List<VideoItem>{
   val uniqueIds=ids.map(String::trim).filter(String::isNotBlank).distinct().take(50)
   if(uniqueIds.isEmpty())return emptyList()
