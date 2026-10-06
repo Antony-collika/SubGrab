@@ -15,5 +15,8 @@ interface ResearchQueryDao {
     suspend fun countResults(query: SupportSQLiteQuery): Int
 
     @RawQuery
+    suspend fun libraryObjects(query: SupportSQLiteQuery): List<com.subgrab.app.domain.LibraryObject>
+
+    @RawQuery
     suspend fun activities(query: SupportSQLiteQuery): List<ResearchActivityItem>
 }
