@@ -532,7 +532,6 @@ private fun pillColors() = FilterChipDefaults.filterChipColors(
 )
 
 @Composable
-@Composable
 private fun QuickFilterRow(
     filters: ResearchFilters,
     libraryMode: LibraryMode,
