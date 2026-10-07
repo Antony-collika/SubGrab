@@ -62,6 +62,8 @@ class DownloadViewModel(
  /** Dừng việc lấy thêm trang đang chạy (giữ nguyên phần đã lấy). */
  fun stopLoading(){stopRequested=true}
  fun openRecent(item: RecentItem) {
+  lastUrl = if (item.kind == RecentKind.KEYWORD) null else item.input
+  lastKeyword = if (item.kind == RecentKind.KEYWORD) item.input else null
   loadJob?.cancel()
   moreLoader = null
   stopRequested = false
