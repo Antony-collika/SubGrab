@@ -256,7 +256,7 @@ fun SubGrabApp() {
                 DownloadProgressScreen(
                     state = downloadState,
                     historyRepository = historyRepo,
-                    batchLimit = settings.maxSubtitlesPerTask.coerceIn(1, 50),
+                    batchLimit = settings.maxSubtitlesPerTask,
                     onBack = goBack,
                     onPause = vm::pauseDownload,
                     onResume = vm::resumeDownload,
