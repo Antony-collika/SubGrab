@@ -436,7 +436,7 @@ private fun VideoTab(
                 when {
                     browsingObjects -> "${state.libraryObjects.size} ${state.libraryMode.label.lowercase()} trong thư viện"
                     state.libraryScope != null -> "${state.resultCount} video trong ${state.libraryMode.label.lowercase()}"
-                    else -> "${state.resultCount} kết quả · Sắp xếp: ${state.sort.label}"
+                    else -> "${state.resultCount} kết quả"
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -446,6 +446,11 @@ private fun VideoTab(
                 TextButton(onClick = viewModel::backToLibraryObjects) { Text("Quay lại") }
             } else if (!browsingObjects && hasFilter) {
                 TextButton(onClick = { viewModel.clearAll() }) { Text("Xóa lọc") }
+            }
+            if (!browsingObjects) {
+                TextButton(onClick = { viewModel.updateSort(nextResearchSort(state.sort)) }) {
+                    Text("Sắp xếp: ${state.sort.label}")
+                }
             }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -540,61 +545,27 @@ private fun QuickFilterRow(
     onSelectLibraryMode: (LibraryMode) -> Unit,
     onOpenFilter: () -> Unit
 ) {
-    var dateMenu by remember { mutableStateOf(false) }
     val pill = RoundedCornerShape(50)
-    val datePreset = presetLabel(filters)
     val advanced = activeFilterCount(filters)
-    val videoMode = libraryMode == LibraryMode.VIDEO || hasLibraryScope
+    val selectedMode = if (hasLibraryScope) LibraryMode.VIDEO else libraryMode
+    val videoMode = selectedMode == LibraryMode.VIDEO
 
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
-            val on = DOWNLOADED_TYPE in filters.activityTypes
             FilterChip(
-                selected = on,
-                onClick = {
-                    if (videoMode) {
-                        onChange(filters.copy(activityTypes = if (on) filters.activityTypes - DOWNLOADED_TYPE else filters.activityTypes + DOWNLOADED_TYPE))
-                    }
-                },
-                label = { Text("Đã tải phụ đề") },
+                selected = selectedMode == LibraryMode.VIDEO,
+                onClick = { onSelectLibraryMode(LibraryMode.VIDEO) },
+                label = { Text("Video") },
                 shape = pill,
                 colors = pillColors()
             )
         }
         item {
-            Box {
-                FilterChip(
-                    selected = datePreset != null,
-                    onClick = { if (videoMode) dateMenu = true },
-                    label = { Text(datePreset ?: "Thời gian") },
-                    trailingIcon = if (datePreset != null) ({
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Bỏ lọc thời gian",
-                            modifier = Modifier.size(18.dp).clickable {
-                                if (videoMode) onChange(filters.copy(publishedWithinHours = null, publishedFrom = null, publishedTo = null))
-                            }
-                        )
-                    }) else null,
-                    shape = pill,
-                    colors = pillColors()
-                )
-                DropdownMenu(expanded = dateMenu, onDismissRequest = { dateMenu = false }) {
-                    listOf("24 giờ qua" to 24L, "7 ngày qua" to 168L, "30 ngày qua" to 720L).forEach { (label, hours) ->
-                        DropdownMenuItem(text = { Text(label) }, onClick = {
-                            dateMenu = false
-                            onChange(filters.copy(publishedWithinHours = hours, publishedFrom = null, publishedTo = null))
-                        })
-                    }
-                }
-            }
-        }
-        item {
             FilterChip(
-                selected = libraryMode == LibraryMode.CHANNEL,
+                selected = selectedMode == LibraryMode.CHANNEL,
                 onClick = { onSelectLibraryMode(LibraryMode.CHANNEL) },
                 label = { Text("Kênh") },
                 shape = pill,
@@ -603,7 +574,7 @@ private fun QuickFilterRow(
         }
         item {
             FilterChip(
-                selected = libraryMode == LibraryMode.PLAYLIST,
+                selected = selectedMode == LibraryMode.PLAYLIST,
                 onClick = { onSelectLibraryMode(LibraryMode.PLAYLIST) },
                 label = { Text("Playlist") },
                 shape = pill,
@@ -612,7 +583,7 @@ private fun QuickFilterRow(
         }
         item {
             FilterChip(
-                selected = libraryMode == LibraryMode.KEYWORD,
+                selected = selectedMode == LibraryMode.KEYWORD,
                 onClick = { onSelectLibraryMode(LibraryMode.KEYWORD) },
                 label = { Text("Từ khóa") },
                 shape = pill,
@@ -622,14 +593,26 @@ private fun QuickFilterRow(
         item {
             FilterChip(
                 selected = advanced > 0,
-                onClick = { if (videoMode) onOpenFilter() },
-                label = { Text(if (advanced > 0) "Bộ lọc ($advanced)" else "Bộ lọc") },
+                onClick = onOpenFilter,
+                enabled = videoMode,
+                label = { Text(if (advanced > 0) "Bộ lọc (${advanced})" else "Bộ lọc") },
                 leadingIcon = { Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(18.dp)) },
                 shape = pill,
                 colors = pillColors()
             )
         }
     }
+}
+
+private fun nextResearchSort(sort: ResearchSort): ResearchSort = when (sort) {
+    ResearchSort.PUBLISHED_DESC -> ResearchSort.FETCHED_DESC
+    ResearchSort.FETCHED_DESC -> ResearchSort.VIEWS_DESC
+    ResearchSort.VIEWS_DESC -> ResearchSort.LIKES_DESC
+    ResearchSort.LIKES_DESC -> ResearchSort.COMMENTS_DESC
+    ResearchSort.COMMENTS_DESC -> ResearchSort.DURATION_DESC
+    ResearchSort.DURATION_DESC -> ResearchSort.TITLE_ASC
+    ResearchSort.TITLE_ASC -> ResearchSort.CHANNEL_ASC
+    ResearchSort.CHANNEL_ASC -> ResearchSort.PUBLISHED_DESC
 }
 
 @OptIn(ExperimentalFoundationApi::class)
