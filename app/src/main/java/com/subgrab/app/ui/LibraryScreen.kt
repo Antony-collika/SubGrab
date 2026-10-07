@@ -42,6 +42,8 @@ import com.subgrab.app.data.HistoryRepository
 import com.subgrab.app.data.export.ResearchExport
 import com.subgrab.app.domain.AppSettings
 import com.subgrab.app.domain.DownloadConfig
+import com.subgrab.app.domain.LibraryMode
+import com.subgrab.app.domain.LibraryObject
 import com.subgrab.app.domain.ResearchFilters
 import com.subgrab.app.domain.ResearchSort
 import com.subgrab.app.domain.SearchState
@@ -76,7 +78,8 @@ fun LibraryScreen(
     val selecting = state.selectedVideos.isNotEmpty()
 
     LaunchedEffect(Unit) { viewModel.search() }
-    BackHandler(enabled = selecting) { viewModel.clearSelection() }
+    BackHandler(enabled = state.libraryScope != null) { viewModel.backToLibraryObjects() }
+    BackHandler(enabled = state.libraryScope == null && selecting) { viewModel.clearSelection() }
 
     Column(modifier.fillMaxSize()) {
         if (selecting) {
@@ -396,6 +399,7 @@ private fun VideoTab(
     var sortOpen by remember { mutableStateOf(false) }
     val selecting = state.selectedVideos.isNotEmpty()
     val hasFilter = state.query.isNotBlank() || state.filters != ResearchFilters()
+    val browsingObjects = state.libraryMode != LibraryMode.VIDEO && state.libraryScope == null
 
     Column(modifier.fillMaxWidth()) {
         OutlinedTextField(
@@ -418,64 +422,104 @@ private fun VideoTab(
             ),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
         )
-        QuickFilterRow(state.filters, onChange = viewModel::applyFilters, onOpenFilter = onOpenFilter)
+        QuickFilterRow(
+            filters = state.filters,
+            libraryMode = state.libraryMode,
+            hasLibraryScope = state.libraryScope != null,
+            onChange = { if (state.libraryMode == LibraryMode.VIDEO || state.libraryScope != null) viewModel.applyFilters(it) else viewModel.updateFilters(it) },
+            onSelectLibraryMode = viewModel::setLibraryMode,
+            onOpenFilter = onOpenFilter
+        )
 
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box {
-                Row(Modifier.clip(RoundedCornerShape(8.dp)).clickable { sortOpen = true }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "${state.resultCount} kết quả · Sắp xếp: ${state.sort.label}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
-                    ResearchSort.entries.forEach { sort ->
-                        DropdownMenuItem(text = { Text(sort.label) }, onClick = { sortOpen = false; viewModel.updateSort(sort) })
-                    }
-                }
-            }
+            Text(
+                when {
+                    browsingObjects -> "${state.libraryObjects.size} ${state.libraryMode.label.lowercase()} trong thư viện"
+                    state.libraryScope != null -> "${state.resultCount} video trong ${state.libraryMode.label.lowercase()}"
+                    else -> "${state.resultCount} kết quả · Sắp xếp: ${state.sort.label}"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(Modifier.weight(1f))
-            if (hasFilter) TextButton(onClick = { viewModel.clearAll() }) { Text("Xóa lọc") }
+            if (state.libraryScope != null) {
+                TextButton(onClick = viewModel::backToLibraryObjects) { Text("Quay lại") }
+            } else if (!browsingObjects && hasFilter) {
+                TextButton(onClick = { viewModel.clearAll() }) { Text("Xóa lọc") }
+            }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-        if (state.loading && state.results.isEmpty()) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (state.loading && state.results.isEmpty() && state.libraryObjects.isEmpty()) {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+        }
         state.error?.let {
             Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(16.dp))
         }
 
-        LazyColumn(Modifier.weight(1f)) {
-            if (state.results.isEmpty() && !state.loading) {
-                item {
-                    EmptyHint(
-                        if (hasFilter) "Không có video nào khớp với bộ lọc."
-                        else "Thư viện còn trống. Hãy phân tích một link hoặc tìm theo từ khóa ở tab Tải."
-                    )
+        if (browsingObjects) {
+            LazyColumn(Modifier.weight(1f)) {
+                val objects = state.libraryObjects.filter {
+                    state.query.isBlank() || it.title.contains(state.query.trim(), ignoreCase = true)
+                }
+                if (objects.isEmpty() && !state.loading) {
+                    item { EmptyHint("Chưa có ${state.libraryMode.label.lowercase()} nào trong thư viện.") }
+                }
+                items(objects, key = { "${state.libraryMode}:${it.id}" }) { item ->
+                    LibraryObjectRow(item = item, onClick = { viewModel.openLibraryObject(item) })
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
-            items(state.results, key = { it.videoId }) { result ->
-                LibraryRow(
-                    result = result,
-                    query = state.query,
-                    selecting = selecting,
-                    selected = result.videoId in state.selectedVideos,
-                    onClick = { if (selecting) viewModel.toggleSelection(result.videoId) else onOpenDetail(result.videoId) },
-                    onLongClick = { viewModel.toggleSelection(result.videoId) },
-                    onKeywordClick = { kw -> viewModel.applyFilters(state.filters.copy(searchKeywordContext = kw)) }
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            }
-            if (state.hasMore) {
-                item {
-                    LaunchedEffect(state.page, state.results.size) { viewModel.loadMore() }
-                    Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+        } else {
+            LazyColumn(Modifier.weight(1f)) {
+                if (state.results.isEmpty() && !state.loading) {
+                    item {
+                        EmptyHint(
+                            if (hasFilter) "Không có video nào khớp với bộ lọc."
+                            else "Thư viện còn trống. Hãy phân tích một link hoặc tìm theo từ khóa ở tab Tải."
+                        )
+                    }
+                }
+                items(state.results, key = { it.videoId }) { result ->
+                    LibraryRow(
+                        result = result,
+                        query = state.query,
+                        selecting = selecting,
+                        selected = result.videoId in state.selectedVideos,
+                        onClick = { if (selecting) viewModel.toggleSelection(result.videoId) else onOpenDetail(result.videoId) },
+                        onLongClick = { viewModel.toggleSelection(result.videoId) },
+                        onKeywordClick = { kw -> viewModel.applyFilters(state.filters.copy(searchKeywordContext = kw)) }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+                if (state.hasMore) {
+                    item {
+                        LaunchedEffect(state.page, state.results.size) { viewModel.loadMore() }
+                        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LibraryObjectRow(item: LibraryObject, onClick: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(item.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(
+            buildString {
+                append("${item.count} video")
+                item.subtitle?.takeIf { it.isNotBlank() }?.let { append(" · $it") }
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
