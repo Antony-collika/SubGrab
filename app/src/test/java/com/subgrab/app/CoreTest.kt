@@ -209,9 +209,13 @@ class CoreTest {
         )
     }
 
-    @Test fun taskProgressNeverExceedsLimit() {
-        val videos = (1..50).map { VideoItem(it, "$it", "Video $it", 60, listOf(SubtitleLanguage("vi"))) }
-        assertEquals(50, videos.size)
+    @Test fun taskPlannerKeepsAllSelectedVideosAcrossTasks() {
+        val videos = (1..120).map { VideoItem(it, "$it", "Video $it", 60, listOf(SubtitleLanguage("vi"))) }
+        val tasks = DownloadTaskPlanner.plan(videos, maxPerTask = 10)
+
+        assertEquals(12, tasks.size)
+        assertTrue(tasks.all { it.size <= 10 })
+        assertEquals(120, tasks.sumOf { it.size })
     }
 
     @Test fun governorSlowsDownOnRateLimitAndRecoversAfterStableTraffic() {
