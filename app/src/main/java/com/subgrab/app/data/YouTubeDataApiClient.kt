@@ -96,7 +96,7 @@ class YouTubeDataApiClient(private val settings:SettingsRepository,private val p
   return getVideoMetadata(videoIds)
  }
  suspend fun getVideoMetadataInOrder(ids:List<String>):List<VideoItem>{
-  val uniqueIds=ids.map(String::trim).filter(String::isNotBlank).distinct().take(50)
+  val uniqueIds=ids.map(String::trim).filter(String::isNotBlank).distinct()
   if(uniqueIds.isEmpty())return emptyList()
   val fetched=getVideoMetadata(uniqueIds)
   val byId=fetched.associateBy{it.videoId}
