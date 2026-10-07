@@ -61,6 +61,23 @@ class DownloadViewModel(
  @Volatile private var stopRequested=false
  /** Dừng việc lấy thêm trang đang chạy (giữ nguyên phần đã lấy). */
  fun stopLoading(){stopRequested=true}
+ fun openRecent(item: RecentItem) {
+  loadJob?.cancel()
+  moreLoader = null
+  stopRequested = false
+  loadJob = viewModelScope.launch {
+   _state.value = AnalysisState.Loading()
+   runCatching { knowledgeRepository.loadRecent(item) }
+    .onSuccess { loaded ->
+      if (loaded == null) _state.value = AnalysisState.Error("Dữ liệu của mục Gần đây không còn trong thư viện", item.input)
+      else {
+       val (source, videos) = loaded
+       _state.value = AnalysisState.Ready(source, videos, source.title, total = videos.size, hasMore = false, fromCache = true, isKeyword = item.kind == RecentKind.KEYWORD)
+      }
+    }
+    .onFailure { _state.value = AnalysisState.Error(it.message ?: "Không thể mở dữ liệu đã lưu", item.input) }
+  }
+ }
  fun analyze(input:String, forceRefresh:Boolean=false){
   lastUrl=input
   val urls=YoutubeUrlParser.extractUrls(input)
