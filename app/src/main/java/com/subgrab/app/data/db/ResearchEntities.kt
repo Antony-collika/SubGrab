@@ -105,6 +105,16 @@ data class SearchSessionVideoCrossRef(
         Index("searchSessionId")
     ]
 )
+@Entity(tableName = "analyst_tasks", indices = [Index("timestamp"), Index("kind")])
+data class AnalystTaskEntity(
+    @PrimaryKey val id: String,
+    val kind: String,
+    val input: String,
+    val title: String,
+    val videoCount: Int,
+    val timestamp: Long
+)
+
 data class UserActivityEntity(
     @PrimaryKey val id: String,
     val type: String,
