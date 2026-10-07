@@ -396,7 +396,6 @@ private fun VideoTab(
     onOpenFilter: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var sortOpen by remember { mutableStateOf(false) }
     val selecting = state.selectedVideos.isNotEmpty()
     val hasFilter = state.query.isNotBlank() || state.filters != ResearchFilters()
     val browsingObjects = state.libraryMode != LibraryMode.VIDEO && state.libraryScope == null
@@ -423,10 +422,8 @@ private fun VideoTab(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
         )
         QuickFilterRow(
-            filters = state.filters,
             libraryMode = state.libraryMode,
             hasLibraryScope = state.libraryScope != null,
-            onChange = { if (state.libraryMode == LibraryMode.VIDEO || state.libraryScope != null) viewModel.applyFilters(it) else viewModel.updateFilters(it) },
             onSelectLibraryMode = viewModel::setLibraryMode,
             onOpenFilter = onOpenFilter
         )
@@ -538,10 +535,8 @@ private fun pillColors() = FilterChipDefaults.filterChipColors(
 
 @Composable
 private fun QuickFilterRow(
-    filters: ResearchFilters,
     libraryMode: LibraryMode,
     hasLibraryScope: Boolean,
-    onChange: (ResearchFilters) -> Unit,
     onSelectLibraryMode: (LibraryMode) -> Unit,
     onOpenFilter: () -> Unit
 ) {
