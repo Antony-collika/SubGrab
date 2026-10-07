@@ -22,16 +22,7 @@ data class RecentItem(
 class RecentRepository(private val context: Context) {
     private val database by lazy { SubGrabDatabase.get(context.applicationContext) }
 
-    val entries: Flow<List<RecentItem>> = database.analystTaskDao().let { dao ->
-        kotlinx.coroutines.flow.flow {
-            emitAll(kotlinx.coroutines.flow.flow {
-                while (true) {
-                    emit(dao.recent(8, 0))
-                    kotlinx.coroutines.delay(500)
-                }
-            })
-        }.map { rows -> rows.map(::toRecentItem) }
-    }
+    val entries: Flow<List<RecentItem>> = database.analystTaskDao().recent(8, 0).map { rows -> rows.map(::toRecentItem) }
 
     suspend fun add(item: RecentItem) {
         database.analystTaskDao().upsert(
