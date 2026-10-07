@@ -110,7 +110,7 @@ class DownloadOrchestrator(
     ) {
         paused = false
         cancelled = false
-        val selected = videos.filter { it.isSelected }.take(50)
+        val selected = videos.filter { it.isSelected }
         val dir = storage.createTaskDirectory(folderName, config.outputDir)
         val historyId = UUID.randomUUID().toString()
         val logs = mutableListOf<String>()
