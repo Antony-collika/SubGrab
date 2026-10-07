@@ -17,7 +17,7 @@ class ApiDiscoveryClient(private val api:YouTubeDataApiClient):DiscoveryClient{
   return com.subgrab.app.domain.Source(source,source,title,videos.size) to videos
  }
  suspend fun discoverVideoCollectionWithSource(sources:List<String>):Pair<com.subgrab.app.domain.Source,List<VideoItem>>{
-  val ids=sources.mapNotNull{videoId(it)}.distinct().take(50)
+  val ids=sources.mapNotNull{videoId(it)}.distinct()
   require(ids.size==sources.distinct().size) { "Chuỗi nhiều URL chỉ hỗ trợ URL video YouTube hợp lệ" }
   val videos=api.getVideoMetadataInOrder(ids)
   return com.subgrab.app.domain.Source("collection",sources.joinToString("\n"),"Collection",videos.size) to videos
