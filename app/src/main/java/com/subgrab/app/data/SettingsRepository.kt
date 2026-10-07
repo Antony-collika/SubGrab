@@ -32,7 +32,7 @@ class SettingsRepository(private val context: Context) {
             useYouTubeDataApi=p[Keys.useApi] ?: false, youtubeDataApiKey=p[Keys.apiKey] ?: "",
             subtitleDelayMode=p[Keys.subtitleDelayMode] ?: "AUTO", subtitleBaseDelayMs=(p[Keys.subtitleBase] ?: 0).coerceAtLeast(0),
             subtitleJitterMinMs=(p[Keys.subtitleJitterMin] ?: 0).coerceAtLeast(0), subtitleJitterMaxMs=(p[Keys.subtitleJitterMax] ?: 0).coerceAtLeast(0),
-            subtitleConcurrency=(p[Keys.subtitleConcurrency] ?: 1).coerceAtLeast(1), maxSubtitlesPerTask=(p[Keys.maxSubtitlesPerTask] ?: 10).coerceIn(1, 50),
+            subtitleConcurrency=(p[Keys.subtitleConcurrency] ?: 1).coerceAtLeast(1), maxSubtitlesPerTask=(p[Keys.maxSubtitlesPerTask] ?: 10).coerceAtLeast(1),
             apiDelayMode=p[Keys.apiDelayMode] ?: "NONE", apiBaseDelayMs=(p[Keys.apiBase] ?: 0).coerceAtLeast(0),
             apiJitterMinMs=(p[Keys.apiJitterMin] ?: 0).coerceAtLeast(0), apiJitterMaxMs=(p[Keys.apiJitterMax] ?: 0).coerceAtLeast(0),
             metadataCacheHours=(p[Keys.metadataCacheHours] ?: 24).coerceAtLeast(0),
@@ -44,7 +44,7 @@ class SettingsRepository(private val context: Context) {
         require(value.subtitleBaseDelayMs >= 0 && value.apiBaseDelayMs >= 0)
         require(value.subtitleJitterMinMs >= 0 && value.subtitleJitterMaxMs >= value.subtitleJitterMinMs)
         require(value.apiJitterMinMs >= 0 && value.apiJitterMaxMs >= value.apiJitterMinMs)
-        require(value.subtitleConcurrency >= 1 && value.maxSubtitlesPerTask in 1..50)
+        require(value.subtitleConcurrency >= 1 && value.maxSubtitlesPerTask >= 1)
         require(value.metadataCacheHours >= 0)
         require(value.videosPerSource >= 0 && value.commentsPerVideo >= 0)
         context.settingsStore.edit { p ->
