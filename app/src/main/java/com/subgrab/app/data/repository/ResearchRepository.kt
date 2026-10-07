@@ -124,7 +124,7 @@ class ResearchRepository(private val database: SubGrabDatabase) {
             LibraryMode.VIDEO -> return emptyList()
             LibraryMode.CHANNEL -> "SELECT c.channelId AS id, COALESCE(c.name, 'Kênh chưa đặt tên') AS title, COUNT(DISTINCT v.videoId) AS count FROM channels c JOIN videos v ON v.channelId = c.channelId GROUP BY c.channelId ORDER BY LOWER(title)"
             LibraryMode.PLAYLIST -> "SELECT p.playlistId AS id, p.title AS title, COUNT(DISTINCT pv.videoId) AS count FROM playlists p LEFT JOIN playlist_video pv ON pv.playlistId = p.playlistId GROUP BY p.playlistId ORDER BY LOWER(title)"
-            LibraryMode.KEYWORD -> "SELECT ss.query AS id, ss.query AS title, COUNT(DISTINCT ssv.videoId) AS count FROM search_sessions ss JOIN search_session_video ssv ON ssv.searchSessionId = ss.id GROUP BY ss.query ORDER BY MAX(ss.fetchedAt) DESC"
+            LibraryMode.KEYWORD -> "SELECT ss.query AS id, ss.query AS title, COUNT(DISTINCT ssv.videoId) AS count FROM search_sessions ss JOIN search_session_video ssv ON ssv.searchSessionId = ss.id GROUP BY ss.query ORDER BY LOWER(title)"
         }
         return database.researchQueryDao().libraryObjects(SimpleSQLiteQuery(sql))
     }
