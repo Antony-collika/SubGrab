@@ -104,6 +104,13 @@ class ResearchSearchViewModel(
         _state.update { it.copy(filters = filters, error = null) }
     }
 
+    fun updateSort(sort: ResearchSort) {
+        _state.update { it.copy(sort = sort, error = null) }
+        if (_state.value.libraryMode == LibraryMode.VIDEO || _state.value.libraryScope != null) {
+            search()
+        }
+    }
+
     /** Đặt bộ lọc mới và tìm lại ngay. */
     fun applyFilters(filters: ResearchFilters) {
         updateFilters(filters)
