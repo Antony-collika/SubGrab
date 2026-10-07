@@ -237,12 +237,19 @@ fun VideoDetailScreen(
             }
         }
 
-        item { Text("Metadata history", style = MaterialTheme.typography.titleMedium) }
-        items(state.snapshotHistory) { snapshot ->
-            Text(
-                DateFormat.getDateTimeInstance().format(Date(snapshot.fetchedAt)) + " · " + snapshot.title,
-                style = MaterialTheme.typography.bodySmall
-            )
+        state.result?.let { result ->
+            item {
+                Text(
+                    "Video create by ${result.channelName.orEmpty()} at ${formatPublishedDate(result.publishedAt)}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            item {
+                Text(
+                    "Fetched at " + DateFormat.getDateTimeInstance().format(Date(result.fetchedAt)),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
 
         item {
