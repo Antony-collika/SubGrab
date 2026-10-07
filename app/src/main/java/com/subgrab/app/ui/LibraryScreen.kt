@@ -433,21 +433,35 @@ private fun VideoTab(
             Text(
                 when {
                     browsingObjects -> "${state.libraryObjects.size} ${state.libraryMode.label.lowercase()} trong thư viện"
-                    state.libraryScope != null -> "${state.resultCount} video trong ${state.libraryMode.label.lowercase()}"
-                    else -> "${state.resultCount} kết quả"
+                    else -> "${state.resultCount} video"
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.weight(1f))
-            if (state.libraryScope != null) {
-                TextButton(onClick = viewModel::backToLibraryObjects) { Text("Quay lại") }
-            } else if (!browsingObjects && hasFilter) {
+            if (!browsingObjects && hasFilter) {
                 TextButton(onClick = { viewModel.clearAll() }) { Text("Xóa lọc") }
             }
             if (!browsingObjects) {
-                TextButton(onClick = { viewModel.updateSort(nextResearchSort(state.sort)) }) {
-                    Text("Sắp xếp: ${state.sort.label}")
+                Box {
+                    var sortMenuOpen by rememberSaveable { mutableStateOf(false) }
+                    TextButton(onClick = { sortMenuOpen = true }) {
+                        Text("Sắp xếp: ${state.sort.label}")
+                    }
+                    DropdownMenu(
+                        expanded = sortMenuOpen,
+                        onDismissRequest = { sortMenuOpen = false }
+                    ) {
+                        ResearchSort.entries.forEach { sort ->
+                            DropdownMenuItem(
+                                text = { Text(sort.label) },
+                                onClick = {
+                                    sortMenuOpen = false
+                                    viewModel.updateSort(sort)
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
