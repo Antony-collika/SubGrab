@@ -439,9 +439,6 @@ private fun VideoTab(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.weight(1f))
-            if (!browsingObjects && hasFilter) {
-                TextButton(onClick = { viewModel.clearAll() }) { Text("Xóa lọc") }
-            }
             if (!browsingObjects) {
                 Box {
                     var sortMenuOpen by rememberSaveable { mutableStateOf(false) }
