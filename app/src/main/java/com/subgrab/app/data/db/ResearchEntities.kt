@@ -105,6 +105,7 @@ data class SearchSessionVideoCrossRef(
         Index("searchSessionId")
     ]
 )
+
 @Entity(tableName = "analyst_tasks", indices = [Index("timestamp"), Index("kind")])
 data class AnalystTaskEntity(
     @PrimaryKey val id: String,
@@ -115,6 +116,17 @@ data class AnalystTaskEntity(
     val timestamp: Long
 )
 
+@Entity(
+    tableName = "user_activities",
+    indices = [
+        Index("timestamp"),
+        Index("type"),
+        Index("videoId"),
+        Index("channelId"),
+        Index("playlistId"),
+        Index("searchSessionId")
+    ]
+)
 data class UserActivityEntity(
     @PrimaryKey val id: String,
     val type: String,
