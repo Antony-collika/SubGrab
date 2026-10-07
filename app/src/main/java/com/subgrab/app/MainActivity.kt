@@ -210,7 +210,7 @@ fun SubGrabApp() {
                     onSearchKeyword = { vm.searchKeyword(it) },
                     onRetry = vm::retryAnalysis,
                     onOpenRecent = { item ->
-                        if (item.kind == RecentKind.KEYWORD) vm.searchKeyword(item.input) else vm.analyze(item.input)
+                        vm.openRecent(item)
                     },
                     onOpenNotificationSettings = {
                         val intent = Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface VideoDao {
@@ -93,12 +94,27 @@ interface SearchDao {
 }
 
 @Dao
+interface AnalystTaskDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entity: AnalystTaskEntity)
+
+    @Query("SELECT * FROM analyst_tasks ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
+    fun recent(limit: Int, offset: Int): Flow<List<AnalystTaskEntity>>
+
+    @Query("SELECT * FROM analyst_tasks WHERE id = :id LIMIT 1")
+    suspend fun get(id: String): AnalystTaskEntity?
+}
+
+@Dao
 interface UserActivityDao {
     @Insert
     suspend fun insert(entity: UserActivityEntity)
 
     @Query("SELECT * FROM user_activities ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
     suspend fun recent(limit: Int, offset: Int): List<UserActivityEntity>
+
+    @Query("SELECT channelId FROM user_activities WHERE context = :context AND channelId IS NOT NULL ORDER BY timestamp DESC LIMIT 1")
+    suspend fun latestChannelForContext(context: String): String?
 }
 
 @Dao
