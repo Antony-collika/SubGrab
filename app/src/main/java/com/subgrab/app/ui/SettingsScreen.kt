@@ -41,7 +41,7 @@ fun SettingsScreen(repository: SettingsRepository, onBack: () -> Unit, onDiagnos
             subtitleJitterMinMs = v.subtitleJitterMinMs.coerceAtLeast(0L),
             subtitleJitterMaxMs = v.subtitleJitterMaxMs.coerceAtLeast(v.subtitleJitterMinMs.coerceAtLeast(0L)),
             subtitleConcurrency = v.subtitleConcurrency.coerceAtLeast(1),
-            maxSubtitlesPerTask = v.maxSubtitlesPerTask.coerceIn(1, 50),
+            maxSubtitlesPerTask = v.maxSubtitlesPerTask.coerceAtLeast(1),
             apiBaseDelayMs = v.apiBaseDelayMs.coerceAtLeast(0L),
             apiJitterMinMs = v.apiJitterMinMs.coerceAtLeast(0L),
             apiJitterMaxMs = v.apiJitterMaxMs.coerceAtLeast(v.apiJitterMinMs.coerceAtLeast(0L))
