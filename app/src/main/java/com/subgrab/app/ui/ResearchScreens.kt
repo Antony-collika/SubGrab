@@ -304,8 +304,11 @@ fun VideoDetailScreen(
     }
 }
 
-private fun formatPublishedDate(publishedAt: Long?): String =
-    publishedAt?.let { DateFormat.getDateTimeInstance().format(Date(it)) } ?: "Không rõ"
+private fun formatPublishedDate(publishedAt: String?): String =
+    publishedAt?.let { value ->
+        runCatching { DateFormat.getDateTimeInstance().format(Date.from(Instant.parse(value))) }
+            .getOrElse { value }
+    } ?: "Không rõ"
 
 private fun nextSort(sort: ResearchSort): ResearchSort = when (sort) {
     ResearchSort.PUBLISHED_DESC -> ResearchSort.FETCHED_DESC
