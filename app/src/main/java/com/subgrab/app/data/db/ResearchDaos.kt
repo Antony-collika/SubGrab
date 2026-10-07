@@ -112,6 +112,9 @@ interface UserActivityDao {
 
     @Query("SELECT * FROM user_activities ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
     suspend fun recent(limit: Int, offset: Int): List<UserActivityEntity>
+
+    @Query("SELECT channelId FROM user_activities WHERE context = :context AND channelId IS NOT NULL ORDER BY timestamp DESC LIMIT 1")
+    suspend fun latestChannelForContext(context: String): String?
 }
 
 @Dao
