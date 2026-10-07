@@ -422,6 +422,7 @@ private fun VideoTab(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
         )
         QuickFilterRow(
+            filters = state.filters,
             libraryMode = state.libraryMode,
             hasLibraryScope = state.libraryScope != null,
             onSelectLibraryMode = viewModel::setLibraryMode,
@@ -535,6 +536,7 @@ private fun pillColors() = FilterChipDefaults.filterChipColors(
 
 @Composable
 private fun QuickFilterRow(
+    filters: ResearchFilters,
     libraryMode: LibraryMode,
     hasLibraryScope: Boolean,
     onSelectLibraryMode: (LibraryMode) -> Unit,
