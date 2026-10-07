@@ -488,12 +488,20 @@ private fun pillColors() = FilterChipDefaults.filterChipColors(
 )
 
 @Composable
-private fun QuickFilterRow(filters: ResearchFilters, onChange: (ResearchFilters) -> Unit, onOpenFilter: () -> Unit) {
+@Composable
+private fun QuickFilterRow(
+    filters: ResearchFilters,
+    libraryMode: LibraryMode,
+    hasLibraryScope: Boolean,
+    onChange: (ResearchFilters) -> Unit,
+    onSelectLibraryMode: (LibraryMode) -> Unit,
+    onOpenFilter: () -> Unit
+) {
     var dateMenu by remember { mutableStateOf(false) }
-    var channelDialog by remember { mutableStateOf(false) }
     val pill = RoundedCornerShape(50)
     val datePreset = presetLabel(filters)
     val advanced = activeFilterCount(filters)
+    val videoMode = libraryMode == LibraryMode.VIDEO || hasLibraryScope
 
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
@@ -504,7 +512,9 @@ private fun QuickFilterRow(filters: ResearchFilters, onChange: (ResearchFilters)
             FilterChip(
                 selected = on,
                 onClick = {
-                    onChange(filters.copy(activityTypes = if (on) filters.activityTypes - DOWNLOADED_TYPE else filters.activityTypes + DOWNLOADED_TYPE))
+                    if (videoMode) {
+                        onChange(filters.copy(activityTypes = if (on) filters.activityTypes - DOWNLOADED_TYPE else filters.activityTypes + DOWNLOADED_TYPE))
+                    }
                 },
                 label = { Text("Đã tải phụ đề") },
                 shape = pill,
@@ -515,13 +525,14 @@ private fun QuickFilterRow(filters: ResearchFilters, onChange: (ResearchFilters)
             Box {
                 FilterChip(
                     selected = datePreset != null,
-                    onClick = { dateMenu = true },
+                    onClick = { if (videoMode) dateMenu = true },
                     label = { Text(datePreset ?: "Thời gian") },
                     trailingIcon = if (datePreset != null) ({
                         Icon(
-                            Icons.Default.Close, contentDescription = "Bỏ lọc thời gian",
+                            Icons.Default.Close,
+                            contentDescription = "Bỏ lọc thời gian",
                             modifier = Modifier.size(18.dp).clickable {
-                                onChange(filters.copy(publishedWithinHours = null, publishedFrom = null, publishedTo = null))
+                                if (videoMode) onChange(filters.copy(publishedWithinHours = null, publishedFrom = null, publishedTo = null))
                             }
                         )
                     }) else null,
@@ -539,17 +550,28 @@ private fun QuickFilterRow(filters: ResearchFilters, onChange: (ResearchFilters)
             }
         }
         item {
-            val active = filters.channelContains.isNotBlank()
             FilterChip(
-                selected = active,
-                onClick = { channelDialog = true },
-                label = { Text(if (active) "Kênh: ${filters.channelContains}" else "Kênh", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                trailingIcon = if (active) ({
-                    Icon(
-                        Icons.Default.Close, contentDescription = "Bỏ lọc kênh",
-                        modifier = Modifier.size(18.dp).clickable { onChange(filters.copy(channelContains = "")) }
-                    )
-                }) else null,
+                selected = libraryMode == LibraryMode.CHANNEL,
+                onClick = { onSelectLibraryMode(LibraryMode.CHANNEL) },
+                label = { Text("Kênh") },
+                shape = pill,
+                colors = pillColors()
+            )
+        }
+        item {
+            FilterChip(
+                selected = libraryMode == LibraryMode.PLAYLIST,
+                onClick = { onSelectLibraryMode(LibraryMode.PLAYLIST) },
+                label = { Text("Playlist") },
+                shape = pill,
+                colors = pillColors()
+            )
+        }
+        item {
+            FilterChip(
+                selected = libraryMode == LibraryMode.KEYWORD,
+                onClick = { onSelectLibraryMode(LibraryMode.KEYWORD) },
+                label = { Text("Từ khóa") },
                 shape = pill,
                 colors = pillColors()
             )
@@ -557,31 +579,13 @@ private fun QuickFilterRow(filters: ResearchFilters, onChange: (ResearchFilters)
         item {
             FilterChip(
                 selected = advanced > 0,
-                onClick = onOpenFilter,
+                onClick = { if (videoMode) onOpenFilter() },
                 label = { Text(if (advanced > 0) "Bộ lọc ($advanced)" else "Bộ lọc") },
                 leadingIcon = { Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(18.dp)) },
                 shape = pill,
                 colors = pillColors()
             )
         }
-    }
-
-    if (channelDialog) {
-        var text by remember { mutableStateOf(filters.channelContains) }
-        AlertDialog(
-            onDismissRequest = { channelDialog = false },
-            title = { Text("Lọc theo kênh") },
-            text = {
-                OutlinedTextField(
-                    value = text, onValueChange = { text = it }, singleLine = true,
-                    placeholder = { Text("Nhập tên kênh") }, modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { channelDialog = false; onChange(filters.copy(channelContains = text.trim())) }) { Text("Áp dụng") }
-            },
-            dismissButton = { TextButton(onClick = { channelDialog = false }) { Text("Hủy") } }
-        )
     }
 }
 
