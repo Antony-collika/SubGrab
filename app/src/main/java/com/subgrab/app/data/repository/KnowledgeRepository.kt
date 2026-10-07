@@ -7,6 +7,9 @@ import com.subgrab.app.data.SearchTextNormalizer
 import com.subgrab.app.data.db.*
 import com.subgrab.app.domain.Source
 import com.subgrab.app.domain.VideoItem
+import com.subgrab.app.domain.YoutubeUrlParser
+import com.subgrab.app.data.RecentItem
+import com.subgrab.app.data.RecentKind
 import java.util.UUID
 
 class KnowledgeRepository(private val database: SubGrabDatabase) {
@@ -259,6 +262,39 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
     private fun cacheHoursToMs(hours: Long): Long =
         hours.coerceAtMost(Long.MAX_VALUE / (60L * 60L * 1000L)) * 60L * 60L * 1000L
 
+    suspend fun loadRecent(item: RecentItem): Pair<Source, List<VideoItem>>? {
+        val snapshots = when (item.kind) {
+            RecentKind.CHANNEL -> {
+                val channelId = Regex("/channel/([^/?#]+)", RegexOption.IGNORE_CASE).find(item.input)?.groupValues?.get(1) ?: return null
+                database.videoDao().getByChannel(channelId, 100, 0).mapNotNull { database.metadataSnapshotDao().latest(it.videoId) }
+            }
+            RecentKind.PLAYLIST -> {
+                val playlistId = Regex("[?&]list=([^&]+)").find(item.input)?.groupValues?.get(1) ?: return null
+                database.playlistDao().getVideos(playlistId).mapNotNull { database.metadataSnapshotDao().latest(it.videoId) }
+            }
+            RecentKind.VIDEO -> {
+                val id = YoutubeUrlParser.videoId(item.input) ?: return null
+                listOfNotNull(database.metadataSnapshotDao().latest(id))
+            }
+            RecentKind.KEYWORD -> {
+                val session = database.searchDao().getLatestSession(item.input) ?: return null
+                database.searchDao().getSessionVideos(session.id).mapNotNull { database.metadataSnapshotDao().latest(it.videoId) }
+            }
+        }
+        if (snapshots.isEmpty()) return null
+        val sourceUrl = if (item.kind == RecentKind.KEYWORD) "https://www.youtube.com/results?search_query=" + android.net.Uri.encode(item.input) else item.input
+        val sourceId = if (item.kind == RecentKind.KEYWORD) "keyword:${item.input}" else item.input
+        val source = Source(sourceId, sourceUrl, item.title, snapshots.size)
+        return source to snapshots.mapIndexed { index, s ->
+            VideoItem(index + 1, s.videoId, s.title, (s.durationSeconds ?: 0L).toInt(), emptyList(),
+                channelTitle = s.channelName.orEmpty(), publishedAt = s.publishedAt.orEmpty(),
+                publishedAtEpochMs = s.publishedAtEpochMs, publishedAtIsApproximate = s.publishedAtIsApproximate,
+                viewCount = s.viewCount, thumbnailUrl = s.thumbnail.orEmpty(), description = s.description,
+                durationSeconds = s.durationSeconds, likeCount = s.likeCount, channelId = s.channelId,
+                subscriberCount = s.subscriberCount, commentCount = s.commentCount, tags = s.tags,
+                category = s.category, topic = s.topic)
+        }
+    }
     suspend fun getVideo(videoId: String) = database.videoDao().get(videoId)
     suspend fun getLatestSnapshot(videoId: String) = database.metadataSnapshotDao().latest(videoId)
     suspend fun getSnapshotHistory(videoId: String) = database.metadataSnapshotDao().history(videoId)
