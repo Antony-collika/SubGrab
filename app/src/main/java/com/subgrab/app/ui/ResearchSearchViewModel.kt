@@ -100,12 +100,6 @@ class ResearchSearchViewModel(
         }
     }
 
-    fun reset() {
-        debounceJob?.cancel()
-        loadJob?.cancel()
-        _state.value = SearchState()
-    }
-
     fun updateFilters(filters: ResearchFilters) {
         _state.update { it.copy(filters = filters, error = null) }
     }
@@ -113,11 +107,6 @@ class ResearchSearchViewModel(
     /** Đặt bộ lọc mới và tìm lại ngay. */
     fun applyFilters(filters: ResearchFilters) {
         updateFilters(filters)
-        search()
-    }
-
-    fun updateSort(sort: ResearchSort) {
-        _state.update { it.copy(sort = sort, error = null) }
         search()
     }
 
@@ -159,20 +148,6 @@ class ResearchSearchViewModel(
     }
 
     fun clearSelection() { _state.update { it.copy(selectedVideos = emptySet()) } }
-
-    fun loadSession(sessionId: String) {
-        _state.update { it.copy(loading = true, error = null, page = 0, libraryMode = LibraryMode.VIDEO, libraryScope = null) }
-        viewModelScope.launch {
-            runCatching { repository.getSearchSession(sessionId) to repository.getSessionResults(sessionId, 0, pageSize) }
-                .onSuccess { (session, result) ->
-                    val (rows, count) = result
-                    _state.update {
-                        it.copy(query = session?.query.orEmpty(), results = rows, resultCount = count, loading = false, hasMore = rows.size < count, page = 0)
-                    }
-                }
-                .onFailure { e -> _state.update { it.copy(loading = false, error = e.message ?: "Không thể mở kết quả đã lưu") } }
-        }
-    }
 
     private fun loadPage(page: Int, replace: Boolean) {
         loadJob?.cancel()
