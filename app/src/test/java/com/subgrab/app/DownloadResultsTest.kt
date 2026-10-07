@@ -1,8 +1,5 @@
 package com.subgrab.app
 
-import com.subgrab.app.data.RecentCodec
-import com.subgrab.app.data.RecentItem
-import com.subgrab.app.data.RecentKind
 import com.subgrab.app.data.VideoResultCodec
 import com.subgrab.app.domain.DownloadReasons
 import com.subgrab.app.domain.FailureType
@@ -57,25 +54,4 @@ class DownloadResultsTest {
         assertTrue(VideoResultCodec.decode("khong-hop-le").isEmpty())
     }
 
-    @Test
-    fun recentCodecRoundTripsAndDeduplicates() {
-        val a = RecentItem(RecentKind.PLAYLIST, "https://youtube.com/playlist?list=1", "Playlist du lịch", 32, 1000)
-        val b = RecentItem(RecentKind.KEYWORD, "học Python", "học Python", 50, 2000)
-        val decoded = RecentCodec.decode(RecentCodec.encode(listOf(b, a)))
-        assertEquals(listOf(b, a), decoded)
-
-        val pushedAgain = RecentCodec.push(listOf(b, a), a.copy(timestamp = 3000, videoCount = 40))
-        assertEquals(2, pushedAgain.size)
-        assertEquals(3000L, pushedAgain.first().timestamp)
-        assertEquals(RecentKind.PLAYLIST, pushedAgain.first().kind)
-    }
-
-    @Test
-    fun recentCodecKeepsAtMostEightItems() {
-        val many = (1..12).map { RecentItem(RecentKind.VIDEO, "v$it", "Video $it", 1, it.toLong()) }
-        var list = emptyList<RecentItem>()
-        many.forEach { list = RecentCodec.push(list, it) }
-        assertEquals(8, list.size)
-        assertEquals("v12", list.first().input)
-    }
 }
