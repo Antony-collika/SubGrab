@@ -6,22 +6,22 @@ class ExtractorDiscoveryClient(
     private val extractor: NewPipeExtractorClient
 ) : DiscoveryClient {
     suspend fun discoverPlaylistWithSource(source: String): Pair<com.subgrab.app.domain.Source, List<VideoItem>> =
-        extractor.extractSource(source).getOrThrow().let { it.first to it.second.take(50) }
+        extractor.extractSource(source).getOrThrow().let { it.first to it.second }
 
     suspend fun discoverChannelWithSource(source: String): Pair<com.subgrab.app.domain.Source, List<VideoItem>> =
-        extractor.extractSource(source).getOrThrow().let { it.first to it.second.take(50) }
+        extractor.extractSource(source).getOrThrow().let { it.first to it.second }
 
     suspend fun discoverVideoCollectionWithSource(sources: List<String>): Pair<com.subgrab.app.domain.Source, List<VideoItem>> =
-        extractor.extractVideoCollection(sources).getOrThrow().let { it.first to it.second.take(50) }
+        extractor.extractVideoCollection(sources).getOrThrow().let { it.first to it.second }
 
     override suspend fun discoverPlaylist(source: String): List<VideoItem> =
         discoverPlaylistWithSource(source).second
 
     override suspend fun discoverKeyword(query: String): List<VideoItem> =
-        extractor.search(query).getOrThrow().second.take(50)
+        extractor.search(query).getOrThrow().second
 
     override suspend fun discoverVideo(source: String): List<VideoItem> =
-        extractor.extractSource(source).getOrThrow().second.take(50)
+        extractor.extractSource(source).getOrThrow().second
 
     override suspend fun discoverChannel(source: String): List<VideoItem> =
         discoverChannelWithSource(source).second

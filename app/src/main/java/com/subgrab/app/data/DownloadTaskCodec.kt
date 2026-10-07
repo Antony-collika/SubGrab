@@ -37,7 +37,7 @@ object DownloadTaskCodec {
             put("maxSubtitlesPerTask", config.maxSubtitlesPerTask)
         })
         val videosJson = JSONArray()
-        videos.filter { it.isSelected }.take(50).forEach { video ->
+        videos.filter { it.isSelected }.forEach { video ->
             val subs = JSONArray()
             video.availableSubs.forEach { sub ->
                 subs.put(JSONObject().apply {
@@ -87,7 +87,7 @@ object DownloadTaskCodec {
                 ?.let { runCatching { SubtitleTimestampMode.valueOf(it) }.getOrNull() }
                 ?: SubtitleTimestampMode.WITH_TIMESTAMP,
             subtitleConcurrency = configJson.optInt("subtitleConcurrency", 1).coerceAtLeast(1),
-            maxSubtitlesPerTask = configJson.optInt("maxSubtitlesPerTask", 10).coerceIn(1, 50)
+            maxSubtitlesPerTask = configJson.optInt("maxSubtitlesPerTask", 10).coerceAtLeast(1)
         )
         val videosJson = root.getJSONArray("videos")
         val videos = List(videosJson.length()) { i ->

@@ -209,11 +209,6 @@ class CoreTest {
         )
     }
 
-    @Test fun taskProgressNeverExceedsLimit() {
-        val videos = (1..50).map { VideoItem(it, "$it", "Video $it", 60, listOf(SubtitleLanguage("vi"))) }
-        assertEquals(50, videos.size)
-    }
-
     @Test fun governorSlowsDownOnRateLimitAndRecoversAfterStableTraffic() {
         val governor = RequestGovernor()
         val lane = RequestLane.SUBTITLE_EXTRACTOR
@@ -327,7 +322,7 @@ class CoreTest {
         assertEquals(1500L, governor.delay(lane))
     }
 
-    @Test fun taskPlannerUsesConfiguredTaskSizeAndCapsAtFifty() {
+    @Test fun taskPlannerUsesConfiguredTaskSizeWithoutTotalCap() {
         fun videos(count: Int) = (1..count).map {
             VideoItem(it, "id$it", "Video $it", 60, listOf(SubtitleLanguage("vi")), isSelected = true)
         }
@@ -335,8 +330,8 @@ class CoreTest {
         assertEquals(listOf(10), DownloadTaskPlanner.plan(videos(10)).map { it.size })
         assertEquals(listOf(10, 1), DownloadTaskPlanner.plan(videos(11)).map { it.size })
         assertEquals(listOf(5, 5, 1), DownloadTaskPlanner.plan(videos(11), 5).map { it.size })
-        assertEquals(listOf(20, 20, 10), DownloadTaskPlanner.plan(videos(60), 20).map { it.size })
-        assertEquals(listOf(10, 10, 10, 10, 10), DownloadTaskPlanner.plan(videos(60), 10).map { it.size })
+        assertEquals(listOf(20, 20, 20), DownloadTaskPlanner.plan(videos(60), 20).map { it.size })
+        assertEquals(listOf(10, 10, 10, 10, 10, 10), DownloadTaskPlanner.plan(videos(60), 10).map { it.size })
     }
 
     @Test fun benignFailuresAreRecognized() {

@@ -1,7 +1,7 @@
 package com.subgrab.app.data
 import com.subgrab.app.domain.VideoItem
 class ApiDiscoveryClient(private val api:YouTubeDataApiClient):DiscoveryClient{
- // ---- Các hàm cũ: chỉ lấy trang đầu (tối đa 50 video) ----
+ // ---- Các hàm tương thích cũ ----
  override suspend fun discoverPlaylist(source:String)=api.listPlaylistItems(source)
  suspend fun discoverPlaylistWithSource(source:String):Pair<com.subgrab.app.domain.Source,List<VideoItem>>{
   val videos=api.listPlaylistItems(source)
@@ -38,7 +38,7 @@ class ApiDiscoveryClient(private val api:YouTubeDataApiClient):DiscoveryClient{
  }
 
  suspend fun discoverVideoCollectionWithSource(sources:List<String>):Pair<com.subgrab.app.domain.Source,List<VideoItem>>{
-  val ids=sources.mapNotNull{videoId(it)}.distinct().take(50)
+  val ids=sources.mapNotNull{videoId(it)}.distinct()
   require(ids.size==sources.distinct().size) { "Chuỗi nhiều URL chỉ hỗ trợ URL video YouTube hợp lệ" }
   val videos=api.getVideoMetadataInOrder(ids)
   return com.subgrab.app.domain.Source("collection",sources.joinToString("\n"),"Collection",videos.size) to videos

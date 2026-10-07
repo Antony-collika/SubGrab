@@ -39,7 +39,7 @@ private class SettingsEditor(private val repository: SettingsRepository, private
             subtitleJitterMinMs = v.subtitleJitterMinMs.coerceAtLeast(0L),
             subtitleJitterMaxMs = v.subtitleJitterMaxMs.coerceAtLeast(v.subtitleJitterMinMs.coerceAtLeast(0L)),
             subtitleConcurrency = v.subtitleConcurrency.coerceAtLeast(1),
-            maxSubtitlesPerTask = v.maxSubtitlesPerTask.coerceIn(1, 50),
+            maxSubtitlesPerTask = v.maxSubtitlesPerTask.coerceAtLeast(1),
             apiBaseDelayMs = v.apiBaseDelayMs.coerceAtLeast(0L),
             apiJitterMinMs = v.apiJitterMinMs.coerceAtLeast(0L),
             apiJitterMaxMs = v.apiJitterMaxMs.coerceAtLeast(v.apiJitterMinMs.coerceAtLeast(0L)),
@@ -174,10 +174,10 @@ fun SettingsScreen(
         )
         "batch" -> NumberDialog(
             title = "Phụ đề mỗi lượt",
-            hint = "Từ 1 đến 50 video. Các video còn lại sẽ chờ lượt kế tiếp.",
+            hint = "Số video trong một lượt tải. Các video còn lại sẽ chờ lượt kế tiếp.",
             initial = value.maxSubtitlesPerTask.toLong(),
             onDismiss = { dialog = null },
-            onConfirm = { dialog = null; editor.save(value.copy(maxSubtitlesPerTask = it.toInt().coerceIn(1, 50))) }
+            onConfirm = { dialog = null; editor.save(value.copy(maxSubtitlesPerTask = it.toInt().coerceAtLeast(1))) }
         )
         "cache" -> NumberDialog(
             title = "Thời gian lưu tạm dữ liệu",

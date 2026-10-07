@@ -61,7 +61,7 @@ class NewPipeExtractorClient(
                         }
                         val streams = tabExtractor.getInitialPage().items
                             .filterIsInstance<StreamInfoItem>()
-                            .take(50)
+                            
                         val channelTitle = runCatching { channelExtractor.getName() }.getOrDefault("")
                         val videos = streams.mapIndexed { index, item ->
                             VideoItem(
@@ -87,7 +87,7 @@ class NewPipeExtractorClient(
                         }
                         val streams = extractor.getInitialPage().items
                             .filterIsInstance<StreamInfoItem>()
-                            .take(50)
+                            
                         val videos = streams.mapIndexed { index, item ->
                             VideoItem(
                                 index = index + 1,
@@ -134,7 +134,7 @@ class NewPipeExtractorClient(
             runCatching {
                 val normalizedUrls = urls.map { com.subgrab.app.domain.YoutubeUrlParser.normalize(it) }
                     .distinct()
-                    .take(50)
+                    
                 require(normalizedUrls.isNotEmpty()) { "Không tìm thấy URL video" }
                 require(normalizedUrls.all { com.subgrab.app.domain.YoutubeUrlParser.isVideoUrl(it) }) {
                     "Chuỗi nhiều URL chỉ hỗ trợ URL video YouTube"
@@ -217,7 +217,7 @@ class NewPipeExtractorClient(
 
                 val items = extractor.getInitialPage().items
                     .filterIsInstance<StreamInfoItem>()
-                    .take(50)
+                    
 
                 val videos = items.mapIndexed { index, item ->
                     VideoItem(
