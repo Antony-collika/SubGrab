@@ -93,6 +93,18 @@ interface SearchDao {
 }
 
 @Dao
+interface AnalystTaskDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entity: AnalystTaskEntity)
+
+    @Query("SELECT * FROM analyst_tasks ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
+    suspend fun recent(limit: Int, offset: Int): List<AnalystTaskEntity>
+
+    @Query("SELECT * FROM analyst_tasks WHERE id = :id LIMIT 1")
+    suspend fun get(id: String): AnalystTaskEntity?
+}
+
+@Dao
 interface UserActivityDao {
     @Insert
     suspend fun insert(entity: UserActivityEntity)
