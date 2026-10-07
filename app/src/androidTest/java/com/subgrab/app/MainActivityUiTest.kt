@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -42,7 +43,7 @@ class MainActivityUiTest {
     @Test
     fun libraryTabShowsVideoAndDownloadedTabs() {
         rule.onNodeWithText("Thư viện").performClick()
-        rule.onAllNodesWithText("Video").assertCountEquals(2)
+        assertEquals(2, rule.onAllNodesWithText("Video").fetchSemanticsNodes().size)
         rule.onNodeWithText("Đã tải").assertIsDisplayed()
     }
 }
