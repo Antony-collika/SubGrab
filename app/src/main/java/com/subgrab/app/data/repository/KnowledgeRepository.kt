@@ -265,7 +265,7 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
     suspend fun loadRecent(item: RecentItem): Pair<Source, List<VideoItem>>? {
         val snapshots = when (item.kind) {
             RecentKind.CHANNEL -> {
-                val channelId = Regex("/channel/([^/?#]+)", RegexOption.IGNORE_CASE).find(item.input)?.groupValues?.get(1) ?: return null
+                val channelId = database.userActivityDao().latestChannelForContext(item.input) ?: return null
                 database.videoDao().getByChannel(channelId, 100, 0).mapNotNull { database.metadataSnapshotDao().latest(it.videoId) }
             }
             RecentKind.PLAYLIST -> {
