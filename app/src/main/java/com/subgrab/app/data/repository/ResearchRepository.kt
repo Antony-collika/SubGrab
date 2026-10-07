@@ -122,7 +122,7 @@ class ResearchRepository(private val database: SubGrabDatabase) {
     suspend fun getLibraryObjects(mode: LibraryMode): List<LibraryObject> {
         val sql = when (mode) {
             LibraryMode.VIDEO -> return emptyList()
-            LibraryMode.CHANNEL -> "SELECT c.channelId AS id, COALESCE(c.name, 'Kênh chưa đặt tên') AS title, COUNT(DISTINCT v.videoId) AS count FROM channels c JOIN videos v ON v.channelId = c.channelId GROUP BY c.channelId ORDER BY LOWER(title)"
+            LibraryMode.CHANNEL -> "SELECT c.channelId AS id, COALESCE(c.name, 'Kênh chưa đặt tên') AS title, COUNT(DISTINCT v.videoId) AS count FROM analyst_tasks t JOIN user_activities a ON a.context = t.input AND a.channelId IS NOT NULL JOIN channels c ON c.channelId = a.channelId JOIN videos v ON v.channelId = c.channelId WHERE t.kind = 'CHANNEL' GROUP BY c.channelId, c.name ORDER BY LOWER(title)"
             LibraryMode.PLAYLIST -> "SELECT p.playlistId AS id, p.title AS title, COUNT(DISTINCT pv.videoId) AS count FROM playlists p LEFT JOIN playlist_video pv ON pv.playlistId = p.playlistId GROUP BY p.playlistId ORDER BY LOWER(title)"
             LibraryMode.KEYWORD -> "SELECT ss.query AS id, ss.query AS title, COUNT(DISTINCT ssv.videoId) AS count FROM search_sessions ss JOIN search_session_video ssv ON ssv.searchSessionId = ss.id GROUP BY ss.query ORDER BY LOWER(title)"
         }
