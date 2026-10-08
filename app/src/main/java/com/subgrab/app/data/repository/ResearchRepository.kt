@@ -89,15 +89,23 @@ class ResearchRepository(private val database: SubGrabDatabase) {
             conditions += "EXISTS (SELECT 1 FROM search_session_video ssv JOIN search_sessions ss ON ss.id = ssv.searchSessionId WHERE ssv.videoId = m.videoId AND LOWER(ss.query) LIKE LOWER(?))"
             args += "%" + filters.searchKeywordContext.trim() + "%"
         }
-        if (filters.activityTypes.isNotEmpty() || filters.activityFrom != null || filters.activityTo != null) {
+        if (filters.dataStates.isNotEmpty()) {
+            filters.dataStates.forEach { state ->
+                when (state) {
+                    "SUBTITLE_DOWNLOADED" ->
+                        conditions += "EXISTS (SELECT 1 FROM transcripts tr WHERE tr.videoId = m.videoId)"
+                    "NO_SUBTITLE" ->
+                        conditions += "NOT EXISTS (SELECT 1 FROM transcripts tr WHERE tr.videoId = m.videoId)"
+                    "COMMENTS_FETCHED" ->
+                        conditions += "v.commentsFetchedAt IS NOT NULL"
+                    "COMMENTS_NOT_FETCHED" ->
+                        conditions += "v.commentsFetchedAt IS NULL"
+                }
+            }
+        }
+        if (filters.activityFrom != null || filters.activityTo != null) {
             conditions += buildString {
                 append("EXISTS (SELECT 1 FROM user_activities ua WHERE ua.videoId = m.videoId")
-                if (filters.activityTypes.isNotEmpty()) {
-                    append(" AND ua.type IN (")
-                    append(filters.activityTypes.joinToString(",") { "?" })
-                    append(")")
-                    filters.activityTypes.forEach { args += it }
-                }
                 filters.activityFrom?.let { append(" AND ua.timestamp >= ?"); args += it }
                 filters.activityTo?.let { append(" AND ua.timestamp <= ?"); args += it }
                 append(")")
@@ -187,6 +195,7 @@ class ResearchRepository(private val database: SubGrabDatabase) {
                 (SELECT MAX(ua.timestamp) FROM user_activities ua WHERE ua.videoId = m.videoId AND ua.type = 'VIEW_VIDEO') AS lastViewedAt
         FROM video_metadata_snapshots m
         JOIN video_search s ON s.videoId = m.videoId
+        JOIN videos v ON v.videoId = m.videoId
         WHERE m.id = (SELECT ms.id FROM video_metadata_snapshots ms WHERE ms.videoId = m.videoId ORDER BY ms.fetchedAt DESC LIMIT 1)
     """.trimIndent()
 
