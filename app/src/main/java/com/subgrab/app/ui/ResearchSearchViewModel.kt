@@ -273,8 +273,12 @@ class ResearchSearchViewModel(
     }.trim()
 
     /**
-     * Xuất data của các video đã chọn vào MỘT file duy nhất, đọc từ dữ liệu đã lưu trong máy
+     * Xuất data của các video đã chọn, đọc từ dữ liệu đã lưu trong máy
      * (giống nút Xuất data ở màn Chi tiết, nhưng gộp nhiều video).
+     *
+     * Nếu `options.videosPerFile <= 0`: xuất vào MỘT file duy nhất (hành vi cũ).
+     * Nếu `options.videosPerFile > 0`: chia thành nhiều file, mỗi file tối đa chừng đó video,
+     * để file nhẹ hơn, dễ mở/upload sang phần mềm khác.
      */
     fun exportData(videos: List<VideoSearchResult>, options: ResearchExport.ExportOptions, outputDir: String) {
         if (videos.isEmpty() || _batch.value.running) return
@@ -283,6 +287,8 @@ class ResearchSearchViewModel(
             try {
                 var noTranscript = 0
                 var noComments = 0
+                // Đọc dữ liệu từng video từ Room một lần duy nhất, bất kể sau đó ghi ra 1 file
+                // hay chia thành nhiều file — việc chia lô chỉ ảnh hưởng tới bước ghi file.
                 val items = videos.mapIndexed { index, video ->
                     _batch.update { it.copy(done = index, currentTitle = video.title) }
                     val history = repository.getSnapshotHistory(video.videoId)
@@ -295,22 +301,43 @@ class ResearchSearchViewModel(
                     if (options.comments && comments.isEmpty()) noComments++
                     ResearchExport.VideoExportData(video.videoId, video.title, metadata, transcript, comments)
                 }
-                val body = ResearchExport.exportVideos(items, options)
                 val ext = when (options.format) {
                     ResearchExport.ExportFormat.JSON -> "json"
                     ResearchExport.ExportFormat.CSV -> "csv"
                     ResearchExport.ExportFormat.MD -> "md"
                 }
                 val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
-                val fileName = "subgrab-export-" + videos.size + "-video-" + stamp + "." + ext
                 val sub = outputDir.removePrefix("Download/").removePrefix("Download\\").trim('/')
                     .let { if (it.equals("Download", ignoreCase = true)) "" else it }
-                withContext(Dispatchers.IO) { fileStorage.publishTextFile(fileName, body, sub) }
-                val path = "Download/" + if (sub.isBlank()) fileName else "$sub/$fileName"
+
+                val batches = ResearchExport.splitIntoBatches(items, options)
+                val paths = withContext(Dispatchers.IO) {
+                    batches.mapIndexed { batchIndex, batch ->
+                        val body = ResearchExport.exportVideos(batch, options)
+                        // Chỉ 1 lô (gộp 1 file, hành vi cũ): giữ nguyên tên file như trước, không
+                        // thêm số thứ tự để không đổi tên file người dùng đã quen.
+                        // Nhiều lô: thêm "partNN" vào tên để phân biệt và giữ đúng thứ tự khi
+                        // liệt kê file trong thư mục.
+                        val fileName = if (batches.size == 1) {
+                            "subgrab-export-" + videos.size + "-video-" + stamp + "." + ext
+                        } else {
+                            val part = (batchIndex + 1).toString().padStart(2, '0')
+                            "subgrab-export-part" + part + "-" + batch.size + "video-" + stamp + "." + ext
+                        }
+                        fileStorage.publishTextFile(fileName, body, sub)
+                        "Download/" + if (sub.isBlank()) fileName else "$sub/$fileName"
+                    }
+                }
+
                 _batch.value = BatchState(
                     summary = buildString {
-                        appendLine("Đã xuất ${videos.size} video vào 1 file:")
-                        appendLine(path)
+                        if (paths.size == 1) {
+                            appendLine("Đã xuất ${videos.size} video vào 1 file:")
+                            appendLine(paths.first())
+                        } else {
+                            appendLine("Đã xuất ${videos.size} video vào ${paths.size} file (tối đa ${options.videosPerFile} video/file):")
+                            paths.forEach { appendLine(it) }
+                        }
                         if (noTranscript > 0) appendLine("\n$noTranscript video chưa có transcript (sẽ để trống).")
                         if (noComments > 0) appendLine("\n$noComments video chưa có comment (hãy bấm Comments trước nếu cần).")
                     }.trim()

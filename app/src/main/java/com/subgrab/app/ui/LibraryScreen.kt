@@ -312,7 +312,16 @@ private fun ExportDataSheet(
     var history by remember { mutableStateOf(false) }
     var format by remember { mutableStateOf(ResearchExport.ExportFormat.JSON) }
     var folder by remember { mutableStateOf(initialFolder) }
+    // 0 = gộp 1 file (mặc định, giống hành vi trước đây). > 0 = số video tối đa mỗi file.
+    var videosPerFile by remember { mutableStateOf(0) }
     val pickFolder = rememberDownloadFolderPicker { folder = it }
+
+    val fileCountPreview = if (videosPerFile <= 0) 1 else (videoCount + videosPerFile - 1) / videosPerFile.coerceAtLeast(1)
+    val summaryLine = if (videosPerFile <= 0) {
+        "$videoCount video · gộp thành 1 file"
+    } else {
+        "$videoCount video · chia thành $fileCountPreview file ($videosPerFile video/file)"
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -323,7 +332,7 @@ private fun ExportDataSheet(
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("Xuất data", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text(
-                    "$videoCount video · gộp thành 1 file",
+                    summaryLine,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -341,6 +350,21 @@ private fun ExportDataSheet(
                     ChoiceChip("JSON", format == ResearchExport.ExportFormat.JSON, { format = ResearchExport.ExportFormat.JSON })
                     ChoiceChip("CSV", format == ResearchExport.ExportFormat.CSV, { format = ResearchExport.ExportFormat.CSV })
                     ChoiceChip("Markdown", format == ResearchExport.ExportFormat.MD, { format = ResearchExport.ExportFormat.MD })
+                }
+            }
+            ExportSection("Chia file") {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ChoiceChip("Gộp 1 file", videosPerFile == 0, { videosPerFile = 0 })
+                        ChoiceChip("10 video/file", videosPerFile == 10, { videosPerFile = 10 })
+                        ChoiceChip("20 video/file", videosPerFile == 20, { videosPerFile = 20 })
+                        ChoiceChip("50 video/file", videosPerFile == 50, { videosPerFile = 50 })
+                    }
+                    Text(
+                        "File nhỏ hơn sẽ dễ mở hoặc tải lên phần mềm khác hơn khi xuất nhiều video.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -362,7 +386,8 @@ private fun ExportDataSheet(
                                 transcript = transcript,
                                 comments = comments,
                                 history = history,
-                                format = format
+                                format = format,
+                                videosPerFile = videosPerFile
                             ),
                             folder
                         )
