@@ -28,13 +28,12 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
 
-private const val DOWNLOADED = "DOWNLOAD_SUBTITLE"
 
 /** Số điều kiện lọc đang bật (mỗi nhóm điều kiện tính một lần). */
 fun activeFilterCount(f: ResearchFilters): Int = listOf(
     f.publishedWithinHours != null || f.publishedFrom != null || f.publishedTo != null,
     f.minViews != null || f.maxViews != null,
-    f.activityTypes.isNotEmpty() || f.activityFrom != null || f.activityTo != null,
+    f.dataStates.isNotEmpty() || f.activityFrom != null || f.activityTo != null,
     f.channelOrPlaylistContains.isNotBlank(),
     f.channelContains.isNotBlank(),
     f.playlistContains.isNotBlank(),
@@ -121,13 +120,17 @@ fun LibraryFilterSheet(
                 }
                 FilterSection("Hoạt động") {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("Đã xem" to "VIEW_VIDEO", "Đã tải phụ đề" to DOWNLOADED, "Đã phân tích" to "ANALYZE_URL")
-                            .forEach { (label, type) ->
-                                val on = type in draft.activityTypes
-                                ChoiceChip(label, on, {
-                                    draft = draft.copy(activityTypes = if (on) draft.activityTypes - type else draft.activityTypes + type)
-                                })
-                            }
+                        listOf(
+                            "Đã tải phụ đề" to "SUBTITLE_DOWNLOADED",
+                            "Chưa có phụ đề" to "NO_SUBTITLE",
+                            "Đã lấy comments" to "COMMENTS_FETCHED",
+                            "Chưa lấy comments" to "COMMENTS_NOT_FETCHED"
+                        ).forEach { (label, state) ->
+                            val on = state in draft.dataStates
+                            ChoiceChip(label, on, {
+                                draft = draft.copy(dataStates = if (on) draft.dataStates - state else draft.dataStates + state)
+                            })
+                        }
                     }
                 }
                 FilterSection("Kênh hoặc playlist") {
