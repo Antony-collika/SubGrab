@@ -287,20 +287,6 @@ class ResearchSearchViewModel(
             try {
                 var noTranscript = 0
                 var noComments = 0
-                // Đọc dữ liệu từng video từ Room một lần duy nhất, bất kể sau đó ghi ra 1 file
-                // hay chia thành nhiều file — việc chia lô chỉ ảnh hưởng tới bước ghi file.
-                val items = videos.mapIndexed { index, video ->
-                    _batch.update { it.copy(done = index, currentTitle = video.title) }
-                    val history = repository.getSnapshotHistory(video.videoId)
-                    val metadata = if (options.history) history else history.firstOrNull()?.let { listOf(it) }.orEmpty()
-                    val transcript = if (options.transcript) repository.getTranscript(video.videoId) else null
-                    val comments = if (options.comments) {
-                        repository.getCommentThreads(video.videoId).flatMap { repository.getComments(it.threadId) }
-                    } else emptyList()
-                    if (options.transcript && transcript == null) noTranscript++
-                    if (options.comments && comments.isEmpty()) noComments++
-                    ResearchExport.VideoExportData(video.videoId, video.title, metadata, transcript, comments)
-                }
                 val ext = when (options.format) {
                     ResearchExport.ExportFormat.JSON -> "json"
                     ResearchExport.ExportFormat.CSV -> "csv"
@@ -310,22 +296,67 @@ class ResearchSearchViewModel(
                 val sub = outputDir.removePrefix("Download/").removePrefix("Download\\").trim('/')
                     .let { if (it.equals("Download", ignoreCase = true)) "" else it }
 
-                val batches = ResearchExport.splitIntoBatches(items, options)
-                val paths = withContext(Dispatchers.IO) {
-                    batches.mapIndexed { batchIndex, batch ->
-                        val body = ResearchExport.exportVideos(batch, options)
-                        // Chỉ 1 lô (gộp 1 file, hành vi cũ): giữ nguyên tên file như trước, không
-                        // thêm số thứ tự để không đổi tên file người dùng đã quen.
-                        // Nhiều lô: thêm "partNN" vào tên để phân biệt và giữ đúng thứ tự khi
-                        // liệt kê file trong thư mục.
-                        val fileName = if (batches.size == 1) {
+                // Chia danh sách video trước khi đọc dữ liệu từ Room. Chỉ một batch được
+                // giữ trong RAM tại một thời điểm, thay vì giữ toàn bộ VideoExportData.
+                val videoBatches = if (options.videosPerFile <= 0) {
+                    listOf(videos)
+                } else {
+                    videos.chunked(options.videosPerFile)
+                }
+
+                val paths = mutableListOf<String>()
+                var processed = 0
+
+                withContext(Dispatchers.IO) {
+                    videoBatches.forEachIndexed { batchIndex, videoBatch ->
+                        val items = videoBatch.map { video ->
+                            val history = repository.getSnapshotHistory(video.videoId)
+                            val metadata = if (options.history) {
+                                history
+                            } else {
+                                history.firstOrNull()?.let { listOf(it) }.orEmpty()
+                            }
+                            val transcript = if (options.transcript) {
+                                repository.getTranscript(video.videoId)
+                            } else {
+                                null
+                            }
+                            val comments = if (options.comments) {
+                                repository.getCommentThreads(video.videoId)
+                                    .flatMap { repository.getComments(it.threadId) }
+                            } else {
+                                emptyList()
+                            }
+
+                            if (options.transcript && transcript == null) noTranscript++
+                            if (options.comments && comments.isEmpty()) noComments++
+
+                            processed++
+                            _batch.update {
+                                it.copy(done = processed, currentTitle = video.title)
+                            }
+
+                            ResearchExport.VideoExportData(
+                                video.videoId,
+                                video.title,
+                                metadata,
+                                transcript,
+                                comments
+                            )
+                        }
+
+                        // Xuất và ghi ngay batch hiện tại trước khi đọc batch tiếp theo.
+                        val body = ResearchExport.exportVideos(items, options)
+
+                        val fileName = if (videoBatches.size == 1) {
                             "subgrab-export-" + videos.size + "-video-" + stamp + "." + ext
                         } else {
                             val part = (batchIndex + 1).toString().padStart(2, '0')
-                            "subgrab-export-part" + part + "-" + batch.size + "video-" + stamp + "." + ext
+                            "subgrab-export-part" + part + "-" + videoBatch.size + "video-" + stamp + "." + ext
                         }
+
                         fileStorage.publishTextFile(fileName, body, sub)
-                        "Download/" + if (sub.isBlank()) fileName else "$sub/$fileName"
+                        paths += "Download/" + if (sub.isBlank()) fileName else "$sub/$fileName"
                     }
                 }
 
