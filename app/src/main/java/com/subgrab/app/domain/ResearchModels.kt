@@ -69,7 +69,7 @@ data class ResearchFilters(
     val fetchedTo: Long? = null,
     val playlistContains: String = "",
     val searchKeywordContext: String = "",
-    val activityTypes: Set<String> = emptySet(),
+    val dataStates: Set<String> = emptySet(),
     val activityFrom: Long? = null,
     val activityTo: Long? = null,
     /** Một ô duy nhất: khớp tên kênh HOẶC tên playlist. */
