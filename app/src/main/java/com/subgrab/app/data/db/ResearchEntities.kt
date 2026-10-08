@@ -10,7 +10,8 @@ data class VideoEntity(
     @PrimaryKey val videoId: String,
     val channelId: String?,
     val createdAt: Long,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val commentsFetchedAt: Long? = null
 )
 
 @Entity(tableName = "channels")
