@@ -39,7 +39,7 @@ class DataFoundationMigrationTest {
         legacy.close()
 
         database = Room.databaseBuilder(context, SubGrabDatabase::class.java, DB_NAME)
-            .addMigrations(SubGrabDatabase.MIGRATION_1_2, SubGrabDatabase.MIGRATION_2_3, SubGrabDatabase.MIGRATION_3_4)
+            .addMigrations(SubGrabDatabase.MIGRATION_1_2, SubGrabDatabase.MIGRATION_2_3, SubGrabDatabase.MIGRATION_3_4, SubGrabDatabase.MIGRATION_4_5)
             .build()
 
         database!!.openHelper.writableDatabase
@@ -66,7 +66,7 @@ class DataFoundationMigrationTest {
         legacy.close()
 
         database = Room.databaseBuilder(context, SubGrabDatabase::class.java, DB_NAME)
-            .addMigrations(SubGrabDatabase.MIGRATION_2_3, SubGrabDatabase.MIGRATION_3_4)
+            .addMigrations(SubGrabDatabase.MIGRATION_2_3, SubGrabDatabase.MIGRATION_3_4, SubGrabDatabase.MIGRATION_4_5)
             .build()
         database!!.openHelper.writableDatabase
 
