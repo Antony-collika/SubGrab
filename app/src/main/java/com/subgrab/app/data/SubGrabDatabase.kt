@@ -27,7 +27,7 @@ import com.subgrab.app.data.db.*
         VideoSearchEntity::class,
         AnalystTaskEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(ResearchConverters::class)
@@ -79,6 +79,12 @@ abstract class SubGrabDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_comments_videoId ON comments(videoId)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_comments_parentCommentId ON comments(parentCommentId)")
                 db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS video_search USING FTS4(videoId UNINDEXED, title, description, channelName, tags, category, topic)")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE videos ADD COLUMN commentsFetchedAt INTEGER")
             }
         }
 
@@ -144,7 +150,7 @@ abstract class SubGrabDatabase : RoomDatabase() {
                 context.applicationContext,
                 SubGrabDatabase::class.java,
                 DB_NAME
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onOpen(db: SupportSQLiteDatabase) {
                         val prefs = context.applicationContext.getSharedPreferences("subgrab_database_state", Context.MODE_PRIVATE)
