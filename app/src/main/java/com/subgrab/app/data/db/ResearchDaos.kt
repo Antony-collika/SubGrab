@@ -17,6 +17,9 @@ interface VideoDao {
     @Query("SELECT * FROM videos WHERE videoId = :videoId LIMIT 1")
     suspend fun get(videoId: String): VideoEntity?
 
+    @Query("UPDATE videos SET commentsFetchedAt = :fetchedAt, updatedAt = :fetchedAt WHERE videoId = :videoId")
+    suspend fun markCommentsFetched(videoId: String, fetchedAt: Long)
+
     @Query("SELECT * FROM videos ORDER BY updatedAt DESC LIMIT :limit OFFSET :offset")
     suspend fun getPage(limit: Int, offset: Int): List<VideoEntity>
 
