@@ -10,7 +10,14 @@ object ResearchExport {
         val transcript: Boolean = false,
         val comments: Boolean = false,
         val history: Boolean = false,
-        val format: ExportFormat = ExportFormat.JSON
+        val format: ExportFormat = ExportFormat.JSON,
+        /**
+         * Số video tối đa mỗi file khi xuất nhiều video.
+         * 0 (hoặc <= 0) nghĩa là KHÔNG giới hạn: gộp tất cả vào 1 file, giống hành vi trước đây.
+         * > 0: chia danh sách video thành nhiều lô, mỗi lô tối đa chừng này video, mỗi lô ghi ra 1 file riêng
+         * (file nhẹ hơn, dễ mở/upload sang phần mềm khác).
+         */
+        val videosPerFile: Int = 0
     )
     
     data class VideoExportData(
@@ -66,6 +73,14 @@ object ResearchExport {
             }
         }
     }
+
+    /**
+     * Chia danh sách video thành nhiều lô theo `options.videosPerFile`, mỗi lô sẽ được ghi
+     * ra 1 file riêng (dùng cùng với [exportVideos] cho từng lô). Nếu `videosPerFile <= 0`,
+     * trả về đúng 1 lô chứa toàn bộ `items` — tương đương hành vi "gộp 1 file" trước đây.
+     */
+    fun splitIntoBatches(items: List<VideoExportData>, options: ExportOptions): List<List<VideoExportData>> =
+        if (options.videosPerFile <= 0) listOf(items) else items.chunked(options.videosPerFile)
 
     private const val CSV_HEADER = "videoId,section,fetchedAt,key,value"
 
