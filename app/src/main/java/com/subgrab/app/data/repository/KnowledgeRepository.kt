@@ -168,6 +168,8 @@ class KnowledgeRepository(private val database: SubGrabDatabase) {
                 }.distinctBy { it.commentId }
                 database.commentDao().upsertComments(comments)
             }
+            // Mark the fetch successful even when the API returned zero comment threads.
+            database.videoDao().markCommentsFetched(videoId, now)
         }
     }
 
