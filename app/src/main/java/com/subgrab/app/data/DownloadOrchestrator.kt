@@ -9,18 +9,17 @@ import com.subgrab.app.domain.VideoDownloadResult
 import com.subgrab.app.domain.VideoItem
 import com.subgrab.app.domain.VideoOutcome
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flatMapMerge
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.sync.withPermit
 import java.util.UUID
 
 sealed interface DownloadState {
@@ -117,7 +116,6 @@ class DownloadOrchestrator(
         val results = LinkedHashMap<String, VideoDownloadResult>()
         val mutex = Mutex()
         val concurrency = config.subtitleConcurrency.coerceIn(1, selected.size.coerceAtLeast(1))
-        val semaphore = Semaphore(concurrency)
         val startedAt = System.currentTimeMillis()
         var saved = 0
         var skipped = 0
@@ -271,13 +269,20 @@ class DownloadOrchestrator(
 
         try {
             if (selected.isNotEmpty()) {
-                coroutineScope {
-                    selected.map { video ->
-                        async(Dispatchers.IO) {
-                            semaphore.withPermit { process(video) }
-                        }
-                    }.awaitAll()
-                }
+                // Trước đây: selected.map { async { ... } }.awaitAll() tạo TOÀN BỘ coroutine
+                // (và giữ tham chiếu tới từng VideoItem) ngay từ đầu, dù chỉ `concurrency` video
+                // được xử lý cùng lúc — hàng trăm video còn lại vẫn nằm sẵn trong bộ nhớ chờ tới lượt.
+                // Bây giờ: flatMapMerge chỉ "mở" đúng tối đa `concurrency` video tại một thời điểm;
+                // video kế tiếp chỉ được lấy ra và giữ trong bộ nhớ khi có 1 slot trống.
+                // Hành vi với người dùng (thứ tự xử lý, tốc độ, log, kết quả) không đổi.
+                selected.asFlow()
+                    .flatMapMerge(concurrency = concurrency) { video ->
+                        kotlinx.coroutines.flow.flow {
+                            process(video)
+                            emit(Unit)
+                        }.flowOn(Dispatchers.IO)
+                    }
+                    .collect { }
             }
 
             if (cancelled || control.isCancelled()) {

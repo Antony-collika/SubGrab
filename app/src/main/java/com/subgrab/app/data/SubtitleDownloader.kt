@@ -53,14 +53,25 @@ class SubtitleDownloader(
             if (selected.isEmpty()) throw SubtitleFailure(FailureType.LANGUAGE_UNAVAILABLE, "Không tìm thấy subtitle phù hợp")
 
             selected.values.forEach { track ->
-                val rawVtt = downloader.fetchText(track.content, url)
-                val cues = SubtitleParser.parseWebVtt(rawVtt)
                 val language = track.getLanguageTag()
                 val base = fileBase(video, language)
-                val cleanText = SubtitleFormatter.format(cues, SubtitleTimestampMode.WITHOUT_TIMESTAMP)
-                if (OutputFormat.SRT in config.formats) {
-                    files += write(outputDir, base + ".srt", SubtitleFormatter.format(cues, config.timestampMode))
+
+                // Ghi file .srt ngay khi có xong, rồi để biến `cues` và bản text có mốc thời gian
+                // ra khỏi phạm vi sử dụng càng sớm càng tốt, thay vì giữ chúng "sống" tới cuối
+                // vòng lặp (khi đang tải nhiều phụ đề cùng lúc, mỗi bản giữ thêm trong RAM đều cộng dồn).
+                // Không đổi file đầu ra, chỉ đổi thời điểm bộ nhớ được giải phóng.
+                var cleanText: String
+                run {
+                    val rawVtt = downloader.fetchText(track.content, url)
+                    val cues = SubtitleParser.parseWebVtt(rawVtt)
+                    if (OutputFormat.SRT in config.formats) {
+                        files += write(outputDir, base + ".srt", SubtitleFormatter.format(cues, config.timestampMode))
+                    }
+                    cleanText = SubtitleFormatter.format(cues, SubtitleTimestampMode.WITHOUT_TIMESTAMP)
+                    // rawVtt và cues không còn được tham chiếu sau khối `run` này, nên có thể
+                    // được dọn ngay ở lần thu gom rác kế tiếp thay vì chờ tới hết `forEach`.
                 }
+
                 if (OutputFormat.TXT in config.formats) {
                     // Room is an analysis cache, not a download cache. A bulk download request
                     // must always materialize the requested subtitle file, even when Room already
