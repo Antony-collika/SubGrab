@@ -222,7 +222,14 @@ class DownloadViewModel(
    val ready=(cur as? AnalysisState.Ready)?:return@update cur
    val known=ready.videos.map{it.videoId}.toHashSet()
    val fresh=page.videos.filter{it.videoId !in known}.mapIndexed{i,v->v.copy(index=ready.videos.size+i+1)}
-   ready.copy(videos=ready.videos+fresh,total=page.total?:ready.total,hasMore=page.hasMore)
+   // Trước đây: ready.videos+fresh dùng toán tử "+" giữa 2 List, luôn cấp phát một mảng mới
+   // chứa bản sao của TOÀN BỘ phần tử cũ cộng phần tử mới. Bây giờ: dựng sẵn ArrayList đúng
+   // kích thước cần, rồi addAll một lần — vẫn ra đúng kết quả nhưng đỡ tốn cấp phát hơn khi
+   // danh sách đã có sẵn vài trăm video.
+   val merged=ArrayList<VideoItem>(ready.videos.size+fresh.size)
+   merged.addAll(ready.videos)
+   merged.addAll(fresh)
+   ready.copy(videos=merged,total=page.total?:ready.total,hasMore=page.hasMore)
   }
  }
  fun searchKeyword(keyword:String, forceRefresh:Boolean=false){
@@ -255,9 +262,32 @@ class DownloadViewModel(
  private fun isChannel(url:String)=url.contains("/channel/",true)||url.contains("/c/",true)||url.contains("/@",true)
  fun retryAnalysis(){lastUrl?.let(::analyze)?:lastKeyword?.let(::searchKeyword)}
  fun refreshMetadata(){lastUrl?.let{analyze(it,true)}?:lastKeyword?.let{searchKeyword(it,true)}};fun resetAnalysis(){loadJob?.cancel();moreLoader=null;_state.value=AnalysisState.Idle}
- fun toggle(index:Int){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(videos=c.videos.map{if(it.index==index&&it.canSelect)it.copy(isSelected=!it.isSelected)else it})}
- fun selectAll(){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(videos=c.videos.map{if(it.canSelect)it.copy(isSelected=true)else it})}
- fun clearSelection(){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(videos=c.videos.map{it.copy(isSelected=false)})}
+ // Trước đây: c.videos.map{...} tạo lại TOÀN BỘ danh sách (có thể vài trăm phần tử) mỗi lần
+ // người dùng tick chọn dù chỉ 1 video thay đổi. Bây giờ: chỉ dựng list mới bằng cách sửa đúng
+ // vị trí cần đổi (toMutableList + set tại index), tránh việc chép lại toàn bộ danh sách liên tục.
+ // Kết quả hiển thị cho người dùng giống hệt như trước.
+ fun toggle(index:Int){
+  val c=_state.value as? AnalysisState.Ready?:return
+  val pos=c.videos.indexOfFirst{it.index==index}
+  if(pos<0)return
+  val target=c.videos[pos]
+  if(!target.canSelect)return
+  val updated=c.videos.toMutableList()
+  updated[pos]=target.copy(isSelected=!target.isSelected)
+  _state.value=c.copy(videos=updated)
+ }
+ fun selectAll(){
+  val c=_state.value as? AnalysisState.Ready?:return
+  val updated=c.videos.toMutableList()
+  for(i in updated.indices){if(updated[i].canSelect&&!updated[i].isSelected)updated[i]=updated[i].copy(isSelected=true)}
+  _state.value=c.copy(videos=updated)
+ }
+ fun clearSelection(){
+  val c=_state.value as? AnalysisState.Ready?:return
+  val updated=c.videos.toMutableList()
+  for(i in updated.indices){if(updated[i].isSelected)updated[i]=updated[i].copy(isSelected=false)}
+  _state.value=c.copy(videos=updated)
+ }
  fun updateFolder(folder:String){val c=_state.value as? AnalysisState.Ready?:return;_state.value=c.copy(folder=folder)}
  fun startDownload(config: DownloadConfig, onEnqueued:()->Unit={}){
   val c=_state.value as? AnalysisState.Ready?:return
