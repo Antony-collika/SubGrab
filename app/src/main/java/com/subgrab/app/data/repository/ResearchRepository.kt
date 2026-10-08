@@ -90,17 +90,21 @@ class ResearchRepository(private val database: SubGrabDatabase) {
             args += "%" + filters.searchKeywordContext.trim() + "%"
         }
         if (filters.dataStates.isNotEmpty()) {
-            filters.dataStates.forEach { state ->
+            val dataStateConditions = filters.dataStates.mapNotNull { state ->
                 when (state) {
                     "SUBTITLE_DOWNLOADED" ->
-                        conditions += "EXISTS (SELECT 1 FROM transcripts tr WHERE tr.videoId = m.videoId)"
+                        "EXISTS (SELECT 1 FROM transcripts tr WHERE tr.videoId = m.videoId)"
                     "NO_SUBTITLE" ->
-                        conditions += "NOT EXISTS (SELECT 1 FROM transcripts tr WHERE tr.videoId = m.videoId)"
+                        "NOT EXISTS (SELECT 1 FROM transcripts tr WHERE tr.videoId = m.videoId)"
                     "COMMENTS_FETCHED" ->
-                        conditions += "v.commentsFetchedAt IS NOT NULL"
+                        "v.commentsFetchedAt IS NOT NULL"
                     "COMMENTS_NOT_FETCHED" ->
-                        conditions += "v.commentsFetchedAt IS NULL"
+                        "v.commentsFetchedAt IS NULL"
+                    else -> null
                 }
+            }
+            if (dataStateConditions.isNotEmpty()) {
+                conditions += "(" + dataStateConditions.joinToString(" OR ") + ")"
             }
         }
         if (filters.activityFrom != null || filters.activityTo != null) {
