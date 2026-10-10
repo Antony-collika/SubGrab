@@ -47,7 +47,7 @@ data class DownloadConfig(
     val formats: Set<OutputFormat> = setOf(OutputFormat.TXT),
     val preferManual: Boolean = true,
     val skipNoSub: Boolean = true,
-    val outputDir: String = "Download/Subtitles",
+    val outputDir: String = "Download",
     val timestampMode: SubtitleTimestampMode = SubtitleTimestampMode.WITH_TIMESTAMP,
     val subtitleConcurrency: Int = 1,
     val maxSubtitlesPerTask: Int = 10
