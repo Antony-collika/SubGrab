@@ -306,12 +306,7 @@ class DownloadOrchestrator(
                 return
             }
 
-            val basePath = config.outputDir.removePrefix("Download/").removePrefix("Download\\").ifBlank { "Subtitles" }
-            val relativePath = if (basePath == "Subtitles" && config.outputDir.equals("Download", ignoreCase = true)) {
-                dir.name
-            } else {
-                basePath + "/" + dir.name
-            }
+            val relativePath = storage.outputRelativePath(config.outputDir, dir)
             val published = storage.publishToDownloads(dir, relativePath)
             log("📁 Đã xuất " + published.size + " file vào Download/" + relativePath)
             val p = progress()

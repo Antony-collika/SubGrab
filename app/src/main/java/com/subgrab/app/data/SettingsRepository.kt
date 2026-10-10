@@ -27,7 +27,7 @@ class SettingsRepository(private val context: Context) {
         AppSettings(
             languages=p[Keys.languages]?.split(",")?.filter(String::isNotBlank) ?: listOf("vi","en"),
             formats=p[Keys.formats]?.split(",")?.mapNotNull { v -> OutputFormat.entries.find { it.name==v } }?.toSet() ?: setOf(OutputFormat.TXT),
-            outputDir=p[Keys.outputDir] ?: "Download/Subtitles", preferManualSub=p[Keys.preferManual] ?: true,
+            outputDir=(p[Keys.outputDir] ?: "Download/Subtitles").let { if (it.equals("Download/Subtitles", true)) "Download" else it }, preferManualSub=p[Keys.preferManual] ?: true,
             skipNoSub=p[Keys.skipNoSub] ?: true, timestampMode=p[Keys.timestampMode]?.let { runCatching { SubtitleTimestampMode.valueOf(it) }.getOrNull() } ?: SubtitleTimestampMode.WITH_TIMESTAMP,
             useYouTubeDataApi=p[Keys.useApi] ?: false, youtubeDataApiKey=p[Keys.apiKey] ?: "",
             subtitleDelayMode=p[Keys.subtitleDelayMode] ?: "AUTO", subtitleBaseDelayMs=(p[Keys.subtitleBase] ?: 0).coerceAtLeast(0),

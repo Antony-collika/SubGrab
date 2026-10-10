@@ -122,14 +122,16 @@ fun BulkSubtitleDownloadDialog(
 fun SingleSubtitleDownloadDialog(
     languages: List<SubtitleLanguage>,
     initialFolder: String,
+    initialFolderName: String = "video",
     initialFormat: OutputFormat = OutputFormat.TXT,
     onDismiss: () -> Unit,
-    onConfirm: (language: SubtitleLanguage, format: OutputFormat, folder: String) -> Unit
+    onConfirm: (language: SubtitleLanguage, format: OutputFormat, folder: String, folderName: String) -> Unit
 ) {
     var selectedCode by rememberSaveable { mutableStateOf(languages.firstOrNull()?.code.orEmpty()) }
     var selectedAuto by rememberSaveable { mutableStateOf(languages.firstOrNull()?.isAuto ?: false) }
     var format by rememberSaveable { mutableStateOf(initialFormat) }
     var folder by rememberSaveable { mutableStateOf(initialFolder) }
+    var folderName by rememberSaveable { mutableStateOf(initialFolderName) }
     var expanded by rememberSaveable { mutableStateOf(false) }
     var folderError by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -188,7 +190,17 @@ fun SingleSubtitleDownloadDialog(
                     Text("SRT", Modifier.padding(top = 12.dp))
                 }
 
-                Text("Thư mục lưu", style = MaterialTheme.typography.titleMedium)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text("transcript_", style = MaterialTheme.typography.bodyLarge)
+                    OutlinedTextField(
+                        value = folderName,
+                        onValueChange = { folderName = it },
+                        label = { Text("Tên thư mục") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Text("Thư mục gốc", style = MaterialTheme.typography.titleMedium)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(folder, {}, readOnly = true, modifier = Modifier.weight(1f), singleLine = true)
                     TextButton(onClick = {
@@ -206,7 +218,7 @@ fun SingleSubtitleDownloadDialog(
                 when {
                     selected == null -> Unit
                     folder.isBlank() -> folderError = "Vui lòng chọn thư mục."
-                    else -> onConfirm(selected, format, folder)
+                    else -> onConfirm(selected, format, folder, folderName.trim())
                 }
             }) { Text("Tải") }
         },

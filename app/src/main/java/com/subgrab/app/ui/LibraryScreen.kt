@@ -209,10 +209,12 @@ fun LibraryScreen(
         ExportDataSheet(
             videoCount = state.selectedVideos.size,
             initialFolder = settings.outputDir,
+            initialFolderName = state.selectedResults.mapNotNull { it.channelName?.takeIf(String::isNotBlank) }.distinct().singleOrNull()
+                ?: "export-${System.currentTimeMillis()}",
             onDismiss = { exportSheetOpen = false },
-            onConfirm = { options, folder ->
+            onConfirm = { options, folder, folderName ->
                 exportSheetOpen = false
-                viewModel.exportData(state.selectedResults, options, folder)
+                viewModel.exportData(state.selectedResults, options, folder, folderName)
             }
         )
     }
@@ -302,8 +304,9 @@ private fun estimateComments(videos: List<VideoSearchResult>, limitPerVideo: Int
 private fun ExportDataSheet(
     videoCount: Int,
     initialFolder: String,
+    initialFolderName: String,
     onDismiss: () -> Unit,
-    onConfirm: (ResearchExport.ExportOptions, String) -> Unit
+    onConfirm: (ResearchExport.ExportOptions, String, String) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var metadata by remember { mutableStateOf(true) }
@@ -311,7 +314,8 @@ private fun ExportDataSheet(
     var comments by remember { mutableStateOf(false) }
     var history by remember { mutableStateOf(false) }
     var format by remember { mutableStateOf(ResearchExport.ExportFormat.JSON) }
-    var folder by remember { mutableStateOf(initialFolder) }
+    var folder by remember { mutableStateOf(initialFolder.ifBlank { "Download" }) }
+    var folderName by remember { mutableStateOf(initialFolderName) }
     // 0 = gộp 1 file (mặc định, giống hành vi trước đây). > 0 = số video tối đa mỗi file.
     var videosPerFile by remember { mutableStateOf(0) }
     val pickFolder = rememberDownloadFolderPicker { folder = it }
@@ -368,6 +372,16 @@ private fun ExportDataSheet(
                 }
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("data_", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(
+                    value = folderName,
+                    onValueChange = { folderName = it },
+                    label = { Text("Tên thư mục") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "Lưu trong $folder",
                     style = MaterialTheme.typography.bodySmall,
@@ -389,7 +403,8 @@ private fun ExportDataSheet(
                                 format = format,
                                 videosPerFile = videosPerFile
                             ),
-                            folder
+                            folder,
+                            folderName.trim()
                         )
                     },
                     enabled = metadata || transcript || comments,

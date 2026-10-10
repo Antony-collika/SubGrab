@@ -79,7 +79,7 @@ class VideoDetailViewModel(
         }
     }
 
-    fun exportData(videoId: String, title: String, options: ResearchExport.ExportOptions, outputDir: String, onSuccess: (String) -> Unit) {
+    fun exportData(videoId: String, title: String, options: ResearchExport.ExportOptions, outputDir: String, folderName: String = title, onSuccess: (String) -> Unit) {
         _state.value = _state.value.copy(loading = true, error = null)
         viewModelScope.launch {
             runCatching {
@@ -101,8 +101,9 @@ class VideoDetailViewModel(
                     ResearchExport.ExportFormat.MD -> "md"
                 }
                 val fileName = "subgrab-" + com.subgrab.app.domain.FileNameSanitizer.sanitize(title) + "." + ext
-                fileStorage.publishTextFile(fileName, body, outputDir.removePrefix("Download/").removePrefix("Download\\").trim('/'))
-                "Download/" + outputDir.removePrefix("Download/").removePrefix("Download\\").trim('/').let { if (it.isBlank()) fileName else it + "/" + fileName }
+                val exportPath = fileStorage.createExportDirectory(folderName.ifBlank { title }, outputDir)
+                fileStorage.publishTextFile(fileName, body, exportPath)
+                "Download/$exportPath/$fileName"
             }.onSuccess {
                 load(videoId)
                 onSuccess(it)
@@ -114,14 +115,14 @@ class VideoDetailViewModel(
         _state.value = _state.value.copy(transcriptExpanded = !_state.value.transcriptExpanded)
     }
 
-    fun downloadSubtitles(videoId: String, title: String, language: com.subgrab.app.domain.SubtitleLanguage, format: com.subgrab.app.domain.OutputFormat, outputDir: String) {
+    fun downloadSubtitles(videoId: String, title: String, language: com.subgrab.app.domain.SubtitleLanguage, format: com.subgrab.app.domain.OutputFormat, outputDir: String, folderName: String = title) {
         _state.value = _state.value.copy(loading = true, error = null)
         viewModelScope.launch {
-            val dir = fileStorage.createTaskDirectory(title, outputDir)
+            val dir = fileStorage.createTaskDirectory(folderName, outputDir)
             val video = com.subgrab.app.domain.VideoItem(1, videoId, title, 0, emptyList())
             subtitleDownloader.downloadSingle(video, language, format, dir)
                 .onSuccess {
-                    fileStorage.publishToDownloads(dir, if (outputDir.equals("Download", true)) "" else outputDir.removePrefix("Download/").removePrefix("Download\\").trim('/'))
+                    fileStorage.publishToDownloads(dir, fileStorage.outputRelativePath(outputDir, dir))
                     load(videoId)
                 }
                 .onFailure {

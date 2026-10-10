@@ -33,7 +33,7 @@ fun DownloadConfirmSheet(
     var timestamp by remember { mutableStateOf(settings.timestampMode) }
     var official by remember { mutableStateOf(settings.preferManualSub) }
     var folderName by remember { mutableStateOf(initialFolderName) }
-    var outputDir by remember { mutableStateOf(settings.outputDir) }
+    var outputDir by remember { mutableStateOf(settings.outputDir.ifBlank { "Download" }) }
     val pickFolder = rememberDownloadFolderPicker { outputDir = it }
 
     val batchLimit = settings.maxSubtitlesPerTask.coerceIn(1, 50)
@@ -87,13 +87,16 @@ fun DownloadConfirmSheet(
                 }
                 Switch(checked = official, onCheckedChange = { official = it })
             }
-            OutlinedTextField(
-                value = folderName,
-                onValueChange = { folderName = it },
-                label = { Text("Tên thư mục") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("transcript_", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(
+                    value = folderName,
+                    onValueChange = { folderName = it },
+                    label = { Text("Tên") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+            }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "Lưu trong $outputDir",

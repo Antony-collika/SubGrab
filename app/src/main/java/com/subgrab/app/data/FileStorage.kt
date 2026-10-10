@@ -15,19 +15,69 @@ class FileStorage(private val context: Context) {
 
     fun defaultDirectory(): File = stagingRoot
 
-    fun createTaskDirectory(folderName: String, outputDir: String = "Download/Subtitles"): File {
-        val safeBase = outputDir.split('/', '\\').map(::sanitizeSegment).filter(String::isNotBlank).joinToString(File.separator).ifBlank { "Download/Subtitles" }
-        return File(stagingRoot, safeBase + File.separator + FileNameSanitizer.sanitize(folderName).ifBlank { "SubGrab" }).apply {
-            mkdirs()
-            // The staging directory is reused by folder name, while users can delete the
-            // previously published files. Remove stale staged subtitles so an old task can
-            // never republish files that are not part of the current selection.
-            listFiles()?.filter(::isSubtitleFile)?.forEach { file ->
-                if (!file.delete() && file.exists()) {
-                    throw StorageFailure("Không thể dọn file staging cũ: " + file.name)
+    private val reservedFolders = mutableSetOf<String>()
+
+    private fun outputParentRelativePath(outputDir: String): String {
+        val root = outputDir.replace('\\', '/').removePrefix("Download").trim('/')
+        return listOf(root, "SubGrab").filter(String::isNotBlank).joinToString("/")
+    }
+
+    @Synchronized
+    private fun uniqueFolderName(parentRelativePath: String, requestedName: String): String {
+        val safeName = sanitizeSegment(requestedName).ifBlank { "SubGrab" }
+        val fullParent = "Download/" + parentRelativePath.trim('/')
+        val existing = mutableSetOf<String>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            context.contentResolver.query(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Downloads.RELATIVE_PATH),
+                "${MediaStore.Downloads.RELATIVE_PATH} LIKE ?",
+                arrayOf("$fullParent/%"),
+                null
+            )?.use { cursor ->
+                val column = cursor.getColumnIndexOrThrow(MediaStore.Downloads.RELATIVE_PATH)
+                while (cursor.moveToNext()) {
+                    val path = cursor.getString(column)?.replace('\\', '/')?.trimEnd('/').orEmpty()
+                    val prefix = "$fullParent/"
+                    if (path.startsWith(prefix)) {
+                        val child = path.removePrefix(prefix).substringBefore('/')
+                        if (child.isNotBlank()) existing += child
+                    }
                 }
             }
+        } else {
+            @Suppress("DEPRECATION")
+            val parent = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), parentRelativePath)
+            parent.listFiles()?.filter { it.isDirectory }?.forEach { existing += it.name }
         }
+        var candidate = safeName
+        var suffix = 1
+        while (candidate in existing || "$fullParent/$candidate" in reservedFolders) {
+            candidate = "$safeName ($suffix)"
+            suffix++
+        }
+        reservedFolders += "$fullParent/$candidate"
+        return candidate
+    }
+
+    fun createTaskDirectory(folderName: String, outputDir: String = "Download"): File {
+        val parent = outputParentRelativePath(outputDir)
+        val uniqueName = uniqueFolderName(parent, "transcript_${sanitizeSegment(folderName)}")
+        return File(stagingRoot, uniqueName).apply {
+            mkdirs()
+            listFiles()?.filter(::isSubtitleFile)?.forEach { file ->
+                if (!file.delete() && file.exists()) throw StorageFailure("Không thể dọn file staging cũ: " + file.name)
+            }
+        }
+    }
+
+    fun outputRelativePath(outputDir: String, directory: File): String =
+        outputParentRelativePath(outputDir) + "/" + directory.name
+
+    fun createExportDirectory(folderName: String, outputDir: String = "Download"): String {
+        val parent = outputParentRelativePath(outputDir)
+        val uniqueName = uniqueFolderName(parent, "data_${sanitizeSegment(folderName)}")
+        return "$parent/$uniqueName"
     }
 
     fun publishToDownloads(directory: File, relativePath: String): List<String> {
@@ -108,5 +158,5 @@ class FileStorage(private val context: Context) {
 
     private fun isSubtitleFile(file: File): Boolean = file.isFile && (file.extension.equals("srt", true) || file.extension.equals("txt", true))
     private fun mimeType(file: File): String = if (file.extension.equals("srt", true)) "application/x-subrip" else "text/plain"
-    private fun sanitizeSegment(value: String): String = FileNameSanitizer.sanitize(value).take(60)
+    private fun sanitizeSegment(value: String): String = FileNameSanitizer.sanitize(value).trim().take(60)
 }

@@ -69,7 +69,7 @@ private fun activityLabel(item: ResearchActivityItem): String = when (item.type)
 fun VideoDetailScreen(
     viewModel: VideoDetailViewModel,
     videoId: String,
-    defaultDownloadFolder: String = "Download/Subtitles",
+    defaultDownloadFolder: String = "Download",
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.state.collectAsState()
@@ -80,6 +80,8 @@ fun VideoDetailScreen(
     var history by rememberSaveable { mutableStateOf(false) }
     var format by rememberSaveable { mutableStateOf("JSON") }
     var exportFolder by rememberSaveable { mutableStateOf(defaultDownloadFolder) }
+    var exportName by rememberSaveable { mutableStateOf("export") }
+    LaunchedEffect(state.result?.title) { if (exportName == "export") exportName = state.result?.title.orEmpty().ifBlank { "export" } }
     var exportFormatMenuOpen by rememberSaveable { mutableStateOf(false) }
     var subtitleDownloadOpen by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
@@ -126,6 +128,16 @@ fun VideoDetailScreen(
                     Row { Checkbox(transcript, { transcript = it }); Text("transcript") }
                     Row { Checkbox(comments, { comments = it }); Text("comments") }
                     Row { RadioButton(history, { history = !history }); Text("dữ liệu lịch sử") }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text("data_", style = MaterialTheme.typography.bodyLarge)
+                        OutlinedTextField(
+                            value = exportName,
+                            onValueChange = { exportName = it },
+                            label = { Text("Tên thư mục") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Định dạng", modifier = Modifier.weight(1f))
                         Box {
@@ -168,7 +180,8 @@ fun VideoDetailScreen(
                             history = history,
                             format = ResearchExport.ExportFormat.valueOf(format)
                         ),
-                        exportFolder
+                        exportFolder,
+                        exportName
                     ) { path -> Toast.makeText(context, "Exported to $path", Toast.LENGTH_LONG).show() }
                 }) { Text("Xuất") }
             },
@@ -194,10 +207,11 @@ fun VideoDetailScreen(
         SingleSubtitleDownloadDialog(
             languages = subtitleLanguages,
             initialFolder = defaultDownloadFolder,
+            initialFolderName = state.result?.title.orEmpty(),
             onDismiss = { subtitleDownloadOpen = false },
-            onConfirm = { language, selectedFormat, folder ->
+            onConfirm = { language, selectedFormat, folder, folderName ->
                 subtitleDownloadOpen = false
-                viewModel.downloadSubtitles(videoId, state.result?.title.orEmpty(), language, selectedFormat, folder)
+                viewModel.downloadSubtitles(videoId, state.result?.title.orEmpty(), language, selectedFormat, folder, folderName)
             }
         )
     } else if (transcriptRefreshOpen && subtitleLanguages.isNotEmpty()) {

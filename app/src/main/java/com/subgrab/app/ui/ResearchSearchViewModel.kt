@@ -280,7 +280,7 @@ class ResearchSearchViewModel(
      * Nếu `options.videosPerFile > 0`: chia thành nhiều file, mỗi file tối đa chừng đó video,
      * để file nhẹ hơn, dễ mở/upload sang phần mềm khác.
      */
-    fun exportData(videos: List<VideoSearchResult>, options: ResearchExport.ExportOptions, outputDir: String) {
+    fun exportData(videos: List<VideoSearchResult>, options: ResearchExport.ExportOptions, outputDir: String, folderName: String = "export") {
         if (videos.isEmpty() || _batch.value.running) return
         batchJob = viewModelScope.launch {
             _batch.value = BatchState(running = true, label = "Đang xuất data", total = videos.size)
@@ -293,8 +293,7 @@ class ResearchSearchViewModel(
                     ResearchExport.ExportFormat.MD -> "md"
                 }
                 val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
-                val sub = outputDir.removePrefix("Download/").removePrefix("Download\\").trim('/')
-                    .let { if (it.equals("Download", ignoreCase = true)) "" else it }
+                val exportPath = fileStorage.createExportDirectory(folderName.ifBlank { "export-$stamp" }, outputDir)
 
                 // Chia danh sách video trước khi đọc dữ liệu từ Room. Chỉ một batch được
                 // giữ trong RAM tại một thời điểm, thay vì giữ toàn bộ VideoExportData.
@@ -355,8 +354,8 @@ class ResearchSearchViewModel(
                             "subgrab-export-part" + part + "-" + videoBatch.size + "video-" + stamp + "." + ext
                         }
 
-                        fileStorage.publishTextFile(fileName, body, sub)
-                        paths += "Download/" + if (sub.isBlank()) fileName else "$sub/$fileName"
+                        fileStorage.publishTextFile(fileName, body, exportPath)
+                        paths += "Download/$exportPath/$fileName"
                     }
                 }
 
