@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
@@ -35,6 +37,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.subgrab.app.SubGrabExtras
 import com.subgrab.app.data.DownloadHistoryEntry
@@ -316,12 +319,14 @@ private fun ExportDataSheet(
     var format by remember { mutableStateOf(ResearchExport.ExportFormat.JSON) }
     var folder by remember { mutableStateOf(initialFolder.ifBlank { "Download" }) }
     var folderName by remember { mutableStateOf(initialFolderName) }
-    // 0 = gộp 1 file (mặc định, giống hành vi trước đây). > 0 = số video tối đa mỗi file.
-    var videosPerFile by remember { mutableStateOf(0) }
+    // Mặc định chia file, mỗi file tối đa 10 video; người dùng có thể chuyển sang gộp một file.
+    var splitFiles by rememberSaveable { mutableStateOf(true) }
+    var videosPerFileText by rememberSaveable { mutableStateOf("10") }
+    val videosPerFile = if (splitFiles) videosPerFileText.toIntOrNull()?.takeIf { it > 0 } ?: 10 else 0
     val pickFolder = rememberDownloadFolderPicker { folder = it }
 
     val fileCountPreview = if (videosPerFile <= 0) 1 else (videoCount + videosPerFile - 1) / videosPerFile.coerceAtLeast(1)
-    val summaryLine = if (videosPerFile <= 0) {
+    val summaryLine = if (!splitFiles) {
         "$videoCount video · gộp thành 1 file"
     } else {
         "$videoCount video · chia thành $fileCountPreview file ($videosPerFile video/file)"
@@ -357,15 +362,33 @@ private fun ExportDataSheet(
                 }
             }
             ExportSection("Chia file") {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ChoiceChip("Gộp 1 file", videosPerFile == 0, { videosPerFile = 0 })
-                        ChoiceChip("10 video/file", videosPerFile == 10, { videosPerFile = 10 })
-                        ChoiceChip("20 video/file", videosPerFile == 20, { videosPerFile = 20 })
-                        ChoiceChip("50 video/file", videosPerFile == 50, { videosPerFile = 50 })
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = !splitFiles, onClick = { splitFiles = false })
+                        Text("Gộp tất cả vào 1 file", modifier = Modifier.clickable { splitFiles = false })
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = splitFiles, onClick = { splitFiles = true })
+                        Text("Chia file, tối đa", modifier = Modifier.clickable { splitFiles = true })
+                        Spacer(Modifier.width(8.dp))
+                        BasicTextField(
+                            value = videosPerFileText,
+                            onValueChange = { value -> videosPerFileText = value.filter(Char::isDigit).take(6) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                            modifier = Modifier.width(56.dp),
+                            decorationBox = { innerTextField ->
+                                Column {
+                                    Box { if (videosPerFileText.isEmpty()) Text("10", color = MaterialTheme.colorScheme.onSurfaceVariant); innerTextField() }
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                                }
+                            }
+                        )
+                        Text("video/file", style = MaterialTheme.typography.bodyMedium)
                     }
                     Text(
-                        "File nhỏ hơn sẽ dễ mở hoặc tải lên phần mềm khác hơn khi xuất nhiều video.",
+                        "Nhập số video cho mỗi file. Mặc định là 10.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -373,17 +396,25 @@ private fun ExportDataSheet(
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("data_", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                OutlinedTextField(
-                    value = folderName,
-                    onValueChange = { folderName = it },
-                    label = { Text("Tên thư mục") },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f)
-                )
+                Column(Modifier.weight(1f)) {
+                    BasicTextField(
+                        value = folderName,
+                        onValueChange = { folderName = it },
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                        modifier = Modifier.fillMaxWidth(),
+                        decorationBox = { innerTextField ->
+                            Column {
+                                Box { if (folderName.isEmpty()) Text("Tên thư mục", color = MaterialTheme.colorScheme.onSurfaceVariant); innerTextField() }
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                            }
+                        }
+                    )
+                }
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Lưu trong $folder",
+                    "Lưu trong ${folder.trimEnd('/')}/SubGrab",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
@@ -401,7 +432,7 @@ private fun ExportDataSheet(
                                 comments = comments,
                                 history = history,
                                 format = format,
-                                videosPerFile = videosPerFile
+                                videosPerFile = if (splitFiles) videosPerFileText.toIntOrNull()?.takeIf { it > 0 } ?: 10 else 0
                             ),
                             folder,
                             folderName.trim()
