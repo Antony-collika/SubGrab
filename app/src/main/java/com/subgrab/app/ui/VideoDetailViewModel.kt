@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 data class VideoDetailState(
     val result: VideoSearchResult? = null,
@@ -101,8 +103,11 @@ class VideoDetailViewModel(
                     ResearchExport.ExportFormat.MD -> "md"
                 }
                 val fileName = "subgrab-" + com.subgrab.app.domain.FileNameSanitizer.sanitize(title) + "." + ext
-                val exportPath = fileStorage.createExportDirectory(folderName.ifBlank { title }, outputDir)
-                fileStorage.publishTextFile(fileName, body, exportPath)
+                val exportPath = withContext(Dispatchers.IO) {
+                    val path = fileStorage.createExportDirectory(folderName.ifBlank { title }, outputDir)
+                    fileStorage.publishTextFile(fileName, body, path)
+                    path
+                }
                 "Download/$exportPath/$fileName"
             }.onSuccess {
                 load(videoId)

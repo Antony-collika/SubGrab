@@ -293,7 +293,7 @@ class ResearchSearchViewModel(
                     ResearchExport.ExportFormat.MD -> "md"
                 }
                 val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
-                val exportPath = fileStorage.createExportDirectory(folderName.ifBlank { "export-$stamp" }, outputDir)
+                val exportPath = withContext(Dispatchers.IO) { fileStorage.createExportDirectory(folderName.ifBlank { "export-$stamp" }, outputDir) }
 
                 // Chia danh sách video trước khi đọc dữ liệu từ Room. Chỉ một batch được
                 // giữ trong RAM tại một thời điểm, thay vì giữ toàn bộ VideoExportData.
