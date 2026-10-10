@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -129,13 +130,19 @@ fun VideoDetailScreen(
                     Row { Checkbox(comments, { comments = it }); Text("comments") }
                     Row { RadioButton(history, { history = !history }); Text("dữ liệu lịch sử") }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Text("data_", style = MaterialTheme.typography.bodyLarge)
-                        OutlinedTextField(
+                        Text("data_", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        BasicTextField(
                             value = exportName,
                             onValueChange = { exportName = it },
-                            label = { Text("Tên thư mục") },
                             singleLine = true,
-                            modifier = Modifier.weight(1f)
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                            modifier = Modifier.weight(1f),
+                            decorationBox = { innerTextField ->
+                                Column {
+                                    Box { if (exportName.isEmpty()) Text("Tên thư mục", color = MaterialTheme.colorScheme.onSurfaceVariant); innerTextField() }
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                                }
+                            }
                         )
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -154,7 +161,7 @@ fun VideoDetailScreen(
                             value = exportFolder,
                             readOnly = true,
                             onValueChange = {},
-                            label = { Text("Thư mục trong Downloads") },
+                            label = { Text("Thư mục gốc trong Download") },
                             modifier = Modifier.weight(1f),
                             singleLine = true
                         )
