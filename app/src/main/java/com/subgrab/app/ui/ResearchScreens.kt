@@ -172,6 +172,11 @@ fun VideoDetailScreen(
                             exportFolderPicker.launch(initial)
                         }) { Text("Chọn thư mục") }
                     }
+                    Text(
+                        "Lưu trong ${exportFolder.trimEnd('/')}/SubGrab",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             },
             confirmButton = {
